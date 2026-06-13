@@ -36,6 +36,7 @@ describe('MockDictationPipeline', () => {
     const pipeline = new MockDictationPipeline(undefined, immediateDelay);
 
     pipeline.enqueueMockDictation({ sttDelayMs: 20, llmDelayMs: 20, recordingDelayMs: 0 });
+    await Promise.resolve();
     pipeline.enqueueMockDictation({ sttDelayMs: 0, llmDelayMs: 0, recordingDelayMs: 0 });
     await pipeline.whenIdle();
 
@@ -45,13 +46,14 @@ describe('MockDictationPipeline', () => {
     expect(deliveredSequences).toEqual([1, 2]);
   });
 
-  it('scoped cancel leaves later background work available', async () => {
+  it('canceling the active mock recording discards that recording without enqueueing a job', async () => {
     const pipeline = new MockDictationPipeline(undefined, immediateDelay);
-    pipeline.enqueueMockDictation({ recordingDelayMs: 0, sttDelayMs: 10, llmDelayMs: 10 });
+    pipeline.enqueueMockDictation({ recordingDelayMs: 10, sttDelayMs: 0, llmDelayMs: 0 });
     const canceled = pipeline.cancelForegroundJob();
 
-    expect(canceled.queue.terminalCount).toBeGreaterThanOrEqual(0);
+    expect(canceled.recording.active).toBe(false);
     await pipeline.whenIdle();
-    expect(pipeline.getSnapshot().queue.items.every((item) => item.status !== 'queued')).toBe(true);
+    expect(pipeline.getSnapshot().queue.items).toEqual([]);
+    expect(pipeline.getSnapshot().history).toEqual([]);
   });
 });

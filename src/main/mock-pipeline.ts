@@ -55,6 +55,9 @@ export class MockDictationPipeline {
   readonly #tasks = new Set<Promise<void>>();
   readonly #delay: Delay;
   #history: HistoryRecordSnapshot[] = [];
+  #activeRecordingId: string | null = null;
+  #nextRecordingId = 1;
+  readonly #canceledRecordingIds = new Set<string>();
 
   constructor(listener?: SnapshotListener, delay: Delay = defaultDelay) {
     if (listener) this.#listeners.add(listener);
@@ -103,9 +106,14 @@ export class MockDictationPipeline {
   }
 
   enqueueMockDictation(options: MockPipelineOptions = {}): AppSnapshot {
+    if (this.#queue.isRecordingActive) return this.getSnapshot();
+
+    const recordingId = `recording-${this.#nextRecordingId}`;
+    this.#nextRecordingId += 1;
+    this.#activeRecordingId = recordingId;
     this.#queue.setRecordingActive(true);
     this.#emit();
-    const task = this.#runMockJob({
+    const task = this.#runMockJob(recordingId, {
       recordingDelayMs: 120,
       sttDelayMs: 160,
       llmDelayMs: 120,
@@ -118,7 +126,14 @@ export class MockDictationPipeline {
   }
 
   cancelForegroundJob(): AppSnapshot {
-    this.#queue.setRecordingActive(false);
+    if (this.#queue.isRecordingActive && this.#activeRecordingId) {
+      this.#canceledRecordingIds.add(this.#activeRecordingId);
+      this.#activeRecordingId = null;
+      this.#queue.setRecordingActive(false);
+      this.#emit();
+      return this.getSnapshot();
+    }
+
     this.#queue.cancelForegroundJob();
     this.#emit();
     void this.#tryDeliverReadyJobs();
@@ -131,8 +146,11 @@ export class MockDictationPipeline {
     }
   }
 
-  async #runMockJob(options: Required<MockPipelineOptions>): Promise<void> {
+  async #runMockJob(recordingId: string, options: Required<MockPipelineOptions>): Promise<void> {
     await this.#delay(options.recordingDelayMs);
+    if (this.#canceledRecordingIds.delete(recordingId)) return;
+    if (this.#activeRecordingId === recordingId) this.#activeRecordingId = null;
+
     const job = this.#queue.enqueue({
       id: `mock-${Date.now()}-${Math.random().toString(16).slice(2)}`,
       createdAtIso: new Date().toISOString(),
