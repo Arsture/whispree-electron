@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 
@@ -19,15 +19,20 @@ const swiftCandidates = [
   resolve(repoRoot, '..', 'whispree', 'DerivedData', 'Whispree.app'),
 ];
 const swiftApp = swiftCandidates.find((candidate) => existsSync(candidate));
+const captureErrors = [];
 
 if (!dryRun) {
-  await captureElectron();
-  if (swiftApp && process.platform === 'darwin') await captureSwift(swiftApp).catch(() => undefined);
+  removeStaleCapture(electronShot);
+  removeStaleCapture(swiftShot);
+  await captureElectron().catch((error) => captureErrors.push(`electron-capture-failed: ${errorMessage(error)}`));
+  if (swiftApp && process.platform === 'darwin') {
+    await captureSwift(swiftApp).catch((error) => captureErrors.push(`swift-capture-failed: ${errorMessage(error)}`));
+  }
 }
 
 const electronExists = existsSync(electronShot);
 const swiftShotExists = existsSync(swiftShot);
-const blockers = [];
+const blockers = [...captureErrors];
 if (!electronExists) blockers.push('electron-screenshot-missing-run-without-dry-run');
 if (!swiftApp) blockers.push('swift-app-bundle-not-found-for-side-by-side-capture');
 else if (!swiftShotExists) blockers.push('swift-reference-screenshot-missing-run-without-dry-run-or-screen-permission');
@@ -92,4 +97,12 @@ function parseAppleScriptBounds(output) {
   if (numbers.length < 4) throw new Error(`Unable to parse Whispree window bounds: ${output}`);
   const [x, y, width, height] = numbers;
   return `${x},${y},${width},${height}`;
+}
+
+function removeStaleCapture(filePath) {
+  rmSync(filePath, { force: true });
+}
+
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
 }

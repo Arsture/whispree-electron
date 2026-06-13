@@ -62,6 +62,11 @@ describe('renderer Swift UI parity model', () => {
     expect(statusTitle(processing)).toBe('Processing mock dictation queue');
     expect(statusTitle(recording)).toBe('Mock recording in progress');
     expect(queueProcessingText(processing)).toContain('insertion remains FIFO');
+    expect(queueProcessingText({
+      ...initialAppSnapshot,
+      recording: { active: false, mode: 'real', label: 'Real provider pipeline processing' },
+      queue: { ...initialAppSnapshot.queue, processingCount: 1 },
+    })).toBe('Processing your microphone dictation…');
     expect(overlayStatusText(processing)).toBe('Processing 2 items');
     expect(foregroundCancelLabel(processing)).toBe('Cancel #7');
     expect(foregroundCancelLabel(recording)).toBe('Cancel');

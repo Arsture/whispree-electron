@@ -151,7 +151,9 @@ export function statusTone(snapshot: AppSnapshot): BadgeTone {
 export function queueProcessingText(snapshot: AppSnapshot): string {
   const active = snapshot.queue.processingCount + snapshot.queue.deliveryReadyCount;
   if (active > 1) return `${active} dictations in queue · insertion remains FIFO`;
-  if (snapshot.queue.processingCount === 1) return 'Processing your mock dictation…';
+  if (snapshot.queue.processingCount === 1) {
+    return snapshot.recording.mode === 'real' ? 'Processing your microphone dictation…' : 'Processing your mock dictation…';
+  }
   return 'Queue is calm and ready.';
 }
 

@@ -16,7 +16,7 @@ export class ProcessSidecarTransport implements JsonLineSidecarTransport {
   constructor(spec: SidecarProcessSpec) {
     this.#child = spawn(spec.command, [...spec.args], {
       cwd: spec.cwd,
-      env: spec.env ? { ...process.env, ...spec.env } : process.env,
+      env: buildSidecarEnvironment(spec.env),
       stdio: 'pipe',
     });
     this.#child.stdout.setEncoding('utf8');
@@ -34,4 +34,25 @@ export class ProcessSidecarTransport implements JsonLineSidecarTransport {
   dispose(): void {
     this.#child.kill();
   }
+}
+
+export function buildSidecarEnvironment(explicitEnv: Readonly<Record<string, string>> = {}): NodeJS.ProcessEnv {
+  const allowedParentKeys = [
+    'PATH',
+    'SystemRoot',
+    'WINDIR',
+    'HOME',
+    'USERPROFILE',
+    'TMPDIR',
+    'TEMP',
+    'TMP',
+    'PYTHONPATH',
+    'VIRTUAL_ENV',
+  ] as const;
+  const env: NodeJS.ProcessEnv = {};
+  for (const key of allowedParentKeys) {
+    const value = process.env[key];
+    if (value !== undefined) env[key] = value;
+  }
+  return { ...env, ...explicitEnv };
 }

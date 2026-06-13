@@ -1,5 +1,4 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
-import { homedir } from 'node:os';
 import path from 'node:path';
 import {
   applySettingsUpdate,
@@ -40,7 +39,7 @@ export class FileSettingsStore implements CloudCredentialBoundary {
 
   async getSecret(kind: CloudProviderKind): Promise<string | null> {
     if (kind === 'groq') return firstNonEmpty(this.#groqApiKey, process.env.GROQ_API_KEY);
-    return firstNonEmpty(process.env.OPENAI_API_KEY, await readOpenAIKeyFromCodexAuth());
+    return firstNonEmpty(process.env.OPENAI_API_KEY);
   }
 
   async load(): Promise<AppSettingsSnapshot> {
@@ -94,16 +93,6 @@ export function createSettingsStore(userDataPath: string): FileSettingsStore {
 
 function isFileMissing(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT';
-}
-
-async function readOpenAIKeyFromCodexAuth(): Promise<string | null> {
-  try {
-    const authPath = path.join(homedir(), '.codex', 'auth.json');
-    const auth = JSON.parse(await readFile(authPath, 'utf8')) as Record<string, unknown>;
-    return typeof auth.OPENAI_API_KEY === 'string' && auth.OPENAI_API_KEY.trim().length > 0 ? auth.OPENAI_API_KEY : null;
-  } catch {
-    return null;
-  }
 }
 
 function firstNonEmpty(...values: readonly (string | null | undefined)[]): string | null {

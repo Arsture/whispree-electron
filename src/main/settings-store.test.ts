@@ -1,9 +1,16 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { defaultPersistedAppSettings } from '../shared/settings';
 import { FileSettingsStore } from './settings-store';
+
+const originalOpenAiKey = process.env.OPENAI_API_KEY;
+
+afterEach(() => {
+  if (originalOpenAiKey === undefined) delete process.env.OPENAI_API_KEY;
+  else process.env.OPENAI_API_KEY = originalOpenAiKey;
+});
 
 async function tempStore() {
   const dir = await mkdtemp(path.join(tmpdir(), 'whispree-settings-'));
@@ -37,6 +44,19 @@ describe('FileSettingsStore', () => {
       expect(persistedText).not.toContain('gsk_test_123');
       expect('groqApiKey' in persisted).toBe(false);
       await expect(store.getSecret('groq')).resolves.toBe('gsk_test_123');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('requires an explicit OpenAI API key boundary instead of reading Codex auth implicitly', async () => {
+    const { dir, store } = await tempStore();
+    try {
+      delete process.env.OPENAI_API_KEY;
+      await store.load();
+      await expect(store.getSecret('openai')).resolves.toBeNull();
+      process.env.OPENAI_API_KEY = 'sk_explicit_env';
+      await expect(store.getSecret('openai')).resolves.toBe('sk_explicit_env');
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
