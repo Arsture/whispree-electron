@@ -24,6 +24,8 @@ for (const key of ['ok', 'claim', 'artifacts', 'blockers', 'checklist', 'swiftCo
   if (!(key in parsed)) throw new Error(`JSON verdict missing ${key}`);
 }
 if (parsed.pixelPerfectClaimAllowed !== false) throw new Error('dry-run/default verdict must not allow pixel-perfect claims');
+if (parsed.automatedPixelDiff?.implemented !== false) throw new Error('visual parity verdict must explicitly report that automated pixel diff is not implemented');
+if (parsed.artifacts.swiftApp !== null) throw new Error('default verdict must not select /Applications/Whispree.app or any implicit Swift app path');
 if (!parsed.blockers.includes('swift-reference-capture-requires-explicit-opt-in')) throw new Error('default run must keep Swift capture opt-in blocker');
 for (const token of ['tabOrder', 'cssTokens', 'permissionRows', 'settingsAnchors', 'historyAnchors', 'contextSurfaces']) {
   if (!(token in parsed.swiftContract)) throw new Error(`swift contract missing ${token}`);
@@ -31,6 +33,16 @@ for (const token of ['tabOrder', 'cssTokens', 'permissionRows', 'settingsAnchors
 if (!parsed.swiftContract.cssTokens.cardRadius || !parsed.swiftContract.cssTokens.overlayWidth) {
   throw new Error('swift contract missing radius/overlay dimensions');
 }
+const explicitOutput = execFileSync('node', ['scripts/capture-visual-parity.mjs', '--dry-run'], {
+  cwd: root,
+  encoding: 'utf8',
+  env: { ...process.env, WHISPREE_CAPTURE_SWIFT_APP: '1' },
+});
+if (!explicitOutput.includes('swift-reference-capture-requires-explicit-app-path')) {
+  throw new Error(`Swift capture opt-in without path must require explicit app path: ${explicitOutput}`);
+}
+const explicitParsed = JSON.parse(readFileSync(verdictJson, 'utf8'));
+if (explicitParsed.artifacts.swiftApp !== null) throw new Error('Swift capture opt-in without WHISPREE_SWIFT_APP_PATH must not use implicit app candidates');
 rmSync(electron, { force: true });
 rmSync(swift, { force: true });
 console.log('Visual parity dry-run stale-artifact and JSON contract guard passed.');

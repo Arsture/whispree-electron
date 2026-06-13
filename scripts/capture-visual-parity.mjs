@@ -15,22 +15,27 @@ mkdirSync(artifactRoot, { recursive: true });
 mkdirSync(electronCaptureRoot, { recursive: true });
 
 const explicitSwiftAppPath = process.env.WHISPREE_SWIFT_APP_PATH;
-const shouldCaptureSwift = process.argv.includes('--capture-swift') || process.env.WHISPREE_CAPTURE_SWIFT_APP === '1' || Boolean(explicitSwiftAppPath);
-const swiftCandidates = [
-  explicitSwiftAppPath,
-  '/Applications/Whispree.app',
-  resolve(repoRoot, '..', 'whispree', 'build', 'Whispree.app'),
-  resolve(repoRoot, '..', 'whispree', 'DerivedData', 'Whispree.app'),
-].filter(Boolean);
-const swiftApp = swiftCandidates.find((candidate) => existsSync(candidate));
+const expectedSwiftBundleId = process.env.WHISPREE_SWIFT_BUNDLE_ID || 'com.whispree.app';
+const wantsSwiftCapture = process.argv.includes('--capture-swift') || process.env.WHISPREE_CAPTURE_SWIFT_APP === '1';
+const swiftApp = explicitSwiftAppPath && existsSync(explicitSwiftAppPath) ? explicitSwiftAppPath : null;
+const shouldCaptureSwift = Boolean(wantsSwiftCapture && swiftApp);
 const captureErrors = [];
+let swiftBundleId = null;
+let swiftBundleVerified = false;
 
 if (!dryRun) {
   removeStaleCapture(electronShot);
   removeStaleCapture(swiftShot);
   await captureElectron().catch((error) => captureErrors.push(`electron-capture-failed: ${errorMessage(error)}`));
-  if (shouldCaptureSwift && swiftApp && process.platform === 'darwin') {
-    await captureSwift(swiftApp).catch((error) => captureErrors.push(`swift-capture-failed: ${errorMessage(error)}`));
+  if (swiftApp) {
+    swiftBundleId = await readBundleIdentifier(swiftApp).catch((error) => {
+      captureErrors.push(`swift-bundle-id-read-failed: ${errorMessage(error)}`);
+      return null;
+    });
+    swiftBundleVerified = swiftBundleId === expectedSwiftBundleId;
+  }
+  if (shouldCaptureSwift && swiftBundleVerified && process.platform === 'darwin') {
+    await captureSwift(swiftApp, expectedSwiftBundleId).catch((error) => captureErrors.push(`swift-capture-failed: ${errorMessage(error)}`));
   }
 }
 
@@ -41,8 +46,10 @@ const blockers = [...captureErrors];
 if (dryRun) blockers.push('dry-run-did-not-capture-current-screenshots');
 if (!electronExists) blockers.push('electron-screenshot-missing-run-without-dry-run');
 if (!swiftContract.sourceCoverageOk) blockers.push('swift-source-contract-coverage-missing');
-if (!shouldCaptureSwift) blockers.push('swift-reference-capture-requires-explicit-opt-in');
-else if (!swiftApp) blockers.push('swift-app-bundle-not-found-for-side-by-side-capture');
+if (!wantsSwiftCapture) blockers.push('swift-reference-capture-requires-explicit-opt-in');
+else if (!explicitSwiftAppPath) blockers.push('swift-reference-capture-requires-explicit-app-path');
+else if (!swiftApp) blockers.push('swift-app-bundle-not-found-for-explicit-path');
+else if (!swiftBundleVerified) blockers.push(`swift-app-bundle-id-mismatch-expected-${expectedSwiftBundleId}`);
 else if (!swiftShotExists) blockers.push('swift-reference-screenshot-missing-run-without-dry-run-or-screen-permission');
 
 const checklist = buildChecklist(swiftContract, { electronExists, swiftShotExists, shouldCaptureSwift });
@@ -52,10 +59,17 @@ const verdict = {
   dryRun,
   shouldCaptureSwift,
   claim,
-  pixelPerfectClaimAllowed: blockers.length === 0 && swiftShotExists,
+  pixelPerfectClaimAllowed: false,
+  automatedPixelDiff: {
+    implemented: false,
+    status: 'manual-required',
+    reason: 'This script captures artifacts and source-derived UI contract only; it does not compute pixel diffs.',
+  },
   artifacts: {
     electronScreenshot: electronExists ? electronShot : null,
     swiftApp: swiftApp ?? null,
+    swiftBundleId,
+    expectedSwiftBundleId,
     swiftScreenshot: swiftShotExists ? swiftShot : null,
     markdown: verdictPath,
     json: jsonPath,
@@ -68,7 +82,7 @@ const verdict = {
 const markdown = renderMarkdown(verdict);
 writeFileSync(verdictPath, markdown, 'utf8');
 writeFileSync(jsonPath, `${JSON.stringify(verdict, null, 2)}\n`, 'utf8');
-console.log(JSON.stringify({ ok: true, dryRun, shouldCaptureSwift, electronShot: verdict.artifacts.electronScreenshot, swiftShot: verdict.artifacts.swiftScreenshot, swiftApp: swiftApp ?? null, verdictPath, jsonPath, blockers }, null, 2));
+console.log(JSON.stringify({ ok: true, dryRun, shouldCaptureSwift, electronShot: verdict.artifacts.electronScreenshot, swiftShot: verdict.artifacts.swiftScreenshot, swiftApp: swiftApp ?? null, swiftBundleId, verdictPath, jsonPath, blockers }, null, 2));
 
 async function captureElectron() {
   await new Promise((resolvePromise, rejectPromise) => {
@@ -92,14 +106,22 @@ async function captureElectron() {
   });
 }
 
-async function captureSwift(appPath) {
-  await exec('open', [appPath]);
-  await exec('osascript', ['-e', 'tell application "Whispree" to activate']).catch(() => undefined);
+async function captureSwift(appPath, bundleId) {
+  await exec('open', ['-n', appPath]);
   await new Promise((resolvePromise) => setTimeout(resolvePromise, 1800));
-  const bounds = await execOutput('osascript', ['-e', 'tell application "System Events" to tell process "Whispree" to get {position, size} of front window']);
+  const processName = await processNameForBundleId(bundleId);
+  const bounds = await execOutput('osascript', ['-e', `tell application "System Events" to tell process "${processName}" to get {position, size} of front window`]);
   const region = parseAppleScriptBounds(bounds);
   await exec('screencapture', ['-x', '-R', region, swiftShot]);
-  await exec('osascript', ['-e', 'tell application "Whispree" to quit']).catch(() => undefined);
+}
+
+async function readBundleIdentifier(appPath) {
+  return execOutput('/usr/libexec/PlistBuddy', ['-c', 'Print :CFBundleIdentifier', resolve(appPath, 'Contents/Info.plist')]);
+}
+
+async function processNameForBundleId(bundleId) {
+  const script = `tell application "System Events" to get name of first application process whose bundle identifier is "${bundleId}"`;
+  return execOutput('osascript', ['-e', script]);
 }
 
 async function exec(command, args) {
@@ -182,7 +204,7 @@ function buildChecklist(contract, artifacts) {
 }
 
 function renderMarkdown(value) {
-  return `# Whispree Side-by-Side Visual Parity Verdict\n\nGenerated: ${new Date().toISOString()}\n\n## Claim\n\n- ${value.claim}\n- Pixel-perfect claim allowed: ${value.pixelPerfectClaimAllowed ? 'yes' : 'no'}\n\n## Artifacts\n\n- Electron screenshot: ${value.artifacts.electronScreenshot ?? 'missing'}\n- Swift app candidate: ${value.artifacts.swiftApp ?? 'missing'}\n- Swift capture opt-in: ${value.shouldCaptureSwift ? 'enabled' : 'disabled'}\n- Swift screenshot: ${value.artifacts.swiftScreenshot ?? 'missing'}\n- JSON verdict: ${value.artifacts.json}\n\n## Verdict\n\n${value.blockers.length === 0 ? 'Ready for manual/pixel side-by-side review. No automated pixel-perfect claim is made by this script.' : 'Blocked/not-tested for pixel parity. Do not claim pixel-perfect parity.'}\n\n## Blockers\n\n${value.blockers.length > 0 ? value.blockers.map((item) => `- ${item}`).join('\n') : '- none'}\n\n## Required checklist\n\n${value.checklist.map((item) => `- [${item.status === 'covered' ? 'x' : ' '}] ${item.id}: ${item.label}`).join('\n')}\n`;
+  return `# Whispree Side-by-Side Visual Parity Verdict\n\nGenerated: ${new Date().toISOString()}\n\n## Claim\n\n- ${value.claim}\n- Pixel-perfect claim allowed: ${value.pixelPerfectClaimAllowed ? 'yes' : 'no'}\n- Automated pixel diff: ${value.automatedPixelDiff.implemented ? 'implemented' : 'not implemented'} (${value.automatedPixelDiff.status})\n\n## Artifacts\n\n- Electron screenshot: ${value.artifacts.electronScreenshot ?? 'missing'}\n- Swift app explicit path: ${value.artifacts.swiftApp ?? 'missing'}\n- Swift bundle id: ${value.artifacts.swiftBundleId ?? 'missing'}\n- Expected Swift bundle id: ${value.artifacts.expectedSwiftBundleId}\n- Swift capture opt-in: ${value.shouldCaptureSwift ? 'enabled' : 'disabled'}\n- Swift screenshot: ${value.artifacts.swiftScreenshot ?? 'missing'}\n- JSON verdict: ${value.artifacts.json}\n\n## Verdict\n\n${value.blockers.length === 0 ? 'Ready for manual side-by-side review. No automated pixel-perfect claim is made by this script.' : 'Blocked/not-tested for pixel parity. Do not claim pixel-perfect parity.'}\n\n## Blockers\n\n${value.blockers.length > 0 ? value.blockers.map((item) => `- ${item}`).join('\n') : '- none'}\n\n## Required checklist\n\n${value.checklist.map((item) => `- [${item.status === 'covered' ? 'x' : ' '}] ${item.id}: ${item.label}`).join('\n')}\n`;
 }
 
 function readIfExists(relativePath) {

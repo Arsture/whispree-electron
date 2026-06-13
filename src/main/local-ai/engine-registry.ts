@@ -214,5 +214,40 @@ function firstConfiguredEnv(engine: LocalEngineDescriptor, env: NodeJS.ProcessEn
 
 function parseArgs(value: string | undefined): readonly string[] | null {
   if (!value || !value.trim()) return null;
-  return value.split(' ').map((part) => part.trim()).filter(Boolean);
+  const args: string[] = [];
+  let current = '';
+  let quote: '"' | "'" | null = null;
+  let escaping = false;
+
+  for (const char of value.trim()) {
+    if (escaping) {
+      current += char;
+      escaping = false;
+      continue;
+    }
+    if (char === '\\') {
+      escaping = true;
+      continue;
+    }
+    if (quote) {
+      if (char === quote) quote = null;
+      else current += char;
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+    if (/\s/u.test(char)) {
+      if (current) {
+        args.push(current);
+        current = '';
+      }
+      continue;
+    }
+    current += char;
+  }
+  if (escaping) current += '\\';
+  if (current) args.push(current);
+  return args;
 }

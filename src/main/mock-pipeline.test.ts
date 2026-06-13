@@ -143,6 +143,41 @@ describe('MockDictationPipeline', () => {
     expect(restored.some((entry) => entry.startsWith('terminal:'))).toBe(true);
   });
 
+  it('preserves context adapter failure evidence instead of silently dropping it', async () => {
+    const pipeline = new MockDictationPipeline(undefined, immediateDelay, {
+      settingsProvider: () => ({
+        ...defaultSettingsForTest(),
+        screenshotContextEnabled: true,
+        restoreBrowserTab: true,
+        restoreTerminalContext: true,
+      }),
+      screenContext: {
+        descriptor: { id: 'screen', label: 'screen', platform: 'cross-platform', status: 'partial', detail: 'test' },
+        startCapture: async () => undefined,
+        stopCapture: async () => { throw new Error('screen denied'); },
+      },
+      browserContext: {
+        descriptor: { id: 'browser', label: 'browser', platform: 'cross-platform', status: 'partial', detail: 'test' },
+        capture: async () => { throw new Error('automation denied'); },
+        restore: async () => false,
+      },
+      terminalContext: {
+        descriptor: { id: 'terminal', label: 'terminal', platform: 'cross-platform', status: 'partial', detail: 'test' },
+        capture: async () => 'terminal-context',
+        restore: async () => { throw new Error('terminal denied'); },
+      },
+    });
+
+    pipeline.submitRecordedAudio({ bytes: new Uint8Array([1]).buffer, mimeType: 'audio/webm', durationMs: 1 });
+    await pipeline.whenIdle();
+
+    const snapshot = pipeline.getSnapshot();
+    expect(snapshot.queue.items[0]?.targetContextId).toContain('warnings');
+    expect(snapshot.queue.items[0]?.targetContextId).toContain('screen-context-stop-failed');
+    expect(snapshot.queue.items[0]?.targetContextId).toContain('browser-context-capture-failed');
+    expect(snapshot.currentError?.message).toContain('terminal-context-restore-failed');
+  });
+
   it('updates permission cards after the runtime permission adapter responds', () => {
     const pipeline = new MockDictationPipeline(undefined, immediateDelay);
 

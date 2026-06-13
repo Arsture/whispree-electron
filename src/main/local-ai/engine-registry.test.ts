@@ -41,4 +41,17 @@ describe('local AI engine registry', () => {
       envKey: 'WHISPREE_WINDOWS_WHISPER_CPP_COMMAND',
     });
   });
+
+  it('parses quoted sidecar args without breaking Windows paths or prompt flags', () => {
+    const engine = selectLocalEngine({ platform: 'windows', capability: 'text-correction', preferredProviderType: 'local' })!;
+    const spec = buildSidecarProcessSpec(engine, {
+      WHISPREE_WINDOWS_LLAMA_CPP_COMMAND: 'C:/Program Files/Whispree/llama-cli.exe',
+      WHISPREE_WINDOWS_LLAMA_CPP_COMMAND_ARGS: '--model "C:/Models/qwen coder.gguf" --system-prompt "fix dictation"',
+    } as NodeJS.ProcessEnv);
+
+    expect(spec).toMatchObject({
+      command: 'C:/Program Files/Whispree/llama-cli.exe',
+      args: ['--model', 'C:/Models/qwen coder.gguf', '--system-prompt', 'fix dictation'],
+    });
+  });
 });

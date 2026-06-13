@@ -12,7 +12,7 @@ const windowsEnv = presence(['WINDOWS_CERTIFICATE_FILE', 'WINDOWS_CERTIFICATE_PA
 const macIdentities = platform === 'darwin' ? codesignIdentityCount() : { status: 'not-tested', count: 0, detail: 'not macOS' };
 const notarizationReady = (macEnv.APPLE_ID && macEnv.APPLE_APP_SPECIFIC_PASSWORD && macEnv.APPLE_TEAM_ID) || (macEnv.APPLE_API_KEY && macEnv.APPLE_API_KEY_ID && macEnv.APPLE_API_ISSUER);
 const windowsClassicReady = windowsEnv.WINDOWS_CERTIFICATE_FILE && windowsEnv.WINDOWS_CERTIFICATE_PASSWORD;
-const windowsAzureReady = windowsEnv.AZURE_TENANT_ID && windowsEnv.AZURE_CLIENT_ID && windowsEnv.AZURE_CLIENT_SECRET && windowsEnv.AZURE_TRUSTED_SIGNING_ACCOUNT && windowsEnv.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE;
+const windowsAzureEnvComplete = windowsEnv.AZURE_TENANT_ID && windowsEnv.AZURE_CLIENT_ID && windowsEnv.AZURE_CLIENT_SECRET && windowsEnv.AZURE_TRUSTED_SIGNING_ACCOUNT && windowsEnv.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE;
 const result = {
   ok: true,
   generatedAt: new Date().toISOString(),
@@ -25,10 +25,15 @@ const result = {
   },
   windows: {
     env: windowsEnv,
-    forgeConfig: 'MakerSquirrel receives certificateFile/certificatePassword when WINDOWS_CERTIFICATE_FILE and WINDOWS_CERTIFICATE_PASSWORD are present.',
+    forgeConfig: 'MakerSquirrel receives certificateFile/certificatePassword when WINDOWS_CERTIFICATE_FILE and WINDOWS_CERTIFICATE_PASSWORD are present. Azure Trusted Signing env is detected but not wired into Forge yet.',
     classicPfxReady: windowsClassicReady,
-    azureTrustedSigningReady: windowsAzureReady,
-    signingReady: windowsClassicReady || windowsAzureReady,
+    azureTrustedSigning: {
+      envComplete: windowsAzureEnvComplete,
+      wired: false,
+      ready: false,
+      reason: 'Azure Trusted Signing requires an explicit signing hook/tool integration and is not wired in this Electron Forge config.',
+    },
+    signingReady: windowsClassicReady,
     hostReady: platform === 'win32',
   },
   blockers: [],
@@ -36,6 +41,7 @@ const result = {
 if (platform === 'darwin' && macIdentities.status === 'blocked') result.blockers.push('macos-signing-identity-missing');
 if (!notarizationReady) result.blockers.push('macos-notarization-credentials-missing');
 if (!result.windows.signingReady) result.blockers.push('windows-signing-credentials-missing');
+if (windowsAzureEnvComplete && !result.windows.azureTrustedSigning.wired) result.blockers.push('windows-azure-trusted-signing-not-wired');
 if (platform !== 'win32') result.blockers.push('windows-signing-not-executed-on-this-host');
 
 mkdirSync(dirname(jsonPath), { recursive: true });
@@ -58,5 +64,5 @@ function codesignIdentityCount() {
 }
 
 function renderMarkdown(value) {
-  return `# Signing and Notarization Preflight\n\nGenerated: ${value.generatedAt}\n\n## macOS\n\n- codesign identities: ${value.macos.identities.status} (${value.macos.identities.count})\n- notarization ready: ${value.macos.notarizationReady ? 'yes' : 'no'}\n- Forge: ${value.macos.forgeConfig}\n\n## Windows\n\n- classic PFX ready: ${value.windows.classicPfxReady ? 'yes' : 'no'}\n- Azure Trusted Signing ready: ${value.windows.azureTrustedSigningReady ? 'yes' : 'no'}\n- host ready: ${value.windows.hostReady ? 'yes' : 'no'}\n- Forge: ${value.windows.forgeConfig}\n\n## Blockers\n\n${value.blockers.length > 0 ? value.blockers.map((item) => `- ${item}`).join('\n') : '- none'}\n`;
+  return `# Signing and Notarization Preflight\n\nGenerated: ${value.generatedAt}\n\n## macOS\n\n- codesign identities: ${value.macos.identities.status} (${value.macos.identities.count})\n- notarization ready: ${value.macos.notarizationReady ? 'yes' : 'no'}\n- Forge: ${value.macos.forgeConfig}\n\n## Windows\n\n- classic PFX ready: ${value.windows.classicPfxReady ? 'yes' : 'no'}\n- Azure Trusted Signing env complete: ${value.windows.azureTrustedSigning.envComplete ? 'yes' : 'no'}\n- Azure Trusted Signing wired: ${value.windows.azureTrustedSigning.wired ? 'yes' : 'no'}\n- Azure Trusted Signing ready: ${value.windows.azureTrustedSigning.ready ? 'yes' : 'no'}\n- host ready: ${value.windows.hostReady ? 'yes' : 'no'}\n- Forge: ${value.windows.forgeConfig}\n\n## Blockers\n\n${value.blockers.length > 0 ? value.blockers.map((item) => `- ${item}`).join('\n') : '- none'}\n`;
 }
