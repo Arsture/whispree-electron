@@ -31,6 +31,7 @@ describe('provider and adapter contracts', () => {
       mode: 'standard',
       glossary: [],
       screenshotRefs: [],
+      systemPrompt: 'Swift prompt',
     });
 
     expect(result.originalText).toBe('hello whispree');

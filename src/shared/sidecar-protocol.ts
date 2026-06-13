@@ -8,8 +8,8 @@ export interface SidecarEnvelopeBase {
 export type SidecarRequest =
   | (SidecarEnvelopeBase & { readonly type: 'health' })
   | (SidecarEnvelopeBase & { readonly type: 'transcribe'; readonly audioRef: string; readonly language: string; readonly glossary: readonly string[] })
-  | (SidecarEnvelopeBase & { readonly type: 'correct'; readonly text: string; readonly mode: string; readonly glossary: readonly string[] })
-  | (SidecarEnvelopeBase & { readonly type: 'vision-correct'; readonly text: string; readonly imageRefs: readonly string[]; readonly mode: string })
+  | (SidecarEnvelopeBase & { readonly type: 'correct'; readonly text: string; readonly mode: string; readonly glossary: readonly string[]; readonly systemPrompt: string })
+  | (SidecarEnvelopeBase & { readonly type: 'vision-correct'; readonly text: string; readonly imageRefs: readonly string[]; readonly mode: string; readonly glossary: readonly string[]; readonly systemPrompt: string })
   | (SidecarEnvelopeBase & { readonly type: 'cancel'; readonly targetId: string });
 
 export type SidecarResponse =
@@ -28,9 +28,9 @@ export function isSidecarRequest(value: unknown): value is SidecarRequest {
     case 'transcribe':
       return typeof value.audioRef === 'string' && typeof value.language === 'string' && isStringArray(value.glossary);
     case 'correct':
-      return typeof value.text === 'string' && typeof value.mode === 'string' && isStringArray(value.glossary);
+      return typeof value.text === 'string' && typeof value.mode === 'string' && isStringArray(value.glossary) && typeof value.systemPrompt === 'string';
     case 'vision-correct':
-      return typeof value.text === 'string' && typeof value.mode === 'string' && isStringArray(value.imageRefs);
+      return typeof value.text === 'string' && typeof value.mode === 'string' && isStringArray(value.imageRefs) && isStringArray(value.glossary) && typeof value.systemPrompt === 'string';
     case 'cancel':
       return typeof value.targetId === 'string';
     default:

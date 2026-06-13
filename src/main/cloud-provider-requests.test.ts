@@ -33,11 +33,13 @@ describe('cloud provider request builders', () => {
       mode: 'standard',
       glossary: [],
       screenshotRefs: [],
+      systemPrompt: 'Swift prompt',
     });
 
     expect(request.url).toBe(OPENAI_RESPONSES_ENDPOINT);
     expect(request.headers.Authorization).toBe('Bearer sk_test');
     expect(request.body).toMatchObject({ model: 'gpt-5.5', metadata: { jobId: 'job-1', correctionMode: 'standard' } });
+    expect(JSON.stringify(request.body)).toContain('Swift prompt');
     expect(redactRequestSpec(request).headers.Authorization).toBe('Bearer [redacted]');
   });
 
@@ -49,6 +51,7 @@ describe('cloud provider request builders', () => {
       mode: 'standard',
       glossary: [],
       screenshotRefs: [],
+      systemPrompt: 'Swift prompt',
     });
     const transcription = buildGroqTranscriptionRequest('gsk_test', defaultAppSettings, {
       jobId: 'job-1',
@@ -60,6 +63,7 @@ describe('cloud provider request builders', () => {
 
     expect(correction.url).toBe(GROQ_CHAT_COMPLETIONS_ENDPOINT);
     expect(correction.body).toMatchObject({ model: 'qwen/qwen3-32b', temperature: 0 });
+    expect(JSON.stringify(correction.body)).toContain('Swift prompt');
     expect(transcription.url).toBe(GROQ_AUDIO_TRANSCRIPTIONS_ENDPOINT);
     expect(transcription.body).toMatchObject({ model: 'whisper-large-v3-turbo', file: '/tmp/audio.wav', language: 'ko' });
   });

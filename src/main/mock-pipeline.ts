@@ -14,7 +14,8 @@ import { MockAudioCaptureAdapter, MockTextInsertionAdapter } from './adapters/mo
 import { llmProviderChoices, sttProviderChoices } from '../shared/provider-registry';
 import { localModelBackendRegistry } from '../shared/providers';
 import { DictationQueueState, isDeliverableJobStatus, isProcessingJobStatus, isTerminalJobStatus, type DictationJob, type DictationJobSnapshot } from '../shared/queue';
-import { defaultAppSettings, type AppSettingsSnapshot } from '../shared/settings';
+import { defaultAppSettings, type AppSettingsSnapshot, type CorrectionMapping } from '../shared/settings';
+import { buildCorrectionSystemPrompt } from '../shared/prompts';
 import { StaticProviderRouter, type ProviderRouter } from './provider-router';
 import { localEngineRegistry } from './local-ai/engine-registry';
 
@@ -307,7 +308,14 @@ export class MockDictationPipeline {
         text: transcription.text,
         mode: job.snapshot.correctionMode,
         glossary: job.snapshot.glossary,
-        screenshotRefs: job.screenshotIds,
+        screenshotRefs: job.snapshot.screenshotContextEnabled ? job.screenshotIds : [],
+        systemPrompt: buildCorrectionSystemPrompt({
+          mode: job.snapshot.correctionMode,
+          language: job.snapshot.language,
+          customPrompt: job.snapshot.customPrompt,
+          correctionMappings: job.snapshot.correctionMappings,
+          includeScreenshotPrompt: job.snapshot.screenshotContextEnabled && job.screenshotIds.length > 0,
+        }),
       });
       this.#queue.transitionJob(job.id, 'ready-for-delivery', {
         correctedText: correction.correctedText,
@@ -316,8 +324,21 @@ export class MockDictationPipeline {
 
       await this.#tryDeliverReadyJobs(options.deliveryDelayMs);
     } catch (error) {
+      if (jobId && this.#fallbackLLMToRaw(jobId, error)) {
+        await this.#tryDeliverReadyJobs(options.deliveryDelayMs);
+        return;
+      }
       this.#handlePipelineFailure(recordingId, jobId, error);
     }
+  }
+
+  #fallbackLLMToRaw(jobId: string, error: unknown): boolean {
+    const job = this.#queue.getJob(jobId);
+    if (!job || job.status !== 'correcting') return false;
+    this.#currentError = { message: `LLM correction failed; using raw transcription: ${errorMessage(error)}` };
+    this.#queue.transitionJob(jobId, 'ready-for-delivery', { correctedText: job.transcribedText });
+    this.#emit();
+    return true;
   }
 
   #handlePipelineFailure(recordingId: string, jobId: string | null, error: unknown): void {
@@ -454,6 +475,15 @@ export class MockDictationPipeline {
   }
 
   #createJobSnapshot(settings: AppSettingsSnapshot, glossary: readonly string[] = []): DictationJobSnapshot {
+    const enabledSets = settings.domainWordSets.filter((set) => set.isEnabled);
+    const enabledGlossary = uniqueStable([
+      ...enabledSets.flatMap((set) => set.words),
+      ...glossary,
+    ]);
+    const enabledCorrectionMappings: readonly CorrectionMapping[] = [
+      ...enabledSets.flatMap((set) => set.corrections),
+      ...settings.correctionMappings,
+    ];
     return {
       sttProviderType: settings.sttProviderType,
       llmProviderType: settings.llmProviderType,
@@ -461,9 +491,9 @@ export class MockDictationPipeline {
       correctionMode: settings.correctionMode,
       customPrompt: settings.customLLMPrompt,
       language: settings.language,
-      glossary,
+      glossary: enabledGlossary,
       domainWordSets: settings.domainWordSets,
-      correctionMappings: settings.correctionMappings,
+      correctionMappings: enabledCorrectionMappings,
       screenshotContextEnabled: settings.screenshotContextEnabled,
       screenshotPasteEnabled: settings.screenshotPasteEnabled,
       vadEnabled: settings.vadEnabled,
@@ -514,4 +544,16 @@ function recordedAudioToDataUrl(input: RecordedAudioInput): string {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function uniqueStable(values: readonly string[]): readonly string[] {
+  const seen = new Set<string>();
+  const output: string[] = [];
+  for (const value of values) {
+    const normalized = value.trim();
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    output.push(normalized);
+  }
+  return output;
 }

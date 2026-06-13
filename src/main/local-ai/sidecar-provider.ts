@@ -57,8 +57,8 @@ class SidecarLLMProvider implements LLMProvider {
     const client = createClient(this.engine, this.options);
     try {
       const response = input.screenshotRefs.length > 0
-        ? await client.request({ type: 'vision-correct', text: input.text, mode: input.mode, imageRefs: input.screenshotRefs })
-        : await client.request({ type: 'correct', text: input.text, mode: input.mode, glossary: input.glossary });
+        ? await client.request({ type: 'vision-correct', text: input.text, mode: input.mode, imageRefs: input.screenshotRefs, glossary: input.glossary, systemPrompt: input.systemPrompt })
+        : await client.request({ type: 'correct', text: input.text, mode: input.mode, glossary: input.glossary, systemPrompt: input.systemPrompt });
       if (response.type !== 'correction') throw unexpectedSidecarResponse(response, 'correction');
       return {
         originalText: response.originalText,

@@ -11,7 +11,7 @@ describe('cloud provider executor', () => {
     const fetchImpl = vi.fn<FetchLike>();
     const provider = new GroqCorrectionProvider(credentialBoundary({ groq: null }), () => defaultAppSettings, fetchImpl);
 
-    await expect(provider.correct({ jobId: '1', sequence: 1, text: 'hello', mode: 'standard', glossary: [], screenshotRefs: [] })).rejects.toThrow('credential is missing');
+    await expect(provider.correct({ jobId: '1', sequence: 1, text: 'hello', mode: 'standard', glossary: [], screenshotRefs: [], systemPrompt: 'Swift prompt' })).rejects.toThrow('credential is missing');
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
@@ -24,7 +24,7 @@ describe('cloud provider executor', () => {
     }));
     const provider = new GroqCorrectionProvider(credentialBoundary({ groq: 'gsk_test' }), () => defaultAppSettings, fetchImpl);
 
-    const result = await provider.correct({ jobId: '1', sequence: 1, text: 'helo', mode: 'standard', glossary: [], screenshotRefs: [] });
+    const result = await provider.correct({ jobId: '1', sequence: 1, text: 'helo', mode: 'standard', glossary: [], screenshotRefs: [], systemPrompt: 'Swift prompt' });
 
     expect(result.correctedText).toBe('corrected text');
     expect(fetchImpl).toHaveBeenCalledWith(expect.stringContaining('/chat/completions'), expect.objectContaining({ method: 'POST' }));
@@ -40,7 +40,7 @@ describe('cloud provider executor', () => {
     }));
     const provider = new OpenAIResponsesCorrectionProvider(credentialBoundary({ openai: 'sk_test' }), () => defaultAppSettings, fetchImpl);
 
-    await expect(provider.correct({ jobId: '1', sequence: 1, text: 'helo', mode: 'standard', glossary: [], screenshotRefs: [] })).resolves.toMatchObject({ correctedText: 'openai corrected' });
+    await expect(provider.correct({ jobId: '1', sequence: 1, text: 'helo', mode: 'standard', glossary: [], screenshotRefs: [], systemPrompt: 'Swift prompt' })).resolves.toMatchObject({ correctedText: 'openai corrected' });
   });
 
   it('sends captured audio to Groq transcription as multipart form data', async () => {
@@ -67,6 +67,6 @@ describe('cloud provider executor', () => {
   it('returns the raw transcript when correction is disabled', async () => {
     const provider = new NoopCorrectionProvider();
 
-    await expect(provider.correct({ jobId: '1', sequence: 1, text: 'raw', mode: 'standard', glossary: [], screenshotRefs: [] })).resolves.toMatchObject({ correctedText: 'raw' });
+    await expect(provider.correct({ jobId: '1', sequence: 1, text: 'raw', mode: 'standard', glossary: [], screenshotRefs: [], systemPrompt: 'Swift prompt' })).resolves.toMatchObject({ correctedText: 'raw' });
   });
 });

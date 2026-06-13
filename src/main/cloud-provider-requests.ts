@@ -45,7 +45,7 @@ export function buildOpenAIResponseRequest(apiKey: string, settings: AppSettings
       input: [
         {
           role: 'system',
-          content: [{ type: 'input_text', text: 'Correct speech-to-text errors while preserving user intent and factual content.' }],
+          content: [{ type: 'input_text', text: input.systemPrompt }],
         },
         {
           role: 'user',
@@ -68,7 +68,7 @@ export function buildGroqChatCompletionRequest(apiKey: string, settings: AppSett
     body: {
       model: settings.groqLLMModel,
       messages: [
-        { role: 'system', content: 'Correct speech-to-text errors while preserving user intent and factual content.' },
+        { role: 'system', content: input.systemPrompt },
         { role: 'user', content: input.text },
       ],
       temperature: 0,

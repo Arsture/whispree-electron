@@ -46,7 +46,7 @@ describe('SettingsProviderRouter', () => {
     expect(stt.descriptor.id).toContain('windows-whisper-cpp');
     expect(llm.descriptor.id).toContain('windows-llama-cpp');
     await expect(stt.transcribe({ jobId: '1', sequence: 1, language: 'ko', glossary: [], audioRef: { kind: 'memory', value: 'x' } })).resolves.toMatchObject({ text: 'windows transcript' });
-    await expect(llm.correct({ jobId: '1', sequence: 1, text: 'hello', mode: 'standard', glossary: [], screenshotRefs: [] })).resolves.toMatchObject({ correctedText: 'fixed hello' });
+    await expect(llm.correct({ jobId: '1', sequence: 1, text: 'hello', mode: 'standard', glossary: [], screenshotRefs: [], systemPrompt: 'Swift prompt' })).resolves.toMatchObject({ correctedText: 'fixed hello' });
   });
 
   it('fails specifically when a selected local sidecar lacks a runnable command', async () => {

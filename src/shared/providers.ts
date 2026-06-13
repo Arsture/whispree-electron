@@ -1,4 +1,5 @@
 import type { ImplementationStatus } from './status';
+import type { CorrectionMode } from './settings';
 
 export type ProviderFamily = 'stt' | 'llm' | 'local-backend' | 'cloud-backend';
 export type ProviderPlatform = 'cross-platform' | 'macos' | 'windows' | 'linux' | 'unknown';
@@ -33,9 +34,10 @@ export interface CorrectionInput {
   readonly jobId: string;
   readonly sequence: number;
   readonly text: string;
-  readonly mode: string;
+  readonly mode: CorrectionMode;
   readonly glossary: readonly string[];
   readonly screenshotRefs: readonly string[];
+  readonly systemPrompt: string;
 }
 
 export interface CorrectionResult {

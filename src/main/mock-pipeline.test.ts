@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MockDictationPipeline } from './mock-pipeline';
 import { defaultAppSettings } from '../shared/settings';
+import { MockSTTProvider, type CorrectionInput, type LLMProvider } from '../shared/providers';
 
 const immediateDelay = () => Promise.resolve();
 
@@ -83,6 +84,87 @@ describe('MockDictationPipeline', () => {
 
     expect(pipeline.getSnapshot().history[0]).toMatchObject({ status: 'copied-to-clipboard' });
     expect(pipeline.getSnapshot().queue.items[0]).toMatchObject({ status: 'copied-to-clipboard', isTerminal: true });
+  });
+
+  it('passes enabled domain glossary, mappings, and Swift prompt to correction providers', async () => {
+    const correctionInputs: CorrectionInput[] = [];
+    const llm: LLMProvider = {
+      descriptor: { id: 'capture-llm', label: 'Capture LLM', family: 'llm', platform: 'cross-platform', status: 'mock', detail: 'test' },
+      correct: async (input) => {
+        correctionInputs.push(input);
+        return {
+          originalText: input.text,
+          correctedText: `mapped ${input.text}`,
+          metadata: { providerId: 'capture-llm', status: 'mock', preservesOriginal: true },
+        };
+      },
+    };
+    const pipeline = new MockDictationPipeline(undefined, immediateDelay, {
+      settingsProvider: () => ({
+        ...defaultSettingsForTest(),
+        correctionMode: 'structured',
+        screenshotContextEnabled: true,
+        domainWordSets: [
+          {
+            id: 'enabled',
+            name: 'Enabled',
+            isEnabled: true,
+            words: ['React', 'React', 'Whispree'],
+            corrections: [{ id: 'c1', from: '리엑트', to: 'React' }],
+          },
+          {
+            id: 'disabled',
+            name: 'Disabled',
+            isEnabled: false,
+            words: ['DisabledTerm'],
+            corrections: [{ id: 'c2', from: '안씀', to: 'unused' }],
+          },
+        ],
+      }),
+      screenContext: {
+        descriptor: { id: 'screen', label: 'screen', platform: 'cross-platform', status: 'mock', detail: 'test' },
+        startCapture: async () => undefined,
+        stopCapture: async () => ['shot-1'],
+      },
+      providerRouter: {
+        sttProvider: () => new MockSTTProvider(),
+        llmProvider: () => llm,
+      },
+    });
+
+    pipeline.enqueueMockDictation({ recordingDelayMs: 0, sttDelayMs: 0, llmDelayMs: 0, deliveryDelayMs: 0, glossary: ['Codex'] });
+    await pipeline.whenIdle();
+
+    const correctionInput = correctionInputs[0];
+    expect(correctionInput?.glossary).toEqual(['React', 'Whispree', 'Codex']);
+    expect(correctionInput?.screenshotRefs).toEqual(['shot-1']);
+    expect(correctionInput?.systemPrompt).toContain('내용을 구조화합니다');
+    expect(correctionInput?.systemPrompt).toContain('리엑트 → React');
+    expect(correctionInput?.systemPrompt).toContain('[시각 맥락]');
+    expect(correctionInput?.systemPrompt).not.toContain('DisabledTerm');
+  });
+
+  it('falls back to raw transcription when LLM correction fails', async () => {
+    const pipeline = new MockDictationPipeline(undefined, immediateDelay, {
+      providerRouter: {
+        sttProvider: () => new MockSTTProvider(),
+        llmProvider: () => ({
+          descriptor: { id: 'failing-llm', label: 'Failing LLM', family: 'llm', platform: 'cross-platform', status: 'mock', detail: 'test' },
+          correct: async () => {
+            throw new Error('llm unavailable');
+          },
+        }),
+      },
+    });
+
+    pipeline.enqueueMockDictation({ recordingDelayMs: 0, sttDelayMs: 0, llmDelayMs: 0, deliveryDelayMs: 0 });
+    await pipeline.whenIdle();
+
+    const snapshot = pipeline.getSnapshot();
+    expect(snapshot.history[0]?.originalText).toBe('Mock transcript #1');
+    expect(snapshot.history[0]?.correctedText).toBe('Mock transcript #1');
+    expect(snapshot.currentError?.message).toContain('LLM correction failed; using raw transcription');
+    expect(snapshot.queue.items[0]?.status).toBe('delivered');
   });
 
   it('accepts captured real audio bytes and runs them through the provider router', async () => {
