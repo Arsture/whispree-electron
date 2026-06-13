@@ -46,16 +46,16 @@ export class FileSettingsStore implements CloudCredentialBoundary {
     try {
       const text = await readFile(this.#settingsFile, 'utf8');
       this.#settings = normalizePersistedSettings(JSON.parse(text));
-      this.#groqApiKey = null;
+      this.#groqApiKey = firstNonEmpty(process.env.WHISPREE_GROQ_API_KEY_FOR_TESTS);
       this.#lastError = null;
     } catch (error) {
       if (isFileMissing(error)) {
         this.#settings = defaultPersistedAppSettings;
-        this.#groqApiKey = null;
+        this.#groqApiKey = firstNonEmpty(process.env.WHISPREE_GROQ_API_KEY_FOR_TESTS);
         this.#lastError = null;
       } else {
         this.#settings = defaultPersistedAppSettings;
-        this.#groqApiKey = null;
+        this.#groqApiKey = firstNonEmpty(process.env.WHISPREE_GROQ_API_KEY_FOR_TESTS);
         this.#lastError = error instanceof Error ? error.message : String(error);
       }
     }

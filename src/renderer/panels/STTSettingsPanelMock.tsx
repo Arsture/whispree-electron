@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { AppSettingsSnapshot, STTProviderType } from '../../shared/settings';
 
 import '../styles/settings-stt.css';
 
@@ -141,14 +142,41 @@ function LiquidSection({ title, children }: { readonly title: string; readonly c
   );
 }
 
-export function STTSettingsPanelMock() {
+function ApiKeySection({ configured }: { readonly configured: boolean }) {
+  return (
+    <LiquidSection title="API Key">
+      <div className="stt-api-key-block">
+        <input readOnly type="password" value={configured ? 'configured-api-key' : ''} placeholder="API Key" aria-label="Groq API Key" />
+        <div className="stt-inline-note" data-tone={configured ? 'neutral' : 'warning'}>
+          <span aria-hidden="true">{configured ? '✓' : 'i'}</span>
+          {configured ? 'API Key 설정됨' : 'console.groq.com에서 무료 API Key를 발급받으세요'}
+        </div>
+      </div>
+    </LiquidSection>
+  );
+}
+
+export function STTSettingsPanelMock({
+  settings,
+}: {
+  readonly settings: AppSettingsSnapshot;
+}) {
+  const selectedProvider = selectedSttProvider(settings.sttProviderType);
+  const seededProviders = providers.map((provider) => ({
+    ...provider,
+    selected: provider.id === selectedProvider,
+    state: provider.id === selectedProvider && provider.id === 'groq' ? 'ready' as const : provider.state,
+    stateCopy: provider.id === selectedProvider && provider.id === 'groq' ? 'Ready' : provider.stateCopy,
+  }));
   return (
     <div className="stt-settings-mock" data-testid="stt-settings-panel-mock">
       <LiquidSection title="음성 인식 엔진">
         <div className="stt-provider-list" role="radiogroup" aria-label="STT provider mock selector">
-          {providers.map((provider) => <ProviderRow provider={provider} key={provider.id} />)}
+          {seededProviders.map((provider) => <ProviderRow provider={provider} key={provider.id} />)}
         </div>
       </LiquidSection>
+
+      {selectedProvider === 'groq' ? <ApiKeySection configured={settings.groqApiKeyConfigured} /> : null}
 
       <LiquidSection title="무음 자동 스킵">
         <div className="stt-vad-block">
@@ -165,6 +193,11 @@ export function STTSettingsPanelMock() {
       </LiquidSection>
     </div>
   );
+}
+
+function selectedSttProvider(provider: STTProviderType): ProviderModel['id'] {
+  if (provider === 'groq' || provider === 'mlx-audio' || provider === 'whisperkit') return provider;
+  return 'whisperkit';
 }
 
 export default STTSettingsPanelMock;

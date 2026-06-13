@@ -59,7 +59,13 @@ async function waitForRendererReady(): Promise<void> {
   if (!mainWindow) return;
   await mainWindow.webContents.executeJavaScript(`
     new Promise((resolve) => {
-      const isReady = () => Boolean(document.querySelector('[data-view="whispree-shell"]')) && document.body.innerText.includes('Whispree');
+      const isReady = () => {
+        const shell = document.querySelector('[data-view="whispree-shell"]');
+        return Boolean(shell)
+          && shell?.getAttribute('data-settings-loaded') === 'true'
+          && shell?.getAttribute('data-snapshot-loaded') === 'true'
+          && document.body.innerText.includes('Whispree');
+      };
       let attempts = 0;
       const finishAfterPaint = () => requestAnimationFrame(() => requestAnimationFrame(resolve));
       const tick = () => {
@@ -86,6 +92,9 @@ async function writeCaptureDomReport(reportPath: string | undefined): Promise<vo
     JSON.stringify({
       title: document.title,
       rootPresent: Boolean(document.querySelector('[data-view="whispree-shell"]')),
+      activePanel: document.querySelector('[role="tabpanel"][data-active="true"]')?.getAttribute('data-panel') ?? null,
+      settingsLoaded: document.querySelector('[data-view="whispree-shell"]')?.getAttribute('data-settings-loaded') === 'true',
+      snapshotLoaded: document.querySelector('[data-view="whispree-shell"]')?.getAttribute('data-snapshot-loaded') === 'true',
       bodyText: document.body.innerText.slice(0, 2000),
       capturedAt: new Date().toISOString(),
     }, null, 2);
@@ -256,10 +265,16 @@ async function initializeMainState(): Promise<void> {
     hotkeyAdapter: adapters.hotkey,
     shortcut: settings.getSnapshot().toggleRecordingShortcut.label,
   });
-  await recordingController.register().catch((error) => {
-    pipeline?.refreshPermissions(permissionCards);
-    console.warn(`Global shortcut registration failed: ${error instanceof Error ? error.message : String(error)}`);
-  });
+  if (shouldRegisterGlobalShortcuts()) {
+    await recordingController.register().catch((error) => {
+      pipeline?.refreshPermissions(permissionCards);
+      console.warn(`Global shortcut registration failed: ${error instanceof Error ? error.message : String(error)}`);
+    });
+  }
+}
+
+function shouldRegisterGlobalShortcuts(): boolean {
+  return !process.env.WHISPREE_CAPTURE_SCREENSHOT;
 }
 
 function registerIpcHandlers(): void {

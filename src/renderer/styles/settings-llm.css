@@ -50,7 +50,7 @@
 .llm-auth-badge {
   border: 1px solid var(--border-subtle);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.46);
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .llm-section-heading span {
@@ -86,7 +86,7 @@
   padding: 10px 12px;
   border: 1px solid var(--border-subtle);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.055);
   outline: none;
 }
 
@@ -158,7 +158,7 @@
   overflow: hidden;
   border: 1px solid var(--border-subtle);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.035);
 }
 
 .llm-model-row,
@@ -335,7 +335,7 @@
   padding: 10px 12px;
   border: 1px solid var(--border-subtle);
   border-radius: 13px;
-  background: rgba(255, 255, 255, 0.34);
+  background: rgba(255, 255, 255, 0.055);
   font-size: 12px;
 }
 
@@ -376,7 +376,7 @@
   border-radius: 8px;
   padding: 4px 10px;
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.54);
+  background: rgba(255, 255, 255, 0.08);
   box-shadow: 0 1px 2px rgba(18, 24, 33, 0.05);
 }
 
@@ -397,7 +397,7 @@
   border-radius: 8px;
   padding: 4px 8px;
   color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.44);
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .llm-correction-row {

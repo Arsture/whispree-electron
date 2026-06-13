@@ -3,17 +3,22 @@ import { defaultAppSettings, type AppSettingsSnapshot, type AppSettingsUpdate } 
 
 export interface UseSettingsResult {
   readonly settings: AppSettingsSnapshot;
+  readonly isLoaded: boolean;
   readonly updateSettings: (update: AppSettingsUpdate) => Promise<void>;
   readonly resetSettings: () => Promise<void>;
 }
 
 export function useSettings(): UseSettingsResult {
   const [settings, setSettings] = useState<AppSettingsSnapshot>(defaultAppSettings);
+  const [isLoaded, setLoaded] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     void window.whispree.getSettings().then((nextSettings) => {
-      if (mounted) setSettings(nextSettings);
+      if (mounted) {
+        setSettings(nextSettings);
+        setLoaded(true);
+      }
     });
     return () => {
       mounted = false;
@@ -30,5 +35,5 @@ export function useSettings(): UseSettingsResult {
     if (result.ok) setSettings(result.settings);
   }
 
-  return { settings, updateSettings, resetSettings };
+  return { settings, isLoaded, updateSettings, resetSettings };
 }

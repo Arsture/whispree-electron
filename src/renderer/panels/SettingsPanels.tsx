@@ -76,7 +76,7 @@ export function SettingsPanel({ sectionId, groups, settings, onUpdateSettings }:
   if (sectionId === 'stt') return <STTSettingsPanel settings={settings} onUpdateSettings={onUpdateSettings} />;
   if (sectionId === 'llm') return <LLMSettingsPanel settings={settings} onUpdateSettings={onUpdateSettings} />;
   if (sectionId === 'models') return <ModelsSettingsPanel />;
-  return <WordSetsPanel />;
+  return <WordSetsPanel settings={settings} />;
 }
 
 function GeneralSettingsPanel({ groups, settings, onUpdateSettings }: Omit<SettingsPanelProps, 'sectionId'>) {
@@ -117,16 +117,18 @@ function GeneralSettingsPanel({ groups, settings, onUpdateSettings }: Omit<Setti
         />
       </GeneralSettingsCard>
 
-      <GeneralSettingsCard group={groups[0]!} title="Audio Input" className="settings-card-muted">
-        <SelectSetting
-          label="입력 채널:"
-          detail="외장 오디오 인터페이스에서 마이크가 연결된 채널을 선택하세요. 다음 녹음부터 적용됩니다."
-          value={String(settings.audioInputChannel)}
-          options={['0', '1']}
-          labels={{ '0': '자동 (모든 채널 다운믹스)', '1': '채널 1' }}
-          onChange={(audioInputChannel) => onUpdateSettings({ audioInputChannel: Number(audioInputChannel) })}
-        />
-      </GeneralSettingsCard>
+      {settings.audioInputChannel > 0 ? (
+        <GeneralSettingsCard group={groups[0]!} title="Audio Input" className="settings-card-muted">
+          <SelectSetting
+            label="입력 채널:"
+            detail="외장 오디오 인터페이스에서 마이크가 연결된 채널을 선택하세요. 다음 녹음부터 적용됩니다."
+            value={String(settings.audioInputChannel)}
+            options={['0', '1']}
+            labels={{ '0': '자동 (모든 채널 다운믹스)', '1': '채널 1' }}
+            onChange={(audioInputChannel) => onUpdateSettings({ audioInputChannel: Number(audioInputChannel) })}
+          />
+        </GeneralSettingsCard>
+      ) : null}
 
       <GeneralSettingsCard group={groups[0]!} title="Language">
         <SelectSetting
@@ -230,7 +232,7 @@ function GeneralSettingsPanel({ groups, settings, onUpdateSettings }: Omit<Setti
 function STTSettingsPanel({ settings, onUpdateSettings }: Omit<SettingsPanelProps, 'sectionId' | 'groups'>) {
   return (
     <div className="settings-integrated-mock" data-testid="settings-panel-stt">
-      <STTSettingsPanelMock />
+      <STTSettingsPanelMock settings={settings} />
       <div className="settings-ipc-bridge" aria-label="STT typed settings bridge">
         <SelectSetting
           label="음성 인식 엔진"
@@ -250,7 +252,7 @@ function STTSettingsPanel({ settings, onUpdateSettings }: Omit<SettingsPanelProp
 function LLMSettingsPanel({ settings, onUpdateSettings }: Omit<SettingsPanelProps, 'sectionId' | 'groups'>) {
   return (
     <div className="settings-integrated-mock" data-testid="settings-panel-llm">
-      <LLMSettingsPanelMock />
+      <LLMSettingsPanelMock settings={settings} />
       <div className="settings-ipc-bridge" aria-label="LLM typed settings bridge">
         <SelectSetting label="Provider" value={settings.llmProviderType} options={LLM_PROVIDER_TYPES} labels={llmLabels} onChange={(llmProviderType) => onUpdateSettings({ llmProviderType })} />
         <SelectSetting label="OpenAI 모델" value={settings.openaiModel} options={OPENAI_MODELS} onChange={(openaiModel) => onUpdateSettings({ openaiModel: openaiModel as OpenAIModelId })} />
@@ -268,8 +270,8 @@ function ModelsSettingsPanel() {
   return <ModelsPanelMock />;
 }
 
-function WordSetsPanel() {
-  return <DomainWordSetsPanelMock />;
+function WordSetsPanel({ settings }: Pick<SettingsPanelProps, 'settings'>) {
+  return <DomainWordSetsPanelMock settings={settings} />;
 }
 
 function GeneralSettingsCard(props: Omit<Parameters<typeof SettingsCard>[0], 'showStatus'>) {

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { AppSettingsSnapshot, DomainWordSet } from '../../shared/settings';
 
 import '../styles/wordsets.css';
 
@@ -205,8 +206,13 @@ function WordSetSection({ wordSet, expanded }: { readonly wordSet: DomainWordSet
   );
 }
 
-export function DomainWordSetsPanelMock() {
-  const [expandedIds] = useState<ReadonlySet<string>>(() => new Set(['it-dev']));
+export function DomainWordSetsPanelMock({
+  settings,
+}: {
+  readonly settings: AppSettingsSnapshot;
+}) {
+  const domainWordSets = settings.domainWordSets.length > 0 ? settings.domainWordSets.map(toMockWordSet) : defaultWordSets;
+  const [expandedIds] = useState<ReadonlySet<string>>(() => new Set([domainWordSets[0]?.id ?? 'it-dev']));
 
   return (
     <div className="wordsets-panel-mock" data-testid="domain-wordsets-panel-mock">
@@ -216,7 +222,7 @@ export function DomainWordSetsPanelMock() {
       </div>
 
       <div className="wordsets-domain-list">
-        {defaultWordSets.map((wordSet) => (
+        {domainWordSets.map((wordSet) => (
           <WordSetSection wordSet={wordSet} expanded={expandedIds.has(wordSet.id)} key={wordSet.id} />
         ))}
       </div>
@@ -242,4 +248,14 @@ export function DomainWordSetsPanelMock() {
       </section>
     </div>
   );
+}
+
+function toMockWordSet(wordSet: DomainWordSet): DomainWordSetMock {
+  return {
+    id: wordSet.id,
+    name: wordSet.name,
+    enabled: wordSet.isEnabled,
+    words: wordSet.words,
+    corrections: wordSet.corrections,
+  };
 }

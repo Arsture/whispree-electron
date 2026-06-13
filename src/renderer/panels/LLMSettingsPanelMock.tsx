@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { AppSettingsSnapshot, LLMProviderType } from '../../shared/settings';
 
 import '../styles/settings-llm.css';
 
@@ -34,10 +35,10 @@ type CorrectionMode = {
 };
 
 const providers = [
-  { id: 'none', label: '없음 (원문 사용)', subtitle: 'LLM 교정 비활성화', selected: false },
-  { id: 'local', label: '로컬 MLX', subtitle: '온디바이스 MLX/MLX-VLM', selected: true },
-  { id: 'openai', label: 'OpenAI (GPT)', subtitle: 'Codex CLI 또는 OpenAI 로그인', selected: false },
-  { id: 'groq', label: 'Groq Cloud', subtitle: 'STT와 API Key 공유', selected: false },
+  { id: 'none', label: '없음 (원문 사용)', subtitle: 'LLM 교정 비활성화' },
+  { id: 'local', label: '로컬 MLX', subtitle: '온디바이스 MLX/MLX-VLM' },
+  { id: 'openai', label: 'OpenAI (GPT)', subtitle: 'Codex CLI 또는 OpenAI 로그인' },
+  { id: 'groq', label: 'Groq Cloud', subtitle: 'STT와 API Key 공유' },
 ] as const;
 
 const localModels: readonly ModelCard[] = [
@@ -277,13 +278,13 @@ function RadioMark({ selected }: { readonly selected?: boolean }) {
   return <span className="llm-radio-mark" aria-hidden="true">{selected ? '✓' : ''}</span>;
 }
 
-function ProviderSelector() {
+function ProviderSelector({ selectedProvider }: { readonly selectedProvider: ProviderId }) {
   return (
     <SectionCard title="교정 엔진">
       <div className="llm-provider-selector" role="radiogroup" aria-label="LLM provider mock selector">
         {providers.map((provider) => (
-          <div className="llm-provider-option" data-selected={provider.selected ?? false} role="radio" aria-checked={provider.selected ?? false} tabIndex={0} key={provider.id}>
-            <RadioMark selected={provider.selected} />
+          <div className="llm-provider-option" data-selected={provider.id === selectedProvider} role="radio" aria-checked={provider.id === selectedProvider} tabIndex={0} key={provider.id}>
+            <RadioMark selected={provider.id === selectedProvider} />
             <div>
               <strong>{provider.label}</strong>
               <small>{provider.subtitle}</small>
@@ -357,12 +358,16 @@ function ToggleRow({ title, description, enabled }: { readonly title: string; re
   );
 }
 
-function ScreenshotContextSection() {
+function ScreenshotContextSection({ settings }: { readonly settings: AppSettingsSnapshot }) {
   return (
     <SectionCard title="스크린샷 컨텍스트">
-      <ToggleRow title="활성화" description="녹음 시 화면을 캡처하여 교정 정확도를 높입니다" enabled />
-      <div className="llm-divider" />
-      <ToggleRow title="에이전트에 전달" description="텍스트 삽입 후 캡처된 스크린샷을 대상 앱에 이미지로 붙여넣습니다" enabled={false} />
+      <ToggleRow title="활성화" description="녹음 시 화면을 캡처하여 교정 정확도를 높입니다" enabled={settings.screenshotContextEnabled} />
+      {settings.screenshotContextEnabled ? (
+        <>
+          <div className="llm-divider" />
+          <ToggleRow title="에이전트에 전달" description="텍스트 삽입 후 캡처된 스크린샷을 대상 앱에 이미지로 붙여넣습니다" enabled={settings.screenshotPasteEnabled} />
+        </>
+      ) : null}
     </SectionCard>
   );
 }
@@ -458,21 +463,53 @@ function SystemPromptSection() {
   );
 }
 
-export function LLMSettingsPanelMock() {
+export function LLMSettingsPanelMock({
+  settings,
+}: {
+  readonly settings: AppSettingsSnapshot;
+}) {
+  const selectedProvider = selectedLlmProvider(settings.llmProviderType);
+  const selectedOpenAIModels = openAIModels.map((model) => ({ ...model, selected: model.id === settings.openaiModel }));
+  const selectedGroqModels = groqModels.map((model) => ({ ...model, selected: model.id === settings.groqLLMModel }));
+  const selectedLocalModels = localModels.map((model) => ({ ...model, selected: model.id === settings.llmModelId }));
+
   return (
     <div className="llm-settings-mock" data-testid="llm-settings-panel-mock">
-      <ProviderSelector />
-      <ModelSection title="로컬 모델" eyebrow="Apple Silicon · local branch" models={localModels} />
-      <ScreenshotContextSection />
-      <ModelStatusNotice />
-      <ModelSection title="OpenAI 모델" eyebrow="cloud branch" models={openAIModels} />
-      <OpenAIAuthSection />
-      <ModelSection title="Groq 모델" eyebrow="cloud branch" models={groqModels} />
-      <GroqApiKeySection />
-      <CorrectionModeSection />
-      <SystemPromptSection />
+      <ProviderSelector selectedProvider={selectedProvider} />
+      {selectedProvider === 'local' ? (
+        <>
+          <ModelSection title="로컬 모델" eyebrow="Apple Silicon · local branch" models={selectedLocalModels} />
+          {settings.screenshotContextEnabled ? <ScreenshotContextSection settings={settings} /> : null}
+          <ModelStatusNotice />
+        </>
+      ) : null}
+      {selectedProvider === 'openai' ? (
+        <>
+          <ModelSection title="OpenAI 모델" eyebrow="cloud branch" models={selectedOpenAIModels} />
+          <ScreenshotContextSection settings={settings} />
+          <OpenAIAuthSection />
+        </>
+      ) : null}
+      {selectedProvider === 'groq' ? (
+        <>
+          <ModelSection title="Groq 모델" eyebrow="cloud branch" models={selectedGroqModels} />
+          {selectedGroqModels.some((model) => model.selected && model.vision) ? <ScreenshotContextSection settings={settings} /> : null}
+          <GroqApiKeySection />
+        </>
+      ) : null}
+      {selectedProvider !== 'none' ? (
+        <>
+          <CorrectionModeSection />
+          <SystemPromptSection />
+        </>
+      ) : null}
     </div>
   );
+}
+
+function selectedLlmProvider(provider: LLMProviderType): ProviderId {
+  if (provider === 'local' || provider === 'openai' || provider === 'groq' || provider === 'none') return provider;
+  return 'none';
 }
 
 export default LLMSettingsPanelMock;

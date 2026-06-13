@@ -8,8 +8,8 @@ import { SIDEBAR_SECTIONS, nextSectionId, type SidebarSectionId, type TabNavigat
 const sidebarSectionIds = new Set<SidebarSectionId>(SIDEBAR_SECTIONS.map((section) => section.id));
 
 export function App() {
-  const snapshot = useAppSnapshot();
-  const { settings, updateSettings } = useSettings();
+  const { snapshot, isLoaded: isSnapshotLoaded } = useAppSnapshot();
+  const { settings, isLoaded: isSettingsLoaded, updateSettings } = useSettings();
   const initialSection = initialSectionFromLocation();
   const [activeSection, setActiveSection] = useState<SidebarSectionId>(initialSection);
   const [visitedSections, setVisitedSections] = useState<ReadonlySet<SidebarSectionId>>(() => new Set(['home', initialSection]));
@@ -34,7 +34,14 @@ export function App() {
   }
 
   return (
-    <main className="app-shell" data-view="whispree-shell" data-app-status={snapshot.appStatus} data-sidebar-collapsed={isSidebarCollapsed}>
+    <main
+      className="app-shell"
+      data-view="whispree-shell"
+      data-app-status={snapshot.appStatus}
+      data-sidebar-collapsed={isSidebarCollapsed}
+      data-settings-loaded={isSettingsLoaded}
+      data-snapshot-loaded={isSnapshotLoaded}
+    >
       <SidebarShell
         activeSection={activeSection}
         isCollapsed={isSidebarCollapsed}

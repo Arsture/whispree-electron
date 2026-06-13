@@ -1,16 +1,26 @@
 import { useEffect, useState } from 'react';
 import { initialAppSnapshot, type AppSnapshot } from '../../shared/ipc';
 
-export function useAppSnapshot(): AppSnapshot {
+export interface UseAppSnapshotResult {
+  readonly snapshot: AppSnapshot;
+  readonly isLoaded: boolean;
+}
+
+export function useAppSnapshot(): UseAppSnapshotResult {
   const [snapshot, setSnapshot] = useState<AppSnapshot>(initialAppSnapshot);
+  const [isLoaded, setLoaded] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     void window.whispree.getAppSnapshot().then((nextSnapshot) => {
-      if (mounted) setSnapshot(nextSnapshot);
+      if (mounted) {
+        setSnapshot(nextSnapshot);
+        setLoaded(true);
+      }
     });
     const unsubscribe = window.whispree.subscribeAppSnapshot((nextSnapshot) => {
       setSnapshot(nextSnapshot);
+      setLoaded(true);
     });
     return () => {
       mounted = false;
@@ -18,5 +28,5 @@ export function useAppSnapshot(): AppSnapshot {
     };
   }, []);
 
-  return snapshot;
+  return { snapshot, isLoaded };
 }

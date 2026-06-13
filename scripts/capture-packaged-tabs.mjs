@@ -40,6 +40,7 @@ function captureTab(tab) {
   rmSync(domReport, { force: true });
   rmSync(userDataDir, { force: true, recursive: true });
   mkdirSync(userDataDir, { recursive: true });
+  const seed = seedSwiftVisualBaseline(userDataDir);
 
   const startedAt = new Date();
   const result = spawnSync(executable, ['--use-mock-keychain', `--user-data-dir=${userDataDir}`], {
@@ -55,6 +56,7 @@ function captureTab(tab) {
       WHISPREE_USE_MOCK_KEYCHAIN: '1',
       WHISPREE_USER_DATA_DIR: userDataDir,
       WHISPREE_INITIAL_SECTION: tab,
+      ...(seed.groqApiKeyConfigured ? { WHISPREE_GROQ_API_KEY_FOR_TESTS: 'configured-for-visual-parity' } : {}),
     },
     encoding: 'utf8',
     input: '',
@@ -73,6 +75,7 @@ function captureTab(tab) {
     domReport,
     dom,
     userDataDir,
+    swiftBaselineSeed: seed,
     durationMs: finishedAt.getTime() - startedAt.getTime(),
     exitStatus: result.status,
     signal: result.signal,
@@ -82,14 +85,40 @@ function captureTab(tab) {
   };
 }
 
+function seedSwiftVisualBaseline(userDataDir) {
+  const seedScript = resolve(repoRoot, 'scripts/seed-swift-visual-baseline.py');
+  if (!existsSync(seedScript) || process.platform !== 'darwin') return { ok: false, skipped: true, reason: 'seed script unavailable' };
+  const result = spawnSync('python3', [seedScript, userDataDir], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    input: '',
+    timeout: 10_000,
+  });
+  if (result.status !== 0 || result.error) {
+    return {
+      ok: false,
+      error: result.error ? errorMessage(result.error) : `seed exited with status ${result.status}`,
+      stderr: trimForReport(result.stderr),
+      stdout: trimForReport(result.stdout),
+    };
+  }
+  try {
+    return JSON.parse(result.stdout.trim() || '{}');
+  } catch (error) {
+    return { ok: false, error: errorMessage(error), stdout: trimForReport(result.stdout), stderr: trimForReport(result.stderr) };
+  }
+}
+
 function readDom(filePath) {
   if (!existsSync(filePath)) return { rootPresent: false, activePanel: null, bodyTextPreview: '', error: 'dom report missing' };
   try {
     const parsed = JSON.parse(readFileSync(filePath, 'utf8'));
-    const activePanel = extractActivePanel(parsed.bodyText ?? '');
+    const activePanel = typeof parsed.activePanel === 'string' ? parsed.activePanel : extractActivePanel(parsed.bodyText ?? '');
     return {
       rootPresent: parsed.rootPresent === true,
       activePanel,
+      settingsLoaded: parsed.settingsLoaded === true,
+      snapshotLoaded: parsed.snapshotLoaded === true,
       bodyTextPreview: typeof parsed.bodyText === 'string' ? parsed.bodyText.slice(0, 240) : '',
     };
   } catch (error) {

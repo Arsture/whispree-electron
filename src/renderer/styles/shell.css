@@ -1,9 +1,7 @@
 /* UI-02 Swift unified shell parity: overrides legacy shell rules in styles.css by specificity. */
 .app-shell[data-view="whispree-shell"] {
   grid-template-columns: var(--sidebar-expanded) minmax(0, 1fr);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.12)),
-    var(--surface-background);
+  background: var(--surface-background);
   transition: grid-template-columns 250ms ease-in-out;
 }
 
@@ -17,7 +15,7 @@
   min-width: var(--sidebar-expanded);
   padding: 60px 14px 16px;
   border-right: 0;
-  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  background: var(--surface-sidebar);
   box-shadow: none;
 }
 
