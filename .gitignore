@@ -74,6 +74,11 @@ docs/
 
 # Public docs site (docs-site/) — Astro Starlight on Vercel
 node_modules/
+
+# Electron / Node migration artifacts
+.vite/
+out/
+coverage/
 docs-site/node_modules/
 docs-site/.astro/
 docs-site/dist/

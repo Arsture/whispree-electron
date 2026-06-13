@@ -33,12 +33,12 @@ Before making migration changes, read:
 
 ## Target Stack Direction
 
-No Electron scaffold exists yet. When implementation starts, prefer:
+The first Electron scaffold now exists and should stay aligned with:
 
-- Electron + Electron Forge
+- Electron + Electron Forge (`@electron-forge/plugin-vite`)
 - Vite
 - React + TypeScript renderer
-- typed preload IPC bridge
+- typed preload IPC bridge through `window.whispree`
 - shared TypeScript core for pure app logic
 - main-process OS adapters for tray, shortcuts, permissions, and native integration
 - workers/sidecars/native modules for expensive audio/STT/LLM/local model work
@@ -88,7 +88,19 @@ Work in small slices:
 
 ## Commands
 
-Current repo has no Electron package scripts yet. Until the scaffold exists, do not invent successful build commands.
+Electron scaffold commands:
+
+```bash
+npm install
+npm run check:boundaries
+npm run typecheck
+npm run lint
+npm test
+npm run package
+npm start
+```
+
+Use `npm run verify` for the standard local non-packaging gate (`check:boundaries`, `typecheck`, `lint`, `test`). Run `npm run package` separately before claiming a package/build milestone.
 
 Legacy Swift commands are reference-only and should be used only when explicitly validating old behavior:
 
@@ -97,8 +109,6 @@ xcodegen generate
 xcodebuild -project Whispree.xcodeproj -scheme Whispree -destination 'platform=macOS,arch=arm64' build
 xcodebuild -project Whispree.xcodeproj -scheme Whispree -destination 'platform=macOS,arch=arm64' test
 ```
-
-After Electron scaffolding is added, update this file with the actual package manager commands, such as typecheck, lint, unit tests, and app smoke-run commands.
 
 ## Documentation Rules
 
