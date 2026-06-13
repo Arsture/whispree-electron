@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
 import { initialAppSnapshot, type AppSnapshot } from '../shared/ipc';
+import { defaultAppSettings, type AppSettingsSnapshot } from '../shared/settings';
 import { SIDEBAR_SECTIONS } from './ui-model';
 
 const whispreeMock = {
@@ -13,6 +14,9 @@ const whispreeMock = {
   cancelForegroundJob: vi.fn<() => Promise<unknown>>(),
   openSettings: vi.fn<() => Promise<unknown>>(),
   requestPermission: vi.fn<() => Promise<unknown>>(),
+  getSettings: vi.fn<() => Promise<AppSettingsSnapshot>>(),
+  updateSettings: vi.fn<(update: unknown) => Promise<unknown>>(),
+  resetSettings: vi.fn<() => Promise<unknown>>(),
 };
 
 let snapshotCallback: ((snapshot: AppSnapshot) => void) | null = null;
@@ -30,6 +34,9 @@ function installWhispreeMock() {
   whispreeMock.cancelForegroundJob.mockResolvedValue({});
   whispreeMock.openSettings.mockResolvedValue({});
   whispreeMock.requestPermission.mockResolvedValue({});
+  whispreeMock.getSettings.mockResolvedValue(defaultAppSettings);
+  whispreeMock.updateSettings.mockResolvedValue({ ok: true, settings: defaultAppSettings });
+  whispreeMock.resetSettings.mockResolvedValue({ ok: true, settings: defaultAppSettings });
   Object.defineProperty(window, 'whispree', {
     configurable: true,
     value: whispreeMock,
@@ -44,6 +51,7 @@ describe('App Swift parity shell markup', () => {
   });
 
   afterEach(() => {
+    cleanup();
     vi.clearAllMocks();
   });
 
@@ -84,6 +92,28 @@ describe('App Swift parity shell markup', () => {
     expect(html).not.toContain('Whispree Electron Migration');
     expect(html).not.toContain('window.whispree');
     expect(html).not.toContain('mock scaffold only');
+  });
+
+
+
+  it('renders Swift-anchored settings controls and updates through typed settings IPC', async () => {
+    render(<App />);
+    await screen.findByText('Ready — press hotkey to record');
+
+    fireEvent.click(screen.getByRole('tab', { name: /일반/u }));
+    expect(screen.getByText('Recording shortcut')).toBeTruthy();
+    expect(screen.getByText('⌃⇧R')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Recording Mode'), { target: { value: 'toggle' } });
+    expect(whispreeMock.updateSettings).toHaveBeenCalledWith({ recordingMode: 'toggle' });
+
+    fireEvent.click(screen.getByRole('tab', { name: /STT/u }));
+    expect(screen.getAllByText('WhisperKit Large V3 Turbo').length).toBeGreaterThan(0);
+    fireEvent.change(screen.getByLabelText('음성 인식 엔진'), { target: { value: 'groq' } });
+    expect(whispreeMock.updateSettings).toHaveBeenCalledWith({ sttProviderType: 'groq' });
+
+    fireEvent.click(screen.getByRole('tab', { name: /LLM/u }));
+    fireEvent.change(screen.getByLabelText('교정 모드'), { target: { value: 'structured' } });
+    expect(whispreeMock.updateSettings).toHaveBeenCalledWith({ correctionMode: 'structured' });
   });
 
   it('supports sidebar selection, collapse, keyboard navigation, commands, and subscription cleanup', async () => {

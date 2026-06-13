@@ -4,13 +4,15 @@ import path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { IPC_CHANNELS } from '../shared/ipc';
 import { resolveScreenshotCapturePath } from './screenshot-capture';
-import { commandError, commandOk, rejectUnexpectedArgs, validatePermissionKindInput } from './ipc-validation';
+import { commandError, commandOk, rejectUnexpectedArgs, rejectUnexpectedSettingsArgs, settingsCommandError, settingsCommandOk, validatePermissionKindInput } from './ipc-validation';
 import { MockDictationPipeline } from './mock-pipeline';
+import { createSettingsStore, type FileSettingsStore } from './settings-store';
 
 const dirname = __dirname;
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
+let settingsStore: FileSettingsStore | null = null;
 const pipeline = new MockDictationPipeline((snapshot) => {
   mainWindow?.webContents.send(IPC_CHANNELS.appSnapshotUpdated, snapshot);
 });
@@ -109,8 +111,37 @@ function createTray(): void {
   );
 }
 
+function getSettingsStore(): FileSettingsStore {
+  settingsStore ??= createSettingsStore(app.getPath('userData'));
+  return settingsStore;
+}
+
 function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.getAppSnapshot, () => pipeline.getSnapshot());
+
+  ipcMain.handle(IPC_CHANNELS.getSettings, async (_event, ...args: unknown[]) => {
+    const store = getSettingsStore();
+    const rejected = rejectUnexpectedSettingsArgs('get-settings', store.getSnapshot(), args);
+    if (rejected) return rejected;
+    await store.load();
+    return store.getSnapshot();
+  });
+  ipcMain.handle(IPC_CHANNELS.updateSettings, async (_event, update: unknown, ...args: unknown[]) => {
+    const store = getSettingsStore();
+    const rejected = rejectUnexpectedSettingsArgs('update-settings', store.getSnapshot(), args);
+    if (rejected) return rejected;
+    const result = await store.updateUnknown(update);
+    if (!result.ok) {
+      return settingsCommandError('update-settings', result.settings, result.issues.join('; '), 'invalid-input');
+    }
+    return settingsCommandOk('update-settings', result.settings, 'Settings updated.');
+  });
+  ipcMain.handle(IPC_CHANNELS.resetSettings, async (_event, ...args: unknown[]) => {
+    const store = getSettingsStore();
+    const rejected = rejectUnexpectedSettingsArgs('reset-settings', store.getSnapshot(), args);
+    if (rejected) return rejected;
+    return settingsCommandOk('reset-settings', await store.reset(), 'Settings reset.');
+  });
   ipcMain.handle(IPC_CHANNELS.enqueueMockDictation, (_event, ...args: unknown[]) => {
     const rejected = rejectUnexpectedArgs('enqueue-mock-dictation', pipeline.getSnapshot(), args);
     if (rejected) return rejected;
@@ -143,6 +174,7 @@ function registerIpcHandlers(): void {
 
 app.whenReady().then(() => {
   registerIpcHandlers();
+  void getSettingsStore().load();
   createMainWindow();
   createTray();
 

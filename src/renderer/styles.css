@@ -694,3 +694,73 @@ h2 {
     transition-duration: 1ms !important;
   }
 }
+
+.settings-control-list {
+  display: grid;
+  gap: 10px;
+}
+
+.settings-control-row,
+.settings-control-column {
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.34);
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 10px 12px;
+}
+
+.settings-control-column {
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.settings-control-row span,
+.settings-control-column span {
+  display: grid;
+  gap: 2px;
+}
+
+.settings-control-row strong,
+.settings-control-column strong {
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.settings-control-row small,
+.settings-control-column small {
+  color: var(--text-tertiary);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.settings-control-row output {
+  align-self: center;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  text-align: right;
+}
+
+.settings-select,
+.settings-input,
+.settings-textarea {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(120, 120, 128, 0.2);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font: inherit;
+  min-width: 180px;
+  padding: 7px 9px;
+}
+
+.settings-input.compact {
+  min-width: 74px;
+  width: 74px;
+}
+
+.settings-textarea {
+  min-height: 82px;
+  resize: vertical;
+}

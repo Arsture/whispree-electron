@@ -1,4 +1,5 @@
-import type { AppSnapshot, CommandResult, PermissionKind } from './ipc';
+import type { AppSnapshot, CommandResult, PermissionKind, SettingsCommandResult, SettingsUpdateInput } from './ipc';
+import type { AppSettingsSnapshot } from './settings';
 
 export interface WhispreeAPI {
   getAppSnapshot(): Promise<AppSnapshot>;
@@ -7,4 +8,7 @@ export interface WhispreeAPI {
   cancelForegroundJob(): Promise<CommandResult>;
   openSettings(): Promise<CommandResult>;
   requestPermission(kind: PermissionKind): Promise<CommandResult>;
+  getSettings(): Promise<AppSettingsSnapshot>;
+  updateSettings(update: SettingsUpdateInput): Promise<SettingsCommandResult>;
+  resetSettings(): Promise<SettingsCommandResult>;
 }

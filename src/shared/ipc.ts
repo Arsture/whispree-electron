@@ -1,4 +1,5 @@
 import type { DictationJobStatus } from './queue';
+import type { AppSettingsSnapshot, AppSettingsUpdate } from './settings';
 import type { ImplementationStatus } from './status';
 
 export const IPC_CHANNELS = {
@@ -8,6 +9,9 @@ export const IPC_CHANNELS = {
   cancelForegroundJob: 'whispree:cancel-foreground-job',
   openSettings: 'whispree:open-settings',
   requestPermission: 'whispree:request-permission',
+  getSettings: 'whispree:get-settings',
+  updateSettings: 'whispree:update-settings',
+  resetSettings: 'whispree:reset-settings',
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -105,7 +109,10 @@ export type CommandAction =
   | 'enqueue-mock-dictation'
   | 'cancel-foreground-job'
   | 'open-settings'
-  | 'request-permission';
+  | 'request-permission'
+  | 'get-settings'
+  | 'update-settings'
+  | 'reset-settings';
 
 export interface CommandError {
   readonly code: 'invalid-input' | 'unsupported' | 'not-implemented';
@@ -125,6 +132,25 @@ export type CommandResult =
       readonly snapshot: AppSnapshot;
       readonly error: CommandError;
     };
+
+
+export type SettingsCommandAction = 'get-settings' | 'update-settings' | 'reset-settings';
+
+export type SettingsCommandResult =
+  | {
+      readonly ok: true;
+      readonly action: SettingsCommandAction;
+      readonly settings: AppSettingsSnapshot;
+      readonly message: string;
+    }
+  | {
+      readonly ok: false;
+      readonly action: SettingsCommandAction;
+      readonly settings: AppSettingsSnapshot;
+      readonly error: CommandError;
+    };
+
+export type SettingsUpdateInput = AppSettingsUpdate;
 
 export const initialQueueSnapshot: QueueSnapshot = {
   totalCount: 0,

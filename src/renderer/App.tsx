@@ -1,11 +1,13 @@
 import { useMemo, useState, type KeyboardEvent } from 'react';
 import { SidebarShell } from './components/SidebarShell';
 import { useAppSnapshot } from './hooks/useAppSnapshot';
+import { useSettings } from './hooks/useSettings';
 import { PanelContent } from './panels/PanelContent';
 import { SIDEBAR_SECTIONS, nextSectionId, type SidebarSectionId, type TabNavigationKey } from './ui-model';
 
 export function App() {
   const snapshot = useAppSnapshot();
+  const { settings, updateSettings } = useSettings();
   const [activeSection, setActiveSection] = useState<SidebarSectionId>('home');
   const [visitedSections, setVisitedSections] = useState<ReadonlySet<SidebarSectionId>>(() => new Set(['home']));
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -55,7 +57,7 @@ export function App() {
               className="detail-panel"
               key={section.id}
             >
-              <PanelContent sectionId={section.id} snapshot={snapshot} />
+              <PanelContent sectionId={section.id} snapshot={snapshot} settings={settings} onUpdateSettings={updateSettings} />
             </section>
           );
         })}
