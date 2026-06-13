@@ -157,6 +157,20 @@ function registerIpcHandlers(): void {
     if (rejected) return rejected;
     return commandError('open-settings', pipeline.getSnapshot(), 'Settings window is planned after the dashboard shell.', 'not-implemented');
   });
+
+  ipcMain.handle(IPC_CHANNELS.copyHistoryText, (_event, historyId: unknown, variant: unknown, ...args: unknown[]) => {
+    const snapshot = pipeline.getSnapshot();
+    const rejected = rejectUnexpectedArgs('copy-history-text', snapshot, args);
+    if (rejected) return rejected;
+    if (typeof historyId !== 'string' || (variant !== 'original' && variant !== 'corrected')) {
+      return commandError('copy-history-text', snapshot, 'Invalid history copy request.', 'invalid-input');
+    }
+    const record = snapshot.history.find((candidate) => candidate.id === historyId);
+    if (!record) return commandError('copy-history-text', snapshot, `Unknown history record: ${historyId}`, 'invalid-input');
+    const text = variant === 'original' ? record.originalText : record.correctedText;
+    return commandOk('copy-history-text', snapshot, `${variant} text copy requested (${text.length} chars).`);
+  });
+
   ipcMain.handle(IPC_CHANNELS.requestPermission, (_event, kind: unknown, ...args: unknown[]) => {
     const snapshot = pipeline.getSnapshot();
     const rejected = rejectUnexpectedArgs('request-permission', snapshot, args);

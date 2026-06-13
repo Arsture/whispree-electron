@@ -17,6 +17,7 @@ const whispreeMock = {
   getSettings: vi.fn<() => Promise<AppSettingsSnapshot>>(),
   updateSettings: vi.fn<(update: unknown) => Promise<unknown>>(),
   resetSettings: vi.fn<() => Promise<unknown>>(),
+  copyHistoryText: vi.fn<(historyId: string, variant: 'original' | 'corrected') => Promise<unknown>>(),
 };
 
 let snapshotCallback: ((snapshot: AppSnapshot) => void) | null = null;
@@ -37,6 +38,7 @@ function installWhispreeMock() {
   whispreeMock.getSettings.mockResolvedValue(defaultAppSettings);
   whispreeMock.updateSettings.mockResolvedValue({ ok: true, settings: defaultAppSettings });
   whispreeMock.resetSettings.mockResolvedValue({ ok: true, settings: defaultAppSettings });
+  whispreeMock.copyHistoryText.mockResolvedValue({});
   Object.defineProperty(window, 'whispree', {
     configurable: true,
     value: whispreeMock,
@@ -160,6 +162,9 @@ describe('App Swift parity shell markup', () => {
       snapshotCallback?.(delivered);
     });
     expect(screen.getAllByText('hello Whispree').length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('tab', { name: /기록/u }));
+    fireEvent.click(screen.getByRole('button', { name: /원본/u }));
+    expect(whispreeMock.copyHistoryText).toHaveBeenCalledWith('history-1', 'original');
 
     unmount();
     expect(unsubscribe).toHaveBeenCalledTimes(1);

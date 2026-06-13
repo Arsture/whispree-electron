@@ -19,8 +19,8 @@ export function HistoryPanel({ snapshot }: { readonly snapshot: AppSnapshot }) {
               <div className="history-meta">
                 <span>{new Date(record.deliveredAtIso).toLocaleTimeString()}</span>
                 <span>
-                  <button type="button" className="inline-button">원본</button>
-                  <button type="button" className="inline-button">교정</button>
+                  <button type="button" className="inline-button" onClick={() => void window.whispree.copyHistoryText(record.id, 'original')}>원본</button>
+                  <button type="button" className="inline-button" onClick={() => void window.whispree.copyHistoryText(record.id, 'corrected')}>교정</button>
                 </span>
               </div>
               <p>{record.correctedText || record.originalText}</p>

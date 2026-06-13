@@ -61,6 +61,29 @@ describe('MockDictationPipeline', () => {
     expect(pipeline.getSnapshot().history).toEqual([]);
   });
 
+
+
+  it('records clipboard fallback status when insertion adapter cannot insert', async () => {
+    const pipeline = new MockDictationPipeline(undefined, immediateDelay, {
+      textInsertion: {
+        descriptor: {
+          id: 'test-clipboard',
+          label: 'Test clipboard fallback',
+          platform: 'cross-platform',
+          status: 'mock',
+          detail: 'test',
+        },
+        insertText: async () => 'copied-to-clipboard' as const,
+      },
+    });
+
+    pipeline.enqueueMockDictation({ recordingDelayMs: 0, sttDelayMs: 0, llmDelayMs: 0, deliveryDelayMs: 0 });
+    await pipeline.whenIdle();
+
+    expect(pipeline.getSnapshot().history[0]).toMatchObject({ status: 'copied-to-clipboard' });
+    expect(pipeline.getSnapshot().queue.items[0]).toMatchObject({ status: 'copied-to-clipboard', isTerminal: true });
+  });
+
   it('surfaces async provider failures as failed jobs and visible error state', async () => {
     let calls = 0;
     const failingSecondDelay = () => {

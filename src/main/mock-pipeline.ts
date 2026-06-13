@@ -5,9 +5,9 @@ import {
   type ProviderCardSnapshot,
   type QueueItemSnapshot,
 } from '../shared/ipc';
-import type { AudioCaptureAdapter } from '../shared/adapters';
+import type { AudioCaptureAdapter, TextInsertionAdapter } from '../shared/adapters';
 import { createAdapterSet, permissionCardsForAdapterSet } from './adapters/adapter-factory';
-import { MockAudioCaptureAdapter } from './adapters/mock-adapters';
+import { MockAudioCaptureAdapter, MockTextInsertionAdapter } from './adapters/mock-adapters';
 import { llmProviderChoices, sttProviderChoices } from '../shared/provider-registry';
 import { MockLLMProvider, MockSTTProvider, localModelBackendRegistry } from '../shared/providers';
 import { DictationQueueState, isDeliverableJobStatus, isProcessingJobStatus, isTerminalJobStatus, type DictationJob, type DictationJobSnapshot } from '../shared/queue';
@@ -24,8 +24,14 @@ interface MockPipelineOptions {
 type SnapshotListener = (snapshot: AppSnapshot) => void;
 type Delay = (milliseconds: number) => Promise<void>;
 
+interface HistoryAppender {
+  append(record: HistoryRecordSnapshot): Promise<unknown>;
+}
+
 interface MockDictationPipelineAdapters {
   readonly audio?: AudioCaptureAdapter;
+  readonly textInsertion?: TextInsertionAdapter;
+  readonly historyStore?: HistoryAppender;
 }
 
 const defaultDelay: Delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -57,6 +63,8 @@ export class MockDictationPipeline {
   readonly #tasks = new Set<Promise<void>>();
   readonly #delay: Delay;
   readonly #audioAdapter: AudioCaptureAdapter;
+  readonly #textInsertionAdapter: TextInsertionAdapter;
+  readonly #historyStore: HistoryAppender | null;
   #history: HistoryRecordSnapshot[] = [];
   #currentError: { readonly message: string } | null = null;
   #activeRecordingId: string | null = null;
@@ -67,6 +75,8 @@ export class MockDictationPipeline {
     if (listener) this.#listeners.add(listener);
     this.#delay = delay;
     this.#audioAdapter = adapters.audio ?? new MockAudioCaptureAdapter();
+    this.#textInsertionAdapter = adapters.textInsertion ?? new MockTextInsertionAdapter();
+    this.#historyStore = adapters.historyStore ?? null;
   }
 
   subscribe(listener: SnapshotListener): () => void {
@@ -230,8 +240,15 @@ export class MockDictationPipeline {
       const delivering = this.#queue.startDelivery(next.id);
       this.#emit();
       await this.#delay(deliveryDelayMs);
-      const delivered = this.#queue.transitionJob(delivering.id, 'delivered');
-      this.#history = [this.#historyRecord(delivered), ...this.#history].slice(0, 20);
+      const insertionResult = await this.#textInsertionAdapter.insertText(
+        delivering.correctedText || delivering.transcribedText,
+        delivering.targetContextId,
+      );
+      const terminalStatus = insertionResult === 'inserted' ? 'delivered' : 'copied-to-clipboard';
+      const delivered = this.#queue.transitionJob(delivering.id, terminalStatus);
+      const record = this.#historyRecord(delivered, terminalStatus);
+      this.#history = [record, ...this.#history].slice(0, 20);
+      await this.#historyStore?.append(record);
       this.#emit();
       next = this.#queue.nextDeliverableJob();
     }
@@ -256,7 +273,7 @@ export class MockDictationPipeline {
 
   #jobToSnapshot(job: DictationJob): QueueItemSnapshot {
     return {
-      id: job.id,
+      id: `history-${job.sequence}`,
       sequence: job.sequence,
       status: job.status,
       originalText: job.transcribedText,
@@ -267,14 +284,14 @@ export class MockDictationPipeline {
     };
   }
 
-  #historyRecord(job: DictationJob): HistoryRecordSnapshot {
+  #historyRecord(job: DictationJob, status: HistoryRecordSnapshot['status']): HistoryRecordSnapshot {
     return {
-      id: job.id,
+      id: `history-${job.sequence}`,
       sequence: job.sequence,
       originalText: job.transcribedText,
       correctedText: job.correctedText,
       deliveredAtIso: new Date().toISOString(),
-      status: 'delivered',
+      status,
     };
   }
 

@@ -1,4 +1,4 @@
-import type { AppSnapshot, CommandResult, PermissionKind, SettingsCommandResult, SettingsUpdateInput } from './ipc';
+import type { AppSnapshot, CommandResult, HistoryTextVariant, PermissionKind, SettingsCommandResult, SettingsUpdateInput } from './ipc';
 import type { AppSettingsSnapshot } from './settings';
 
 export interface WhispreeAPI {
@@ -11,4 +11,5 @@ export interface WhispreeAPI {
   getSettings(): Promise<AppSettingsSnapshot>;
   updateSettings(update: SettingsUpdateInput): Promise<SettingsCommandResult>;
   resetSettings(): Promise<SettingsCommandResult>;
+  copyHistoryText(historyId: string, variant: HistoryTextVariant): Promise<CommandResult>;
 }

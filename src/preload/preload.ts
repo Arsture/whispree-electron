@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { IPC_CHANNELS, type AppSnapshot, type PermissionKind, type SettingsUpdateInput } from '../shared/ipc';
+import { IPC_CHANNELS, type AppSnapshot, type HistoryTextVariant, type PermissionKind, type SettingsUpdateInput } from '../shared/ipc';
 import type { WhispreeAPI } from '../shared/whispree-api';
 
 const whispreeApi: WhispreeAPI = {
@@ -22,6 +22,8 @@ const whispreeApi: WhispreeAPI = {
   updateSettings: (update: SettingsUpdateInput) =>
     ipcRenderer.invoke(IPC_CHANNELS.updateSettings, update) as ReturnType<WhispreeAPI['updateSettings']>,
   resetSettings: () => ipcRenderer.invoke(IPC_CHANNELS.resetSettings) as ReturnType<WhispreeAPI['resetSettings']>,
+  copyHistoryText: (historyId: string, variant: HistoryTextVariant) =>
+    ipcRenderer.invoke(IPC_CHANNELS.copyHistoryText, historyId, variant) as ReturnType<WhispreeAPI['copyHistoryText']>,
 };
 
 contextBridge.exposeInMainWorld('whispree', whispreeApi);
