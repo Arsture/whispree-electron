@@ -52,6 +52,15 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: Real runtime readiness probe
+        run: npm run probe:real
+
+      - name: Signing and notarization preflight
+        run: npm run signing:preflight
+
+      - name: Visual parity blocker ledger
+        run: npm run parity:capture
+
       - name: Package Electron app
         run: npm run package
 

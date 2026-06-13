@@ -35,6 +35,9 @@ requireIncludes('electron-ci.yml', electronCi, [
   'npm run typecheck',
   'npm run lint',
   'npm test',
+  'npm run probe:real',
+  'npm run signing:preflight',
+  'npm run parity:capture',
   'npm run package',
   'actions/upload-artifact@v4',
 ]);
