@@ -3,7 +3,8 @@ import type { ReactNode } from 'react';
 import '../styles/settings-llm.css';
 
 type Tone = 'accent' | 'success' | 'warning' | 'danger' | 'neutral';
-type ProviderId = 'local' | 'openai' | 'groq';
+type ProviderId = 'none' | 'local' | 'openai' | 'groq';
+type Grade = 'RUNS GREAT' | 'RUNS WELL' | 'DECENT' | 'TIGHT FIT' | 'BARELY RUNS' | 'TOO HEAVY';
 
 type Metric = {
   readonly label: string;
@@ -13,13 +14,13 @@ type Metric = {
 
 type ModelCard = {
   readonly id: string;
-  readonly provider: ProviderId;
+  readonly provider: Exclude<ProviderId, 'none'>;
   readonly title: string;
   readonly description: string;
   readonly selected?: boolean;
   readonly vision?: boolean;
-  readonly badge: string;
-  readonly badgeTone: Tone;
+  readonly grade: Grade;
+  readonly gradeTone?: Tone;
   readonly metrics: readonly Metric[];
   readonly status?: string;
   readonly statusTone?: Tone;
@@ -33,124 +34,224 @@ type CorrectionMode = {
 };
 
 const providers = [
-  { id: 'local', label: 'Local', subtitle: '온디바이스 모델', selected: true },
-  { id: 'openai', label: 'OpenAI', subtitle: 'Codex/OAuth 인증', selected: false },
-  { id: 'groq', label: 'Groq', subtitle: 'API Key 공유', selected: false },
+  { id: 'none', label: '없음 (원문 사용)', subtitle: 'LLM 교정 비활성화', selected: false },
+  { id: 'local', label: '로컬 MLX', subtitle: '온디바이스 MLX/MLX-VLM', selected: true },
+  { id: 'openai', label: 'OpenAI (GPT)', subtitle: 'Codex CLI 또는 OpenAI 로그인', selected: false },
+  { id: 'groq', label: 'Groq Cloud', subtitle: 'STT와 API Key 공유', selected: false },
 ] as const;
 
-const modelCards: readonly ModelCard[] = [
+const localModels: readonly ModelCard[] = [
   {
-    id: 'qwen25-7b-instruct',
+    id: 'mlx-community/Qwen3-4B-Instruct-2507-4bit',
     provider: 'local',
-    title: 'Qwen2.5 7B Instruct',
-    description: '빠른 로컬 교정 · 한국어/영어 균형형',
+    title: 'Qwen3 4B (4-bit)',
+    description: '균형 잡힌 교정 — 속도와 품질의 기본값',
     selected: true,
-    badge: 'Runs Great',
-    badgeTone: 'success',
+    grade: 'RUNS GREAT',
     metrics: [
-      { label: 'Size', value: '4.4 GB' },
-      { label: 'RAM', value: '38%' },
-      { label: 'tok/s', value: '~24' },
-      { label: 'Quality', value: '82', tone: 'success' },
+      { label: 'Size', value: '~2.1 GB' },
+      { label: 'RAM', value: '≈32%' },
+      { label: 'Speed', value: 'tok/s' },
+      { label: 'Quality', value: '15' },
     ],
-    status: '다운로드됨 · 준비 완료',
+    status: '다운로드됨',
     statusTone: 'success',
   },
   {
-    id: 'llava-next-7b',
+    id: 'mlx-community/Qwen3-8B-4bit',
     provider: 'local',
-    title: 'LLaVA Next 7B',
-    description: '로컬 vision 모델 · 스크린샷 컨텍스트 지원',
-    vision: true,
-    badge: 'Vision',
-    badgeTone: 'accent',
+    title: 'Qwen3 8B (4-bit)',
+    description: '고품질 한국어 교정 — 느리지만 정확',
+    grade: 'RUNS WELL',
     metrics: [
-      { label: 'Size', value: '5.1 GB' },
-      { label: 'RAM', value: '54%', tone: 'warning' },
-      { label: 'tok/s', value: '~11' },
-      { label: 'Quality', value: '78' },
+      { label: 'Size', value: '~4.3 GB' },
+      { label: 'RAM', value: '≈45%' },
+      { label: 'Speed', value: 'tok/s' },
+      { label: 'Quality', value: '20' },
     ],
-    status: '다운로드 탭에서 모델을 준비하세요.',
+    status: '다운로드 필요',
     statusTone: 'warning',
   },
   {
-    id: 'gpt-4o-mini',
-    provider: 'openai',
-    title: 'GPT-4o mini',
-    description: '저지연 클라우드 교정 · 비용 효율 우선',
-    selected: true,
-    badge: 'Cloud',
-    badgeTone: 'success',
+    id: 'mlx-community/Qwen3-VL-4B-Instruct-8bit',
+    provider: 'local',
+    title: 'Qwen3 VL 4B (8-bit)',
+    description: '비전+텍스트 교정 — 스크린샷 컨텍스트 활용',
+    vision: true,
+    grade: 'RUNS WELL',
     metrics: [
-      { label: 'Latency', value: '~700ms' },
-      { label: 'Vision', value: 'Yes', tone: 'accent' },
-      { label: 'Quality', value: '88', tone: 'success' },
+      { label: 'Size', value: '~4.8 GB' },
+      { label: 'RAM', value: '≈48%' },
+      { label: 'Speed', value: 'tok/s' },
+      { label: 'Quality', value: '30' },
+    ],
+    status: '다운로드 필요',
+    statusTone: 'warning',
+  },
+];
+
+const openAIModels: readonly ModelCard[] = [
+  {
+    id: 'gpt-5.5',
+    provider: 'openai',
+    title: 'GPT-5.5 (Latest)',
+    description: '최신 최고 품질. 긴 컨텍스트와 복잡한 교정에 적합',
+    selected: true,
+    grade: 'RUNS GREAT',
+    metrics: [
+      { label: 'Size', value: '☁️' },
+      { label: 'Latency', value: '1100ms' },
+      { label: 'Quality', value: '100' },
     ],
   },
   {
-    id: 'gpt-4.1',
+    id: 'gpt-5.4',
     provider: 'openai',
-    title: 'GPT-4.1',
-    description: '고품질 문맥 교정 · 긴 프롬프트와 스크린샷에 적합',
-    badge: 'Best',
-    badgeTone: 'accent',
+    title: 'GPT-5.4',
+    description: '고품질. 코딩 + 추론 통합 모델',
+    grade: 'RUNS GREAT',
     metrics: [
-      { label: 'Latency', value: '~1200ms' },
-      { label: 'Vision', value: 'Yes', tone: 'accent' },
-      { label: 'Quality', value: '96', tone: 'success' },
+      { label: 'Size', value: '☁️' },
+      { label: 'Latency', value: '1200ms' },
+      { label: 'Quality', value: '94' },
+    ],
+  },
+  {
+    id: 'gpt-5.4-mini',
+    provider: 'openai',
+    title: 'GPT-5.4 Mini (Fast)',
+    description: '빠른 응답. 짧은 교정에 적합',
+    grade: 'RUNS GREAT',
+    metrics: [
+      { label: 'Size', value: '☁️' },
+      { label: 'Latency', value: '600ms' },
+      { label: 'Quality', value: '78' },
+    ],
+  },
+  {
+    id: 'gpt-5.3-codex',
+    provider: 'openai',
+    title: 'GPT-5.3 Codex',
+    description: '코딩 특화. 기술 용어 교정에 강함',
+    grade: 'RUNS GREAT',
+    metrics: [
+      { label: 'Size', value: '☁️' },
+      { label: 'Latency', value: '800ms' },
+      { label: 'Quality', value: '82' },
+    ],
+  },
+  {
+    id: 'gpt-5.2',
+    provider: 'openai',
+    title: 'GPT-5.2',
+    description: '이전 세대. 호환성 우선',
+    grade: 'RUNS GREAT',
+    metrics: [
+      { label: 'Size', value: '☁️' },
+      { label: 'Latency', value: '900ms' },
+      { label: 'Quality', value: '75' },
+    ],
+  },
+];
+
+const groqModels: readonly ModelCard[] = [
+  {
+    id: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    provider: 'groq',
+    title: 'Llama 4 Scout 17B (Vision)',
+    description: 'Llama 4 Scout — Groq에서 유일하게 이미지 입력 지원 (17B MoE, 16 expert)',
+    selected: true,
+    vision: true,
+    grade: 'RUNS GREAT',
+    metrics: [
+      { label: 'Size', value: '☁️' },
+      { label: 'Latency', value: '400ms' },
+      { label: 'Quality', value: '84' },
     ],
   },
   {
     id: 'llama-3.3-70b-versatile',
     provider: 'groq',
     title: 'Llama 3.3 70B Versatile',
-    description: 'Groq 고속 텍스트 교정 · STT와 API Key 공유',
-    selected: true,
-    badge: 'Fast Cloud',
-    badgeTone: 'success',
+    description: '70B 범용 모델. 교정 품질 균형. (텍스트 전용)',
+    grade: 'RUNS GREAT',
     metrics: [
-      { label: 'Latency', value: '~240ms', tone: 'success' },
-      { label: 'Vision', value: 'No' },
-      { label: 'Quality', value: '90', tone: 'success' },
+      { label: 'Size', value: '☁️' },
+      { label: 'Latency', value: '500ms' },
+      { label: 'Quality', value: '88' },
     ],
   },
   {
-    id: 'llama-4-scout-17b',
+    id: 'llama-3.1-8b-instant',
     provider: 'groq',
-    title: 'Llama 4 Scout 17B',
-    description: 'Groq vision 경로 · 스크린샷 컨텍스트 지원 mock',
-    vision: true,
-    badge: 'Vision',
-    badgeTone: 'accent',
+    title: 'Llama 3.1 8B Instant',
+    description: '8B 초경량 모델. 응답 매우 빠름. (텍스트 전용)',
+    grade: 'RUNS GREAT',
     metrics: [
-      { label: 'Latency', value: '~320ms', tone: 'success' },
-      { label: 'Vision', value: 'Yes', tone: 'accent' },
+      { label: 'Size', value: '☁️' },
+      { label: 'Latency', value: '200ms' },
+      { label: 'Quality', value: '70' },
+    ],
+  },
+  {
+    id: 'qwen/qwen3-32b',
+    provider: 'groq',
+    title: 'Qwen3 32B',
+    description: 'Qwen3 32B. 한국어 + 다국어 강함. (텍스트 전용)',
+    grade: 'RUNS GREAT',
+    metrics: [
+      { label: 'Size', value: '☁️' },
+      { label: 'Latency', value: '350ms' },
       { label: 'Quality', value: '86' },
+    ],
+  },
+  {
+    id: 'openai/gpt-oss-120b',
+    provider: 'groq',
+    title: 'GPT-OSS 120B',
+    description: 'OpenAI 오픈 웨이트 120B. 추론 우수. (텍스트 전용)',
+    grade: 'RUNS GREAT',
+    metrics: [
+      { label: 'Size', value: '☁️' },
+      { label: 'Latency', value: '700ms' },
+      { label: 'Quality', value: '92' },
+    ],
+  },
+  {
+    id: 'openai/gpt-oss-20b',
+    provider: 'groq',
+    title: 'GPT-OSS 20B',
+    description: 'OpenAI 오픈 웨이트 20B. 속도/품질 균형. (텍스트 전용)',
+    grade: 'RUNS GREAT',
+    metrics: [
+      { label: 'Size', value: '☁️' },
+      { label: 'Latency', value: '300ms' },
+      { label: 'Quality', value: '78' },
     ],
   },
 ];
 
 const correctionModes: readonly CorrectionMode[] = [
   {
-    id: 'conservative',
-    title: '보수적 교정',
-    description: '원문을 최대한 유지하고 명백한 오타와 띄어쓰기만 수정합니다.',
+    id: 'standard',
+    title: 'Standard (STT Correction)',
+    description: 'Fix STT errors: spacing, punctuation, misheard words',
     selected: true,
   },
   {
-    id: 'balanced',
-    title: '균형 교정',
-    description: '말투를 보존하면서 문장 부호, 중복어, 가벼운 표현을 다듬습니다.',
+    id: 'fillerRemoval',
+    title: 'Filler Removal',
+    description: 'STT correction + remove fillers (음, 어, 그러니까)',
   },
   {
-    id: 'aggressive',
-    title: '적극 교정',
-    description: '전달력을 높이기 위해 문장 구조를 더 자연스럽게 재작성합니다.',
+    id: 'structured',
+    title: 'Structured',
+    description: 'STT correction + filler removal + organize with bullet points',
   },
   {
     id: 'custom',
     title: 'Custom',
-    description: '아래 시스템 프롬프트를 직접 편집해 교정 규칙을 지정합니다.',
+    description: 'Use your own custom system prompt',
   },
 ];
 
@@ -162,12 +263,12 @@ const promptPreview = `You are Whispree's correction engine.
 
 function SectionCard({ title, eyebrow, children }: { readonly title: string; readonly eyebrow?: string; readonly children: ReactNode }) {
   return (
-    <section className="llm-liquid-card">
-      <div className="llm-card-heading">
+    <section className="llm-section">
+      <div className="llm-section-heading">
         <h2>{title}</h2>
         {eyebrow ? <span>{eyebrow}</span> : null}
       </div>
-      {children}
+      <div className="llm-liquid-card">{children}</div>
     </section>
   );
 }
@@ -178,10 +279,10 @@ function RadioMark({ selected }: { readonly selected?: boolean }) {
 
 function ProviderSelector() {
   return (
-    <SectionCard title="교정 엔진" eyebrow="provider selector">
+    <SectionCard title="교정 엔진">
       <div className="llm-provider-selector" role="radiogroup" aria-label="LLM provider mock selector">
         {providers.map((provider) => (
-          <div className="llm-provider-option" data-selected={provider.selected} role="radio" aria-checked={provider.selected} tabIndex={0} key={provider.id}>
+          <div className="llm-provider-option" data-selected={provider.selected ?? false} role="radio" aria-checked={provider.selected ?? false} tabIndex={0} key={provider.id}>
             <RadioMark selected={provider.selected} />
             <div>
               <strong>{provider.label}</strong>
@@ -194,33 +295,35 @@ function ProviderSelector() {
   );
 }
 
-function ModelMetrics({ metrics }: { readonly metrics: readonly Metric[] }) {
+function ModelMetrics({ metrics, grade, gradeTone = 'neutral' }: { readonly metrics: readonly Metric[]; readonly grade: Grade; readonly gradeTone?: Tone }) {
   return (
     <div className="llm-model-metrics" aria-label="model metrics">
-      {metrics.map((metric) => (
-        <span className="llm-metric" data-tone={metric.tone ?? 'neutral'} key={`${metric.label}-${metric.value}`}>
-          <small>{metric.label}</small>
-          <strong>{metric.value}</strong>
-        </span>
-      ))}
+      <span className="llm-compatibility-badge" data-tone={gradeTone}>{grade}</span>
+      <div className="llm-metric-row">
+        {metrics.map((metric) => (
+          <span className="llm-metric" data-tone={metric.tone ?? 'neutral'} key={`${metric.label}-${metric.value}`}>
+            <small>{metric.label}</small>
+            <strong>{metric.value}</strong>
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
 
 function ModelRow({ model }: { readonly model: ModelCard }) {
   return (
-    <div className="llm-model-row" data-selected={model.selected} role="radio" aria-checked={model.selected ?? false} tabIndex={0}>
+    <div className="llm-model-row" data-selected={model.selected ?? false} role="radio" aria-checked={model.selected ?? false} tabIndex={0}>
       <div className="llm-model-main">
         <RadioMark selected={model.selected} />
         <div className="llm-model-copy">
           <div className="llm-model-title-line">
             <strong>{model.title}</strong>
-            {model.vision ? <span className="llm-vision-icon" aria-label="supports vision">◉</span> : null}
-            <span className="llm-badge" data-tone={model.badgeTone}>{model.badge}</span>
+            {model.vision ? <span className="llm-vision-icon" aria-label="supports vision">👁</span> : null}
           </div>
           <small>{model.description}</small>
         </div>
-        <ModelMetrics metrics={model.metrics} />
+        <ModelMetrics metrics={model.metrics} grade={model.grade} gradeTone={model.gradeTone} />
       </div>
       {model.status ? (
         <div className="llm-model-status" data-tone={model.statusTone ?? 'neutral'}>
@@ -232,50 +335,46 @@ function ModelRow({ model }: { readonly model: ModelCard }) {
   );
 }
 
-function ModelSection({ provider, title, eyebrow }: { readonly provider: ProviderId; readonly title: string; readonly eyebrow: string }) {
+function ModelSection({ title, eyebrow, models }: { readonly title: string; readonly eyebrow?: string; readonly models: readonly ModelCard[] }) {
   return (
     <SectionCard title={title} eyebrow={eyebrow}>
       <div className="llm-model-list" role="radiogroup" aria-label={`${title} mock models`}>
-        {modelCards.filter((model) => model.provider === provider).map((model) => <ModelRow model={model} key={model.id} />)}
+        {models.map((model) => <ModelRow model={model} key={model.id} />)}
       </div>
     </SectionCard>
   );
 }
 
-function ToggleRow({ title, description, enabled, disabled }: { readonly title: string; readonly description: string; readonly enabled: boolean; readonly disabled?: boolean }) {
+function ToggleRow({ title, description, enabled }: { readonly title: string; readonly description: string; readonly enabled: boolean }) {
   return (
-    <div className="llm-toggle-row" data-disabled={disabled ?? false}>
+    <div className="llm-toggle-row">
       <div>
         <strong>{title}</strong>
         <small>{description}</small>
       </div>
-      <span className="llm-switch" data-on={enabled} data-disabled={disabled ?? false} role="switch" aria-checked={enabled} aria-label={title} />
+      <span className="llm-switch" data-on={enabled} role="switch" aria-checked={enabled} aria-label={title} />
     </div>
   );
 }
 
 function ScreenshotContextSection() {
   return (
-    <SectionCard title="스크린샷 컨텍스트" eyebrow="vision">
+    <SectionCard title="스크린샷 컨텍스트">
       <ToggleRow title="활성화" description="녹음 시 화면을 캡처하여 교정 정확도를 높입니다" enabled />
       <div className="llm-divider" />
       <ToggleRow title="에이전트에 전달" description="텍스트 삽입 후 캡처된 스크린샷을 대상 앱에 이미지로 붙여넣습니다" enabled={false} />
-      <div className="llm-inline-note" data-tone="accent">
-        <span aria-hidden="true">◉</span>
-        vision 모델에서만 표시되는 Swift 조건부 섹션을 mock으로 노출합니다.
-      </div>
     </SectionCard>
   );
 }
 
 function OpenAIAuthSection() {
   return (
-    <SectionCard title="OpenAI 인증" eyebrow="auth mock">
+    <SectionCard title="OpenAI 인증">
       <div className="llm-auth-stack">
         <div className="llm-auth-row">
           <span>인증 방식:</span>
-          <strong>Codex CLI</strong>
-          <span className="llm-auth-badge" data-tone="success">✓ 감지됨</span>
+          <span className="llm-auth-value">Codex CLI</span>
+          <span className="llm-auth-badge" data-tone="success">✓</span>
         </div>
         <div className="llm-auth-row">
           <span>Account:</span>
@@ -283,23 +382,50 @@ function OpenAIAuthSection() {
         </div>
         <div className="llm-auth-warning" data-tone="warning">
           <span aria-hidden="true">!</span>
-          로그아웃 상태에서는 “OpenAI 로그인”, 브라우저 로그인 진행, Codex 인증 확인 버튼이 표시됩니다.
+          로그인이 필요합니다
         </div>
         <div className="llm-auth-actions" aria-label="OpenAI auth actions mock">
           <button type="button">OpenAI 로그인</button>
           <button type="button">Codex 인증 확인</button>
+        </div>
+        <p className="llm-auth-help">Codex CLI가 설치되어 있으면 자동 감지됩니다</p>
+      </div>
+    </SectionCard>
+  );
+}
+
+function GroqApiKeySection() {
+  return (
+    <SectionCard title="Groq API Key">
+      <div className="llm-auth-stack">
+        <label className="llm-secret-field">
+          <span>API Key</span>
+          <input readOnly type="password" value="configured" aria-label="API Key" />
+        </label>
+        <div className="llm-model-status" data-tone="success">
+          <span aria-hidden="true">✓</span>
+          API Key 설정됨 (STT와 공유)
         </div>
       </div>
     </SectionCard>
   );
 }
 
+function ModelStatusNotice() {
+  return (
+    <div className="llm-status-notice" data-tone="accent">
+      <span aria-hidden="true">↓</span>
+      다운로드 탭에서 ‘Qwen3 4B (4-bit)’ 을 다운로드하세요.
+    </div>
+  );
+}
+
 function CorrectionModeSection() {
   return (
-    <SectionCard title="교정 모드" eyebrow="rows">
+    <SectionCard title="교정 모드">
       <div className="llm-correction-list" role="radiogroup" aria-label="Correction mode mock selector">
         {correctionModes.map((mode) => (
-          <div className="llm-correction-row" data-selected={mode.selected} role="radio" aria-checked={mode.selected ?? false} tabIndex={0} key={mode.id}>
+          <div className="llm-correction-row" data-selected={mode.selected ?? false} role="radio" aria-checked={mode.selected ?? false} tabIndex={0} key={mode.id}>
             <RadioMark selected={mode.selected} />
             <div>
               <strong>{mode.title}</strong>
@@ -314,15 +440,14 @@ function CorrectionModeSection() {
 
 function SystemPromptSection() {
   return (
-    <SectionCard title="시스템 프롬프트" eyebrow="preview/editor">
-      <div className="llm-prompt-grid">
+    <SectionCard title="시스템 프롬프트">
+      <div className="llm-prompt-stack">
         <div className="llm-prompt-pane">
-          <div className="llm-prompt-label">Preview</div>
+          <div className="llm-prompt-label">Default preview</div>
           <pre>{promptPreview}</pre>
-          <p>“Custom” 모드에서 직접 편집할 수 있습니다.</p>
         </div>
         <div className="llm-prompt-pane" data-editor="true">
-          <div className="llm-prompt-label">Custom editor mock</div>
+          <div className="llm-prompt-label">Custom editor</div>
           <textarea readOnly value={`${promptPreview}\n- Keep domain terms from the custom dictionary unchanged.`} aria-label="Custom system prompt mock editor" />
           <div className="llm-save-row">
             <button type="button">저장</button>
@@ -336,24 +461,14 @@ function SystemPromptSection() {
 export function LLMSettingsPanelMock() {
   return (
     <div className="llm-settings-mock" data-testid="llm-settings-panel-mock">
-      <header className="llm-panel-header">
-        <div>
-          <p>Large Language Model</p>
-          <h1>교정 설정</h1>
-        </div>
-        <span className="llm-header-status">UI parity mock · no backend</span>
-      </header>
-
       <ProviderSelector />
-
-      <div className="llm-model-grid">
-        <ModelSection provider="local" title="로컬 모델" eyebrow="device · 18 GB" />
-        <ModelSection provider="openai" title="OpenAI 모델" eyebrow="cloud vision" />
-        <ModelSection provider="groq" title="Groq 모델" eyebrow="fast cloud" />
-      </div>
-
+      <ModelSection title="로컬 모델" eyebrow="Apple Silicon · local branch" models={localModels} />
       <ScreenshotContextSection />
+      <ModelStatusNotice />
+      <ModelSection title="OpenAI 모델" eyebrow="cloud branch" models={openAIModels} />
       <OpenAIAuthSection />
+      <ModelSection title="Groq 모델" eyebrow="cloud branch" models={groqModels} />
+      <GroqApiKeySection />
       <CorrectionModeSection />
       <SystemPromptSection />
     </div>

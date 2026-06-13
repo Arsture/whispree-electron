@@ -1,73 +1,67 @@
 .llm-settings-mock {
   display: grid;
-  gap: 20px;
-  max-width: 1040px;
+  gap: 24px;
+  max-width: 860px;
   margin: 0 auto;
   padding: 24px;
   color: var(--text-primary);
 }
 
-.llm-panel-header,
-.llm-card-heading,
+.llm-section {
+  display: grid;
+  gap: 8px;
+}
+
+.llm-section-heading,
 .llm-provider-option,
 .llm-model-main,
 .llm-toggle-row,
 .llm-auth-row,
 .llm-auth-warning,
 .llm-auth-actions,
-.llm-correction-row,
 .llm-model-status,
+.llm-status-notice,
 .llm-save-row {
   display: flex;
   align-items: center;
 }
 
-.llm-panel-header {
+.llm-section-heading {
   justify-content: space-between;
-  min-height: 48px;
+  gap: 12px;
+  padding-inline: 4px;
 }
 
-.llm-panel-header p,
-.llm-panel-header h1,
-.llm-card-heading h2,
+.llm-section-heading h2,
 .llm-prompt-pane p,
-.llm-prompt-pane pre {
+.llm-prompt-pane pre,
+.llm-auth-help {
   margin: 0;
 }
 
-.llm-panel-header p {
+.llm-section-heading h2 {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 760;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
-.llm-panel-header h1 {
-  margin-top: 2px;
-  font-size: 24px;
-  line-height: 1.2;
-}
-
-.llm-header-status,
-.llm-card-heading span,
-.llm-badge,
+.llm-section-heading span,
+.llm-compatibility-badge,
 .llm-auth-badge {
   border: 1px solid var(--border-subtle);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.46);
 }
 
-.llm-header-status,
-.llm-card-heading span {
+.llm-section-heading span {
   padding: 4px 9px;
   color: var(--text-secondary);
   font-size: 11px;
   font-weight: 760;
 }
 
-.llm-liquid-card {
-  padding: 16px;
+.llm-liquid-card,
+.llm-status-notice {
   border: 1px solid var(--border-subtle);
   border-radius: var(--card-radius);
   background: var(--surface-card);
@@ -76,27 +70,20 @@
   -webkit-backdrop-filter: blur(24px) saturate(1.28);
 }
 
-.llm-card-heading {
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.llm-card-heading h2 {
-  font-size: 15px;
-  font-weight: 760;
+.llm-liquid-card {
+  padding: 16px;
 }
 
 .llm-provider-selector {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
 .llm-provider-option {
   gap: 10px;
-  min-height: 68px;
-  padding: 12px;
+  min-height: 64px;
+  padding: 10px 12px;
   border: 1px solid var(--border-subtle);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.28);
@@ -106,8 +93,8 @@
 .llm-provider-option[data-selected="true"],
 .llm-model-row[data-selected="true"],
 .llm-correction-row[data-selected="true"] {
-  border-color: color-mix(in srgb, var(--accent) 34%, var(--border-subtle));
-  background: linear-gradient(90deg, rgba(10, 132, 255, 0.12), rgba(255, 255, 255, 0.18));
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border-subtle));
+  background: color-mix(in srgb, var(--accent) 11%, transparent);
 }
 
 .llm-provider-option:focus-visible,
@@ -128,7 +115,9 @@
 .llm-model-copy strong,
 .llm-toggle-row strong,
 .llm-correction-row strong,
-.llm-auth-row strong {
+.llm-auth-row strong,
+.llm-auth-value,
+.llm-secret-field span {
   font-size: 13px;
   font-weight: 730;
 }
@@ -137,7 +126,8 @@
 .llm-model-copy small,
 .llm-toggle-row small,
 .llm-correction-row small,
-.llm-prompt-pane p {
+.llm-prompt-pane p,
+.llm-auth-help {
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.45;
@@ -161,13 +151,6 @@
 .llm-correction-row[data-selected="true"] .llm-radio-mark {
   border-color: var(--accent);
   background: var(--accent);
-}
-
-.llm-model-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 20px;
-  align-items: start;
 }
 
 .llm-model-list,
@@ -211,54 +194,65 @@
 }
 
 .llm-vision-icon {
-  display: inline-grid;
-  place-items: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 999px;
   color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  font-size: 9px;
+  font-size: 12px;
+  line-height: 1;
 }
 
-.llm-badge,
+.llm-compatibility-badge,
 .llm-auth-badge {
   padding: 2px 7px;
   font-size: 10px;
   font-weight: 760;
+  white-space: nowrap;
 }
 
-.llm-badge[data-tone="success"],
+.llm-compatibility-badge[data-tone="neutral"] {
+  color: var(--text-secondary);
+  background: var(--surface-inset);
+}
+
+.llm-compatibility-badge[data-tone="warning"] {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 11%, white);
+}
+
+.llm-compatibility-badge[data-tone="danger"] {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 11%, white);
+}
+
 .llm-auth-badge[data-tone="success"] {
   color: var(--success);
   background: color-mix(in srgb, var(--success) 11%, white);
 }
 
-.llm-badge[data-tone="accent"] {
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 11%, white);
+.llm-model-metrics {
+  display: grid;
+  flex: 0 0 auto;
+  justify-items: end;
+  gap: 4px;
+  margin-left: auto;
 }
 
-.llm-model-metrics {
+.llm-metric-row {
   display: flex;
-  flex: 0 0 auto;
   flex-wrap: wrap;
   justify-content: flex-end;
-  max-width: 126px;
-  gap: 5px;
-  margin-left: auto;
+  gap: 8px;
 }
 
 .llm-metric {
   display: inline-flex;
-  align-items: baseline;
-  gap: 3px;
-  color: var(--text-tertiary);
+  align-items: center;
+  gap: 2px;
+  color: var(--text-secondary);
   font-size: 11px;
   white-space: nowrap;
 }
 
 .llm-metric small {
+  color: var(--text-tertiary);
   font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
@@ -266,31 +260,37 @@
 
 .llm-metric strong {
   font-size: 11px;
-  font-weight: 760;
+  font-weight: 650;
 }
 
 .llm-metric[data-tone="success"] { color: var(--success); }
 .llm-metric[data-tone="warning"] { color: var(--warning); }
 .llm-metric[data-tone="accent"] { color: var(--accent); }
 
-.llm-model-status {
+.llm-model-status,
+.llm-status-notice {
   gap: 6px;
-  padding-left: 28px;
   font-size: 12px;
   font-weight: 650;
 }
 
+.llm-model-status {
+  padding-left: 28px;
+}
+
+.llm-status-notice {
+  padding: 16px;
+}
+
 .llm-model-status[data-tone="success"] { color: var(--text-secondary); }
 .llm-model-status[data-tone="warning"] { color: var(--warning); }
+.llm-status-notice[data-tone="accent"] { color: var(--text-secondary); }
+.llm-status-notice[data-tone="accent"] span { color: var(--accent); }
 
 .llm-toggle-row {
   justify-content: space-between;
   gap: 16px;
   padding: 11px 0;
-}
-
-.llm-toggle-row[data-disabled="true"] {
-  opacity: 0.62;
 }
 
 .llm-divider {
@@ -329,10 +329,9 @@
   transform: translateX(18px);
 }
 
-.llm-inline-note,
 .llm-auth-warning {
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 2px;
   padding: 10px 12px;
   border: 1px solid var(--border-subtle);
   border-radius: 13px;
@@ -340,7 +339,6 @@
   font-size: 12px;
 }
 
-.llm-inline-note[data-tone="accent"] { color: var(--accent); }
 .llm-auth-warning[data-tone="warning"] { color: var(--warning); }
 
 .llm-auth-stack {
@@ -355,7 +353,8 @@
   font-size: 13px;
 }
 
-.llm-auth-row span:first-child {
+.llm-auth-row span:first-child,
+.llm-secret-field span {
   color: var(--text-secondary);
 }
 
@@ -387,14 +386,27 @@
   background: var(--accent);
 }
 
+.llm-secret-field {
+  display: grid;
+  gap: 6px;
+}
+
+.llm-secret-field input {
+  min-height: 32px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 4px 8px;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.44);
+}
+
 .llm-correction-row {
   grid-template-columns: 18px minmax(0, 1fr);
   gap: 12px;
 }
 
-.llm-prompt-grid {
+.llm-prompt-stack {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -414,7 +426,7 @@
 
 .llm-prompt-pane pre,
 .llm-prompt-pane textarea {
-  min-height: 180px;
+  min-height: 140px;
   width: 100%;
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
@@ -437,9 +449,8 @@
 }
 
 @media (max-width: 980px) {
-  .llm-model-grid,
-  .llm-prompt-grid {
-    grid-template-columns: 1fr;
+  .llm-provider-selector {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -448,7 +459,6 @@
     padding: 18px;
   }
 
-  .llm-panel-header,
   .llm-provider-selector,
   .llm-model-main,
   .llm-auth-row {
@@ -466,8 +476,11 @@
   }
 
   .llm-model-metrics {
-    justify-content: flex-start;
-    max-width: none;
+    justify-items: start;
     margin-left: 28px;
+  }
+
+  .llm-metric-row {
+    justify-content: flex-start;
   }
 }

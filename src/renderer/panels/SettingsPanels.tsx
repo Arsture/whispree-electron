@@ -31,9 +31,9 @@ interface SettingsPanelProps {
   readonly onUpdateSettings: (update: AppSettingsUpdate) => Promise<void>;
 }
 
-const recordingModeLabels: Record<RecordingMode, string> = {
-  'push-to-talk': 'Push to Talk — Hold key to record, release to transcribe',
-  toggle: 'Toggle — Press to start, press again to stop',
+const recordingModeLabels: Record<RecordingMode, { readonly title: string; readonly description: string }> = {
+  'push-to-talk': { title: 'Push to Talk', description: 'Hold key to record, release to transcribe' },
+  toggle: { title: 'Toggle', description: 'Press to start, press again to stop' },
 };
 
 const languageLabels: Record<SupportedLanguage, string> = {
@@ -82,7 +82,7 @@ export function SettingsPanel({ sectionId, groups, settings, onUpdateSettings }:
 function GeneralSettingsPanel({ groups, settings, onUpdateSettings }: Omit<SettingsPanelProps, 'sectionId'>) {
   return (
     <div className="general-settings-panel settings-parity-scroll" data-testid="settings-panel-general">
-      <SettingsCard group={groups[0]!} title="Hotkey" description="Swift GeneralSettingsView의 단축키 카드 구조를 mock recorder로 재현합니다.">
+      <GeneralSettingsCard group={groups[0]!} title="Hotkey">
         <ShortcutRecorderSetting
           label="Recording shortcut"
           shortcut={settings.toggleRecordingShortcut}
@@ -98,9 +98,9 @@ function GeneralSettingsPanel({ groups, settings, onUpdateSettings }: Omit<Setti
           onUpdateSettings={onUpdateSettings}
         />
         <p className="settings-help-copy">텍스트를 선택한 후 Quick Fix 단축키를 누르면 단어를 즉시 교정하고 사전에 저장합니다.</p>
-      </SettingsCard>
+      </GeneralSettingsCard>
 
-      <SettingsCard group={groups[0]!} title="Recording Mode">
+      <GeneralSettingsCard group={groups[0]!} title="Recording Mode">
         <RadioSetting
           label="Mode"
           value={settings.recordingMode}
@@ -115,9 +115,9 @@ function GeneralSettingsPanel({ groups, settings, onUpdateSettings }: Omit<Setti
           checked={settings.pauseMediaDuringRecording}
           onChange={(pauseMediaDuringRecording) => onUpdateSettings({ pauseMediaDuringRecording })}
         />
-      </SettingsCard>
+      </GeneralSettingsCard>
 
-      <SettingsCard group={groups[0]!} title="Audio Input" className="settings-card-muted">
+      <GeneralSettingsCard group={groups[0]!} title="Audio Input" className="settings-card-muted">
         <SelectSetting
           label="입력 채널:"
           detail="외장 오디오 인터페이스에서 마이크가 연결된 채널을 선택하세요. 다음 녹음부터 적용됩니다."
@@ -126,9 +126,9 @@ function GeneralSettingsPanel({ groups, settings, onUpdateSettings }: Omit<Setti
           labels={{ '0': '자동 (모든 채널 다운믹스)', '1': '채널 1' }}
           onChange={(audioInputChannel) => onUpdateSettings({ audioInputChannel: Number(audioInputChannel) })}
         />
-      </SettingsCard>
+      </GeneralSettingsCard>
 
-      <SettingsCard group={groups[0]!} title="Language">
+      <GeneralSettingsCard group={groups[0]!} title="Language">
         <SelectSetting
           label="Transcription language:"
           value={settings.language}
@@ -139,9 +139,9 @@ function GeneralSettingsPanel({ groups, settings, onUpdateSettings }: Omit<Setti
         {settings.language === 'auto' ? (
           <InlineNotice tone="warning" icon="⚠" text="Auto-detect may not always work correctly. Select a specific language for better accuracy." />
         ) : null}
-      </SettingsCard>
+      </GeneralSettingsCard>
 
-      <SettingsCard group={groups[1]!} title="Dictionary Sync">
+      <GeneralSettingsCard group={groups[1]!} title="Dictionary Sync">
         <ToggleSetting
           label="사전 동기화"
           checked={settings.sharedDictionaryEnabled}
@@ -161,11 +161,10 @@ function GeneralSettingsPanel({ groups, settings, onUpdateSettings }: Omit<Setti
         <div className="settings-button-row" aria-label="dictionary sync actions">
           <button type="button" className="settings-mini-button" disabled={!settings.sharedDictionaryEnabled}>지금 가져오기</button>
           <button type="button" className="settings-mini-button" disabled={!settings.sharedDictionaryEnabled}>지금 내보내기</button>
-          <small>mock sync controls</small>
         </div>
-      </SettingsCard>
+      </GeneralSettingsCard>
 
-      <SettingsCard group={groups[1]!} title="브라우저 복원">
+      <GeneralSettingsCard group={groups[1]!} title="브라우저 복원">
         <ToggleSetting
           label="Chrome 탭 및 입력 필드 자동 복원"
           detail="녹음 시작 전 Chrome 탭과 포커스된 입력 필드를 기억했다가 전사 후 같은 위치로 돌아가 붙여넣습니다."
@@ -181,9 +180,9 @@ function GeneralSettingsPanel({ groups, settings, onUpdateSettings }: Omit<Setti
             <p>설정하지 않으면 탭 복원만 동작하고, 입력 필드 포커스는 복원되지 않습니다.</p>
           </SettingsInset>
         ) : null}
-      </SettingsCard>
+      </GeneralSettingsCard>
 
-      <SettingsCard group={groups[1]!} title="터미널 복원">
+      <GeneralSettingsCard group={groups[1]!} title="터미널 복원">
         <ToggleSetting
           label="iTerm2 pane · tmux 위치 자동 복원"
           detail="녹음 시작 전 iTerm2 session(split)과 tmux window/pane 위치를 기억했다가 전사 후 같은 pane으로 돌아가 붙여넣습니다."
@@ -199,23 +198,23 @@ function GeneralSettingsPanel({ groups, settings, onUpdateSettings }: Omit<Setti
             </ul>
           </SettingsInset>
         ) : null}
-      </SettingsCard>
+      </GeneralSettingsCard>
 
-      <SettingsCard group={groups[2]!} title="General">
+      <GeneralSettingsCard group={groups[2]!} title="General">
         <ToggleSetting label="Show transcription overlay" checked={settings.showOverlay} onChange={(showOverlay) => onUpdateSettings({ showOverlay })} />
         <ToggleSetting label="Launch at login" checked={settings.launchAtLogin} onChange={(launchAtLogin) => onUpdateSettings({ launchAtLogin })} />
-      </SettingsCard>
+      </GeneralSettingsCard>
 
-      <SettingsCard group={groups[2]!} title="Permissions">
+      <GeneralSettingsCard group={groups[2]!} title="Permissions">
         <div className="permission-row-stack">
           <PermissionRow icon="🎙" title="Microphone" subtitle="음성 녹음에 필요합니다" status="notDetermined" />
           <PermissionRow icon="✋" title="Accessibility" subtitle="다른 앱에 텍스트를 붙여넣기 위해 필요합니다" status="denied" />
           <PermissionRow icon="▣" title="화면 녹화" subtitle="다른 앱 화면을 캡처하여 AI 교정의 맥락을 제공합니다" status="granted" />
           <PermissionRow icon="↻" title="App Management" subtitle="자동 업데이트에 필요합니다 (선택)" status="notDetermined" actionLabel="설정 열기" />
         </div>
-      </SettingsCard>
+      </GeneralSettingsCard>
 
-      <SettingsCard group={groups[2]!} title="Automation 권한">
+      <GeneralSettingsCard group={groups[2]!} title="Automation 권한">
         <p className="settings-help-copy settings-help-inset">앱 제어 권한은 해당 기능을 처음 사용할 때 자동으로 요청됩니다.</p>
         <div className="permission-row-stack">
           <PermissionRow icon="♪" title="Apple Music" subtitle="녹음 중 음악 자동 일시정지" status="notDetermined" />
@@ -223,7 +222,7 @@ function GeneralSettingsPanel({ groups, settings, onUpdateSettings }: Omit<Setti
           <PermissionRow icon="◎" title="Google Chrome" subtitle="탭 복원 및 입력 필드 포커스" status="denied" />
           <PermissionRow icon=">_" title="iTerm2" subtitle="터미널 pane 위치 복원" status="notDetermined" />
         </div>
-      </SettingsCard>
+      </GeneralSettingsCard>
     </div>
   );
 }
@@ -273,6 +272,10 @@ function WordSetsPanel() {
   return <DomainWordSetsPanelMock />;
 }
 
+function GeneralSettingsCard(props: Omit<Parameters<typeof SettingsCard>[0], 'showStatus'>) {
+  return <SettingsCard {...props} showStatus={false} />;
+}
+
 export function PlaceholderSection({ groups, extra }: { readonly groups: readonly PlaceholderGroup[]; readonly extra?: ReactNode }) {
   return (
     <div className="placeholder-grid">
@@ -298,12 +301,14 @@ function SettingsCard({
   title,
   description,
   className,
+  showStatus = true,
   children,
 }: {
   readonly group: PlaceholderGroup;
   readonly title?: string;
   readonly description?: string;
   readonly className?: string;
+  readonly showStatus?: boolean;
   readonly children: ReactNode;
 }) {
   return (
@@ -313,7 +318,7 @@ function SettingsCard({
           <h2>{title ?? group.title}</h2>
           {description ? <p>{description}</p> : null}
         </div>
-        <StatusPill tone={implementationTone(group.status)} status={group.status}>{group.status}</StatusPill>
+        {showStatus ? <StatusPill tone={implementationTone(group.status)} status={group.status}>{group.status}</StatusPill> : null}
       </div>
       <div className="settings-control-list">{children}</div>
     </section>
@@ -436,18 +441,27 @@ function RadioSetting<T extends string>({
   readonly label: string;
   readonly value: T;
   readonly options: readonly T[];
-  readonly labels: Record<T, string>;
+  readonly labels: Record<T, string | { readonly title: string; readonly description: string }>;
   readonly onChange: (value: T) => void;
 }) {
   return (
     <fieldset className="settings-radio-group">
       <legend>{label}</legend>
-      {options.map((option) => (
-        <label className="settings-radio-option" key={option}>
-          <input type="radio" name={label} checked={value === option} onChange={() => onChange(option)} />
-          <span>{labels[option]}</span>
-        </label>
-      ))}
+      {options.map((option) => {
+        const optionLabel = labels[option];
+        const title = typeof optionLabel === 'string' ? optionLabel : optionLabel.title;
+        const description = typeof optionLabel === 'string' ? undefined : optionLabel.description;
+        const accessibleLabel = description ? `${title} — ${description}` : title;
+        return (
+          <label className="settings-radio-option" key={option}>
+            <input type="radio" name={label} aria-label={accessibleLabel} checked={value === option} onChange={() => onChange(option)} />
+            <span>
+              <strong>{title}</strong>
+              {description ? <small>{description}</small> : null}
+            </span>
+          </label>
+        );
+      })}
     </fieldset>
   );
 }

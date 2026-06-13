@@ -1,28 +1,18 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 
 import '../styles/wordsets.css';
-
-type SyncState = 'synced' | 'pending' | 'local-only';
 
 interface CorrectionMappingMock {
   readonly id: string;
   readonly from: string;
   readonly to: string;
-  readonly state?: 'editing' | 'new' | 'removed';
-}
-
-interface WordMock {
-  readonly id: string;
-  readonly value: string;
-  readonly state?: 'editing' | 'new' | 'removed';
 }
 
 interface DomainWordSetMock {
   readonly id: string;
   readonly name: string;
   readonly enabled: boolean;
-  readonly syncState: SyncState;
-  readonly words: readonly WordMock[];
+  readonly words: readonly string[];
   readonly corrections: readonly CorrectionMappingMock[];
 }
 
@@ -38,47 +28,49 @@ const defaultWordSets: readonly DomainWordSetMock[] = [
     id: 'it-dev',
     name: 'IT/개발',
     enabled: true,
-    syncState: 'synced',
     words: [
-      { id: 'api', value: 'API' },
-      { id: 'react', value: 'React' },
-      { id: 'docker', value: 'Docker' },
-      { id: 'llm', value: 'LLM' },
-      { id: 'vector-db', value: 'Vector DB', state: 'editing' },
-      { id: 'rag', value: 'RAG', state: 'new' },
+      'API',
+      'backend',
+      'frontend',
+      'React',
+      'Swift',
+      'Python',
+      'GitHub',
+      'PR',
+      'merge',
+      'deploy',
+      'CI/CD',
+      'Docker',
     ],
     corrections: [
       { id: 'gpt', from: '지피티', to: 'GPT' },
       { id: 'kubernetes', from: '쿠버네티스', to: 'Kubernetes' },
-      { id: 'local-llm', from: '로컬 엘엘엠', to: 'local LLM', state: 'editing' },
     ],
   },
   {
     id: 'statistics',
-    name: '통계/논문',
+    name: '통계',
     enabled: true,
-    syncState: 'pending',
     words: [
-      { id: 'p-value', value: 'p-value' },
-      { id: 'anova', value: 'ANOVA' },
-      { id: 'bayes', value: 'Bayesian' },
-      { id: 't-dist', value: 'T-distribution' },
+      'T-distribution',
+      'p-value',
+      'regression',
+      'hypothesis',
+      'ANOVA',
+      'chi-square',
+      'correlation',
+      'variance',
     ],
     corrections: [
       { id: 'pvalue', from: '피 밸류', to: 'p-value' },
-      { id: 'anova-ko', from: '아노바', to: 'ANOVA', state: 'new' },
+      { id: 'anova-ko', from: '아노바', to: 'ANOVA' },
     ],
   },
   {
     id: 'custom',
-    name: '내 프로젝트 용어',
-    enabled: false,
-    syncState: 'local-only',
-    words: [
-      { id: 'whispree', value: 'Whispree' },
-      { id: 'codex-style', value: 'Codex-style' },
-      { id: 'old-token', value: 'legacy prompt', state: 'removed' },
-    ],
+    name: '사용자 정의',
+    enabled: true,
+    words: [],
     corrections: [],
   },
 ];
@@ -92,29 +84,17 @@ const defaultSets: readonly DefaultSetMock[] = [
   },
   {
     id: 'default-statistics',
-    name: '통계/논문',
+    name: '통계',
     description: 'T-distribution, p-value, ANOVA 등 통계 용어 24개',
     alreadyAdded: true,
   },
   {
     id: 'default-custom',
-    name: '사용자 지정',
+    name: '사용자 정의',
     description: '직접 단어를 추가할 수 있는 빈 세트',
-    alreadyAdded: false,
+    alreadyAdded: true,
   },
 ];
-
-function syncCopy(state: SyncState): string {
-  if (state === 'synced') return '사전 동기화됨';
-  if (state === 'pending') return '동기화 대기';
-  return '로컬 편집 중';
-}
-
-function syncIcon(state: SyncState): string {
-  if (state === 'synced') return '✓';
-  if (state === 'pending') return '↻';
-  return '●';
-}
 
 function DomainToggle({ checked }: { readonly checked: boolean }) {
   return (
@@ -124,24 +104,24 @@ function DomainToggle({ checked }: { readonly checked: boolean }) {
   );
 }
 
-function WordChip({ word }: { readonly word: WordMock }) {
+function WordRow({ word, label }: { readonly word: string; readonly label: string }) {
   return (
-    <span className="wordsets-chip" data-state={word.state ?? 'saved'}>
-      <span className="wordsets-chip-text">{word.value}</span>
-      {word.state === 'editing' ? <span className="wordsets-edit-cursor" aria-label="편집 중" /> : null}
-      {word.state === 'removed' ? <span className="wordsets-chip-delete" aria-hidden="true">−</span> : <span className="wordsets-chip-delete" aria-hidden="true">×</span>}
-    </span>
+    <div className="wordsets-word-row">
+      <span className="wordsets-textfield" aria-label={label}>{word}</span>
+      <button type="button" aria-label={`${word} 삭제`}>
+        −
+      </button>
+    </div>
   );
 }
 
 function CorrectionRow({ correction }: { readonly correction: CorrectionMappingMock }) {
   return (
-    <div className="wordsets-correction-row" data-state={correction.state ?? 'saved'}>
+    <div className="wordsets-correction-row">
       <code>{correction.from}</code>
-      <span aria-hidden="true">→</span>
+      <span className="wordsets-correction-arrow" aria-hidden="true">→</span>
       <code>{correction.to}</code>
       <span className="wordsets-correction-spacer" />
-      {correction.state ? <em>{correction.state === 'editing' ? '편집 중' : correction.state === 'new' ? '추가됨' : '삭제 예정'}</em> : null}
       <button type="button" aria-label={`${correction.from} 매핑 삭제`}>
         −
       </button>
@@ -149,13 +129,11 @@ function CorrectionRow({ correction }: { readonly correction: CorrectionMappingM
   );
 }
 
-function AddWordMock({ wordSetId }: { readonly wordSetId: string }) {
-  const placeholder = wordSetId === 'custom' ? '새 단어 추가' : '도메인 단어 추가';
-
+function AddWordMock() {
   return (
     <div className="wordsets-add-row" aria-label="word add mock">
-      <span className="wordsets-textfield">{placeholder}</span>
-      <button type="button" aria-label="단어 추가" data-enabled={wordSetId === 'it-dev'}>
+      <span className="wordsets-textfield">새 단어 추가</span>
+      <button type="button" aria-label="단어 추가" data-enabled="false">
         +
       </button>
     </div>
@@ -166,9 +144,9 @@ function AddCorrectionMock() {
   return (
     <div className="wordsets-correction-add-row" aria-label="correction add mock">
       <span className="wordsets-textfield">잘못된 표현</span>
-      <span aria-hidden="true">→</span>
+      <span className="wordsets-correction-arrow" aria-hidden="true">→</span>
       <span className="wordsets-textfield">올바른 단어</span>
-      <button type="button" aria-label="교정 매핑 추가">+</button>
+      <button type="button" aria-label="교정 매핑 추가" data-enabled="false">+</button>
     </div>
   );
 }
@@ -181,14 +159,10 @@ function WordSetSection({ wordSet, expanded }: { readonly wordSet: DomainWordSet
         <button type="button" className="wordsets-domain-title" aria-expanded={expanded}>
           <strong>{wordSet.name}</strong>
           <span>
-            {wordSet.words.filter((word) => word.state !== 'removed').length}개 단어
+            {wordSet.words.length}개 단어
             {wordSet.corrections.length > 0 ? ` · ${wordSet.corrections.length}개 매핑` : ''}
           </span>
         </button>
-        <span className="wordsets-sync-badge" data-state={wordSet.syncState}>
-          <span aria-hidden="true">{syncIcon(wordSet.syncState)}</span>
-          {syncCopy(wordSet.syncState)}
-        </span>
         <button type="button" className="wordsets-chevron" aria-label={`${wordSet.name} 펼치기`}>
           {expanded ? '⌃' : '⌄'}
         </button>
@@ -202,13 +176,13 @@ function WordSetSection({ wordSet, expanded }: { readonly wordSet: DomainWordSet
               <span>STT + LLM</span>
             </div>
             {wordSet.words.length > 0 ? (
-              <div className="wordsets-chip-cloud" aria-label={`${wordSet.name} 단어 목록`}>
-                {wordSet.words.map((word) => <WordChip word={word} key={word.id} />)}
+              <div className="wordsets-word-list" aria-label={`${wordSet.name} 단어 목록`}>
+                {wordSet.words.map((word) => <WordRow word={word} label="단어" key={word} />)}
               </div>
             ) : (
               <p className="wordsets-empty-copy">단어가 없습니다.</p>
             )}
-            <AddWordMock wordSetId={wordSet.id} />
+            <AddWordMock />
           </div>
 
           <div className="wordsets-field-group">
@@ -232,25 +206,13 @@ function WordSetSection({ wordSet, expanded }: { readonly wordSet: DomainWordSet
 }
 
 export function DomainWordSetsPanelMock() {
-  const [expandedIds] = useState<ReadonlySet<string>>(() => new Set(['it-dev', 'statistics', 'custom']));
-  const syncSummary = useMemo(() => {
-    const totalWords = defaultWordSets.reduce((sum, set) => sum + set.words.filter((word) => word.state !== 'removed').length, 0);
-    const totalMappings = defaultWordSets.reduce((sum, set) => sum + set.corrections.filter((correction) => correction.state !== 'removed').length, 0);
-    return { totalWords, totalMappings };
-  }, []);
+  const [expandedIds] = useState<ReadonlySet<string>>(() => new Set(['it-dev']));
 
   return (
     <div className="wordsets-panel-mock" data-testid="domain-wordsets-panel-mock">
       <div className="wordsets-guidance">
-        <div>
-          <p>도메인 단어 세트</p>
-          <span>도메인별 단어 세트를 활성화하면 음성 인식과 교정 단계에서 해당 단어들이 더 정확하게 처리됩니다.</span>
-        </div>
-        <div className="wordsets-sync-summary" aria-label="dictionary sync visual state">
-          <span aria-hidden="true">⇄</span>
-          <strong>Dictionary Sync</strong>
-          <small>{syncSummary.totalWords} words · {syncSummary.totalMappings} mappings · 1 pending</small>
-        </div>
+        <p>도메인 단어 세트</p>
+        <span>도메인별 단어 세트를 활성화하면 음성 인식과 교정 단계에서 해당 단어들이 더 정확하게 처리됩니다.</span>
       </div>
 
       <div className="wordsets-domain-list">

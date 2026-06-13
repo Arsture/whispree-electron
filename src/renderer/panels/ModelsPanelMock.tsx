@@ -36,12 +36,6 @@ const devicePills = [
   { icon: 'gpu', label: '18 cores' },
 ] as const;
 
-const deviceCards = [
-  { label: '실행 여유', value: 'STT + LLM 동시 가능', detail: 'Swift DeviceCapability.current 기반 mock', tone: 'success' },
-  { label: '메모리 압박', value: '보통', detail: '대형 모델 2개 이상은 TIGHT FIT로 표시', tone: 'neutral' },
-  { label: '권장 조합', value: 'WhisperKit + Qwen 4B', detail: '로컬 CoreML/MLX 워크플로우', tone: 'accent' },
-] as const satisfies readonly { readonly label: string; readonly value: string; readonly detail: string; readonly tone: Tone }[];
-
 const sttModels: readonly DownloadableModel[] = [
   {
     id: 'whisperkit-large-v3-turbo',
@@ -50,10 +44,9 @@ const sttModels: readonly DownloadableModel[] = [
     description: '로컬 CoreML+ANE, 99개 언어',
     grade: 'RUNS WELL',
     state: 'ready',
-    selected: true,
     metrics: [
       { icon: 'internaldrive', label: '~1.5 GB' },
-      { icon: 'memorychip', label: 'RAM 18%' },
+      { icon: 'memorychip', label: 'RAM 15%' },
       { icon: 'chart.bar', label: 'Quality 75' },
     ],
   },
@@ -66,7 +59,7 @@ const sttModels: readonly DownloadableModel[] = [
     state: 'loading',
     metrics: [
       { icon: 'internaldrive', label: '~1.0 GB' },
-      { icon: 'memorychip', label: 'RAM 12%' },
+      { icon: 'memorychip', label: 'RAM 13%' },
       { icon: 'chart.bar', label: 'Quality 65' },
     ],
   },
@@ -74,65 +67,187 @@ const sttModels: readonly DownloadableModel[] = [
 
 const llmModels: readonly DownloadableModel[] = [
   {
-    id: 'qwen3-4b-mlx',
+    id: 'mlx-community/gemma-4-e2b-it-4bit',
     family: 'llm',
-    name: 'Qwen3 4B MLX 4-bit',
-    description: '빠른 로컬 교정, 한국어/영어 균형',
+    name: 'Gemma 4 2B (4-bit)',
+    description: '경량 Gemma — 빠른 속도',
+    grade: 'RUNS WELL',
+    state: 'not-downloaded',
+    totalText: '3.61 GB',
+    metrics: [
+      { icon: 'internaldrive', label: '~3.6 GB' },
+      { icon: 'memorychip', label: 'RAM 25%' },
+      { icon: 'bolt', label: '22 tok/s' },
+      { icon: 'chart.bar', label: 'Quality 8', tone: 'danger' },
+    ],
+  },
+  {
+    id: 'mlx-community/gemma-4-e4b-it-4bit',
+    family: 'llm',
+    name: 'Gemma 4 4B (4-bit)',
+    description: '균형 잡힌 Gemma — 속도와 품질',
+    grade: 'RUNS WELL',
+    state: 'not-downloaded',
+    totalText: '5.25 GB',
+    metrics: [
+      { icon: 'internaldrive', label: '~5.3 GB' },
+      { icon: 'memorychip', label: 'RAM 29%' },
+      { icon: 'bolt', label: '15 tok/s' },
+      { icon: 'chart.bar', label: 'Quality 15', tone: 'danger' },
+    ],
+  },
+  {
+    id: 'lmstudio-community/gemma-4-26B-A4B-it-MLX-4bit',
+    family: 'llm',
+    name: 'Gemma 4 26B MoE (4-bit)',
+    description: 'Gemma MoE — 전체 26B RAM 필요, 활성 4B (uv 필요)',
+    grade: 'TIGHT FIT',
+    state: 'not-downloaded',
+    totalText: '15.64 GB',
+    metrics: [
+      { icon: 'internaldrive', label: '~15.6 GB' },
+      { icon: 'memorychip', label: 'RAM 58%' },
+      { icon: 'bolt', label: '5 tok/s' },
+      { icon: 'chart.bar', label: 'Quality 28', tone: 'warning' },
+    ],
+  },
+  {
+    id: 'mlx-community/gemma-4-31b-it-4bit',
+    family: 'llm',
+    name: 'Gemma 4 31B (4-bit)',
+    description: '대형 Gemma — 최고 품질, 48GB+ RAM 추천',
+    grade: 'TIGHT FIT',
+    state: 'not-downloaded',
+    totalText: '18.44 GB',
+    metrics: [
+      { icon: 'internaldrive', label: '~18.4 GB' },
+      { icon: 'memorychip', label: 'RAM 66%' },
+      { icon: 'bolt', label: '4 tok/s' },
+      { icon: 'chart.bar', label: 'Quality 30', tone: 'warning' },
+    ],
+  },
+  {
+    id: 'Jiunsong/supergemma4-26b-uncensored-mlx-4bit-v2',
+    family: 'llm',
+    name: 'SuperGemma4 26B MoE (4-bit)',
+    description: 'Gemma 4 26B 파인튜닝 — 한국어/코딩 강점 (uv 필요)',
+    grade: 'TIGHT FIT',
+    state: 'not-downloaded',
+    totalText: '14.23 GB',
+    metrics: [
+      { icon: 'internaldrive', label: '~14.2 GB' },
+      { icon: 'memorychip', label: 'RAM 53%' },
+      { icon: 'bolt', label: '5 tok/s' },
+      { icon: 'chart.bar', label: 'Quality 29', tone: 'warning' },
+    ],
+  },
+  {
+    id: 'mlx-community/diffusiongemma-26B-A4B-it-4bit',
+    family: 'llm',
+    name: 'DiffusionGemma 26B MoE (4-bit)',
+    description: 'DiffusionGemma VLM — 블록 확산 생성, 스크린샷 교정 지원 (uv 필요)',
+    grade: 'TIGHT FIT',
+    state: 'not-downloaded',
+    supportsVision: true,
+    totalText: '15.6 GB',
+    metrics: [
+      { icon: 'internaldrive', label: '~15.6 GB' },
+      { icon: 'memorychip', label: 'RAM 58%' },
+      { icon: 'bolt', label: '5 tok/s' },
+      { icon: 'chart.bar', label: 'Quality 31', tone: 'warning' },
+    ],
+  },
+  {
+    id: 'mlx-community/Qwen3-1.7B-4bit',
+    family: 'llm',
+    name: 'Qwen3 1.7B (4-bit)',
+    description: '경량 교정 — 빠른 속도, 적은 메모리',
     grade: 'RUNS GREAT',
+    state: 'not-downloaded',
+    totalText: '940 MB',
+    metrics: [
+      { icon: 'internaldrive', label: '~940 MB' },
+      { icon: 'memorychip', label: 'RAM 17%' },
+      { icon: 'bolt', label: '87 tok/s' },
+      { icon: 'chart.bar', label: 'Quality 5', tone: 'danger' },
+    ],
+  },
+  {
+    id: 'mlx-community/Qwen3-4B-Instruct-2507-4bit',
+    family: 'llm',
+    name: 'Qwen3 4B (4-bit)',
+    description: '균형 잡힌 교정 — 속도와 품질의 기본값',
+    grade: 'RUNS WELL',
+    state: 'ready',
+    selected: true,
+    metrics: [
+      { icon: 'internaldrive', label: '~2.1 GB' },
+      { icon: 'memorychip', label: 'RAM 21%' },
+      { icon: 'bolt', label: '39 tok/s' },
+      { icon: 'chart.bar', label: 'Quality 15', tone: 'danger' },
+    ],
+  },
+  {
+    id: 'mlx-community/Qwen3-8B-4bit',
+    family: 'llm',
+    name: 'Qwen3 8B (4-bit)',
+    description: '고품질 한국어 교정 — 느리지만 정확',
+    grade: 'RUNS WELL',
     state: 'downloading',
     progress: 0.37,
     downloadedText: '1.6 GB',
     totalText: '4.3 GB',
     metrics: [
       { icon: 'internaldrive', label: '~4.3 GB' },
-      { icon: 'memorychip', label: 'RAM 38%' },
-      { icon: 'bolt', label: '42 tok/s' },
-      { icon: 'chart.bar', label: 'Quality 72' },
+      { icon: 'memorychip', label: 'RAM 27%' },
+      { icon: 'bolt', label: '19 tok/s' },
+      { icon: 'chart.bar', label: 'Quality 20', tone: 'warning' },
     ],
   },
   {
-    id: 'gemma-3-4b-vision',
+    id: 'mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit',
     family: 'llm',
-    name: 'Gemma 3 4B Vision MLX',
-    description: '스크린샷 컨텍스트용 vision capability',
-    grade: 'DECENT',
-    state: 'not-downloaded',
-    supportsVision: true,
-    metrics: [
-      { icon: 'internaldrive', label: '~5.1 GB' },
-      { icon: 'memorychip', label: 'RAM 47%' },
-      { icon: 'bolt', label: '28 tok/s' },
-      { icon: 'chart.bar', label: 'Quality 78' },
-    ],
-  },
-  {
-    id: 'qwen3-14b-mlx',
-    family: 'llm',
-    name: 'Qwen3 14B MLX 4-bit',
-    description: '높은 품질, STT 모델과 동시 사용 시 메모리 주의',
+    name: 'Qwen3 Coder 30B MoE (4-bit)',
+    description: '코딩 특화 MoE — 전체 30B RAM 필요, 활성 3B',
     grade: 'TIGHT FIT',
     state: 'queued',
-    totalText: '9.8 GB',
+    totalText: '16 GB',
     metrics: [
-      { icon: 'internaldrive', label: '~9.8 GB' },
-      { icon: 'memorychip', label: 'RAM 82%', tone: 'warning' },
-      { icon: 'bolt', label: '15 tok/s' },
-      { icon: 'chart.bar', label: 'Quality 88' },
+      { icon: 'internaldrive', label: '~16.0 GB' },
+      { icon: 'memorychip', label: 'RAM 59%' },
+      { icon: 'bolt', label: '5 tok/s' },
+      { icon: 'chart.bar', label: 'Quality 25', tone: 'warning' },
     ],
   },
   {
-    id: 'llama-3-70b-heavy',
+    id: 'mlx-community/GLM-4.7-Flash-4bit',
     family: 'llm',
-    name: 'Llama 3.3 70B Preview',
-    description: '로컬 장치에는 너무 무거운 future catalog entry',
-    grade: 'TOO HEAVY',
+    name: 'GLM-4.7 Flash (4-bit)',
+    description: '중국어/한국어 강점 — 대형 모델',
+    grade: 'TIGHT FIT',
     state: 'error',
-    errorText: '디스크 공간 부족 — 42 GB 필요',
+    errorText: '디스크 공간 부족 — 16 GB 필요',
     metrics: [
-      { icon: 'internaldrive', label: '~42 GB' },
-      { icon: 'memorychip', label: 'RAM 145%', tone: 'danger' },
-      { icon: 'bolt', label: 'n/a', tone: 'warning' },
-      { icon: 'chart.bar', label: 'Quality 95' },
+      { icon: 'internaldrive', label: '~16.0 GB' },
+      { icon: 'memorychip', label: 'RAM 59%' },
+      { icon: 'bolt', label: '5 tok/s' },
+      { icon: 'chart.bar', label: 'Quality 22', tone: 'warning' },
+    ],
+  },
+  {
+    id: 'mlx-community/Qwen3-VL-4B-Instruct-8bit',
+    family: 'llm',
+    name: 'Qwen3 VL 4B (8-bit)',
+    description: '비전+텍스트 교정 — 스크린샷 컨텍스트 활용',
+    grade: 'RUNS WELL',
+    state: 'not-downloaded',
+    supportsVision: true,
+    totalText: '4.8 GB',
+    metrics: [
+      { icon: 'internaldrive', label: '~4.8 GB' },
+      { icon: 'memorychip', label: 'RAM 28%' },
+      { icon: 'bolt', label: '17 tok/s' },
+      { icon: 'chart.bar', label: 'Quality 30', tone: 'warning' },
     ],
   },
 ];
@@ -142,7 +257,6 @@ function gradeTone(grade: CompatibilityGrade): Tone {
   if (grade === 'BARELY RUNS' || grade === 'TOO HEAVY') return 'danger';
   return 'neutral';
 }
-
 
 function stateSummary(state: ModelState): string {
   switch (state) {
@@ -168,12 +282,11 @@ function progressLabel(model: DownloadableModel): string {
   return `${percent} 다운로드 중...`;
 }
 
-function SectionCard({ title, children, eyebrow }: { readonly title: string; readonly children: ReactNode; readonly eyebrow?: string }) {
+function SectionCard({ title, children }: { readonly title: string; readonly children: ReactNode }) {
   return (
     <section className="models-section">
       <h2>{title}</h2>
       <div className="models-liquid-card">
-        {eyebrow ? <span className="models-section-eyebrow">{eyebrow}</span> : null}
         {children}
       </div>
     </section>
@@ -221,7 +334,7 @@ function StateControls({ model }: { readonly model: DownloadableModel }) {
         <div className="models-progress-track" aria-hidden="true">
           <span style={{ inlineSize: `${Math.round((model.progress ?? 0) * 100)}%` }} />
         </div>
-        <div className="models-state-line" data-tone="accent">
+        <div className="models-state-line" data-tone="neutral">
           <span>{progressLabel(model)}</span>
           <button className="models-ghost-button" type="button">취소</button>
         </div>
@@ -231,7 +344,7 @@ function StateControls({ model }: { readonly model: DownloadableModel }) {
 
   if (model.state === 'loading') {
     return (
-      <div className="models-state-line" data-tone="accent">
+      <div className="models-state-line" data-tone="neutral">
         <span className="models-spinner" aria-hidden="true" />
         <span>{stateSummary(model.state)}</span>
         <button className="models-ghost-button" type="button">취소</button>
@@ -250,7 +363,7 @@ function StateControls({ model }: { readonly model: DownloadableModel }) {
   }
 
   return (
-    <div className="models-state-line" data-tone="success">
+    <div className="models-state-line" data-tone="neutral">
       <span aria-hidden="true">checkmark.circle.fill</span>
       <span>{stateSummary(model.state)}</span>
       <button className="models-delete-button" type="button">삭제</button>
@@ -287,39 +400,29 @@ function DownloadSection({ title, models }: { readonly title: string; readonly m
   );
 }
 
-function DeviceCapabilityCards() {
+function DeviceCapabilityPills() {
   return (
-    <div className="models-device-area" aria-label="device capability mock">
-      <div className="models-info-pills">
-        {devicePills.map((pill) => (
-          <span className="models-info-pill" key={pill.label}>
-            <span aria-hidden="true">{pill.icon}</span>
-            {pill.label}
-          </span>
-        ))}
-      </div>
-      <div className="models-device-cards">
-        {deviceCards.map((card) => (
-          <article className="models-device-card" data-tone={card.tone} key={card.label}>
-            <span>{card.label}</span>
-            <strong>{card.value}</strong>
-            <p>{card.detail}</p>
-          </article>
-        ))}
-      </div>
+    <div className="models-info-pills" aria-label="device capability mock">
+      {devicePills.map((pill) => (
+        <span className="models-info-pill" key={pill.label}>
+          <span aria-hidden="true">{pill.icon}</span>
+          {pill.label}
+        </span>
+      ))}
     </div>
   );
 }
 
 function StorageSection() {
   return (
-    <SectionCard title="저장 공간" eyebrow="UI-only">
-      <div className="models-storage-row">
-        <span>모델 위치:</span>
-        <code>~/.cache/huggingface/hub/</code>
+    <SectionCard title="저장 공간">
+      <div className="models-storage-content">
+        <div className="models-storage-row">
+          <span>모델 위치:</span>
+          <code>~/.cache/huggingface/hub/</code>
+        </div>
+        <button className="models-secondary-button" type="button">Finder에서 열기</button>
       </div>
-      <button className="models-secondary-button" type="button">Finder에서 열기</button>
-      <p className="models-storage-note">실제 디렉터리 생성이나 Finder 호출 없이 Swift 저장 위치 row를 시각적으로만 복제합니다.</p>
     </SectionCard>
   );
 }
@@ -327,15 +430,7 @@ function StorageSection() {
 export function ModelsPanelMock() {
   return (
     <div className="models-panel-mock" data-testid="models-panel-mock">
-      <header className="models-panel-header">
-        <div>
-          <p>Downloads</p>
-          <h1>모델 관리</h1>
-        </div>
-        <span className="models-header-status">mock states · no provider side effects</span>
-      </header>
-
-      <DeviceCapabilityCards />
+      <DeviceCapabilityPills />
       <DownloadSection title="STT 모델" models={sttModels} />
       <DownloadSection title="LLM 모델" models={llmModels} />
       <StorageSection />

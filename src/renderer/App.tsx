@@ -5,11 +5,14 @@ import { useSettings } from './hooks/useSettings';
 import { PanelContent } from './panels/PanelContent';
 import { SIDEBAR_SECTIONS, nextSectionId, type SidebarSectionId, type TabNavigationKey } from './ui-model';
 
+const sidebarSectionIds = new Set<SidebarSectionId>(SIDEBAR_SECTIONS.map((section) => section.id));
+
 export function App() {
   const snapshot = useAppSnapshot();
   const { settings, updateSettings } = useSettings();
-  const [activeSection, setActiveSection] = useState<SidebarSectionId>('home');
-  const [visitedSections, setVisitedSections] = useState<ReadonlySet<SidebarSectionId>>(() => new Set(['home']));
+  const initialSection = initialSectionFromLocation();
+  const [activeSection, setActiveSection] = useState<SidebarSectionId>(initialSection);
+  const [visitedSections, setVisitedSections] = useState<ReadonlySet<SidebarSectionId>>(() => new Set(['home', initialSection]));
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const visited = useMemo(() => new Set(visitedSections), [visitedSections]);
@@ -68,4 +71,9 @@ export function App() {
 
 function isTabNavigationKey(value: string): value is TabNavigationKey {
   return value === 'ArrowDown' || value === 'ArrowRight' || value === 'ArrowUp' || value === 'ArrowLeft' || value === 'Home' || value === 'End';
+}
+
+function initialSectionFromLocation(): SidebarSectionId {
+  const section = new URLSearchParams(window.location.search).get('initialSection');
+  return section && sidebarSectionIds.has(section as SidebarSectionId) ? section as SidebarSectionId : 'home';
 }

@@ -147,10 +147,25 @@ function createMainWindow(): void {
   }
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    void mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    void mainWindow.loadURL(withInitialSectionQuery(MAIN_WINDOW_VITE_DEV_SERVER_URL));
   } else {
-    void mainWindow.loadFile(path.join(dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
+    void mainWindow.loadFile(path.join(dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`), {
+      query: initialSectionQuery(),
+    });
   }
+}
+
+function initialSectionQuery(): Record<string, string> {
+  const section = process.env.WHISPREE_INITIAL_SECTION;
+  return section ? { initialSection: section } : {};
+}
+
+function withInitialSectionQuery(url: string): string {
+  const section = process.env.WHISPREE_INITIAL_SECTION;
+  if (!section) return url;
+  const parsed = new URL(url);
+  parsed.searchParams.set('initialSection', section);
+  return parsed.toString();
 }
 
 function createTrayIcon() {

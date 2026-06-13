@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { AppSnapshot, HistoryRecordSnapshot } from '../../shared/ipc';
 
 const RELATIVE_TIME_UNITS = [
@@ -45,6 +46,8 @@ export function HistoryPanel({ snapshot }: { readonly snapshot: AppSnapshot }) {
 }
 
 function HistoryRow({ record }: { readonly record: HistoryRecordSnapshot }) {
+  const [isDisplayTextExpanded, setIsDisplayTextExpanded] = useState(false);
+  const [isOriginalExpanded, setIsOriginalExpanded] = useState(false);
   const hasCorrectedText = record.correctedText.length > 0 && record.correctedText !== record.originalText;
   const displayText = hasCorrectedText ? record.correctedText : record.correctedText || record.originalText;
   const deliveredAt = new Date(record.deliveredAtIso);
@@ -80,9 +83,25 @@ function HistoryRow({ record }: { readonly record: HistoryRecordSnapshot }) {
         </div>
       </div>
 
-      <p className="history-display-text">{displayText}</p>
+      <button
+        type="button"
+        className={isDisplayTextExpanded ? 'history-text-button history-display-text is-expanded' : 'history-text-button history-display-text'}
+        onClick={() => setIsDisplayTextExpanded((isExpanded) => !isExpanded)}
+        aria-expanded={isDisplayTextExpanded}
+      >
+        {displayText}
+      </button>
 
-      {hasCorrectedText ? <p className="history-original-text">Original: {record.originalText}</p> : null}
+      {hasCorrectedText ? (
+        <button
+          type="button"
+          className={isOriginalExpanded ? 'history-text-button history-original-text is-expanded' : 'history-text-button history-original-text'}
+          onClick={() => setIsOriginalExpanded((isExpanded) => !isExpanded)}
+          aria-expanded={isOriginalExpanded}
+        >
+          Original: {record.originalText}
+        </button>
+      ) : null}
     </li>
   );
 }
