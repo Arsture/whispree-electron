@@ -28,8 +28,10 @@ describe('adapter factory', () => {
 
     expect(macos.platform).toBe('macos');
     expect(macos.audio.descriptor.status).toBe('partial');
+    expect(macos.mediaPlayback.descriptor.status).toBe('partial');
     expect(windows.platform).toBe('windows');
     expect(windows.audio.descriptor.status).toBe('not-tested');
+    expect(windows.mediaPlayback.descriptor.status).toBe('not-tested');
     expect(windows.textInsertion.descriptor.status).toBe('partial');
   });
 

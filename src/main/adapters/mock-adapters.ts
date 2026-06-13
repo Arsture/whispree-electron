@@ -3,6 +3,7 @@ import type {
   AudioCaptureAdapter,
   BrowserContextAdapter,
   HotkeyAdapter,
+  MediaPlaybackAdapter,
   PermissionAdapter,
   ScreenContextAdapter,
   TerminalContextAdapter,
@@ -91,6 +92,32 @@ export class MockAudioCaptureAdapter implements AudioCaptureAdapter {
   get active(): boolean {
     return this.#active;
   }
+}
+
+export class MockMediaPlaybackAdapter implements MediaPlaybackAdapter {
+  readonly descriptor = descriptor('mock-media-playback', 'Mock media playback adapter', 'cross-platform', 'mock', 'Tracks pause/resume calls without controlling apps.');
+  pauseCount = 0;
+  resumeCount = 0;
+
+  async pauseIfPlaying(): Promise<void> {
+    this.pauseCount += 1;
+  }
+
+  async resumeIfPaused(): Promise<void> {
+    this.resumeCount += 1;
+  }
+}
+
+export class PlannedMediaPlaybackAdapter implements MediaPlaybackAdapter {
+  readonly descriptor: AdapterDescriptor;
+
+  constructor(platform: AdapterPlatform, status: ImplementationStatus, detail: string) {
+    this.descriptor = descriptor(`${platform}-media-playback`, `${platform} media playback adapter`, platform, status, detail);
+  }
+
+  async pauseIfPlaying(): Promise<void> {}
+
+  async resumeIfPaused(): Promise<void> {}
 }
 
 export class PlannedAudioCaptureAdapter implements AudioCaptureAdapter {

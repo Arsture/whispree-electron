@@ -3,6 +3,7 @@ import type {
   AdapterPlatform,
   BrowserContextAdapter,
   HotkeyAdapter,
+  MediaPlaybackAdapter,
   PermissionAdapter,
   ScreenContextAdapter,
   TerminalContextAdapter,
@@ -149,13 +150,16 @@ export class CommandTextInsertionAdapter implements TextInsertionAdapter {
     platform: AdapterPlatform,
     private readonly clipboard: ClipboardBridge,
     private readonly runCommand: CommandRunner,
+    private readonly restoreClipboardAfterMs = 2000,
   ) {
     this.descriptor = descriptor(`${platform}-text-insertion`, `${platform} text insertion adapter`, platform, 'partial', 'Writes clipboard and sends platform paste shortcut through an injectable OS command runner.');
   }
 
   async insertText(text: string, _targetContextId: string | null): Promise<'inserted' | 'copied-to-clipboard'> {
+    const previousText = this.clipboard.readText?.();
     this.clipboard.writeText(text);
     const result = await this.runPasteCommand();
+    if (result.ok && previousText !== undefined) this.scheduleClipboardRestore(previousText);
     return result.ok ? 'inserted' : 'copied-to-clipboard';
   }
 
@@ -167,6 +171,40 @@ export class CommandTextInsertionAdapter implements TextInsertionAdapter {
       return this.runCommand('powershell.exe', ['-NoProfile', '-Command', 'Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait("^v")']);
     }
     return Promise.resolve({ ok: false, stdout: '', stderr: 'unsupported platform' });
+  }
+
+  private scheduleClipboardRestore(previousText: string): void {
+    const timer = setTimeout(() => this.clipboard.writeText(previousText), this.restoreClipboardAfterMs);
+    timer.unref?.();
+  }
+}
+
+export class CommandMediaPlaybackAdapter implements MediaPlaybackAdapter {
+  readonly descriptor: AdapterDescriptor;
+  #pausedByWhispree = false;
+
+  constructor(
+    platform: AdapterPlatform,
+    private readonly runCommand: CommandRunner,
+  ) {
+    this.descriptor = descriptor(`${platform}-media-playback`, `${platform} media playback adapter`, platform, 'partial', 'Pauses/resumes common media apps through platform command scripts behind an adapter seam.');
+  }
+
+  async pauseIfPlaying(): Promise<void> {
+    const result = this.descriptor.platform === 'macos'
+      ? await this.runCommand('osascript', ['-e', 'tell application "Music" to if it is running then pause', '-e', 'tell application "Spotify" to if it is running then pause'])
+      : await this.runCommand('powershell.exe', ['-NoProfile', '-Command', '(New-Object -ComObject WScript.Shell).SendKeys([char]179)']);
+    this.#pausedByWhispree = result.ok;
+  }
+
+  async resumeIfPaused(): Promise<void> {
+    if (!this.#pausedByWhispree) return;
+    this.#pausedByWhispree = false;
+    if (this.descriptor.platform === 'macos') {
+      await this.runCommand('osascript', ['-e', 'tell application "Music" to if it is running then play', '-e', 'tell application "Spotify" to if it is running then play']);
+      return;
+    }
+    await this.runCommand('powershell.exe', ['-NoProfile', '-Command', '(New-Object -ComObject WScript.Shell).SendKeys([char]179)']);
   }
 }
 

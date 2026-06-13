@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { MockDictationPipeline } from './mock-pipeline';
 import { defaultAppSettings } from '../shared/settings';
 import { MockSTTProvider, type CorrectionInput, type LLMProvider } from '../shared/providers';
+import { MockMediaPlaybackAdapter } from './adapters/mock-adapters';
 
 const immediateDelay = () => Promise.resolve();
 
@@ -61,6 +62,17 @@ describe('MockDictationPipeline', () => {
     await pipeline.whenIdle();
     expect(pipeline.getSnapshot().queue.items).toEqual([]);
     expect(pipeline.getSnapshot().history).toEqual([]);
+  });
+
+  it('pauses and resumes media through the adapter around recording', async () => {
+    const mediaPlayback = new MockMediaPlaybackAdapter();
+    const pipeline = new MockDictationPipeline(undefined, immediateDelay, { mediaPlayback });
+
+    pipeline.enqueueMockDictation({ recordingDelayMs: 0, sttDelayMs: 0, llmDelayMs: 0, deliveryDelayMs: 0 });
+    await pipeline.whenIdle();
+
+    expect(mediaPlayback.pauseCount).toBe(1);
+    expect(mediaPlayback.resumeCount).toBeGreaterThanOrEqual(1);
   });
 
 

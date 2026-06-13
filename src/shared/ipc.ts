@@ -15,6 +15,8 @@ export const IPC_CHANNELS = {
   getSettings: 'whispree:get-settings',
   updateSettings: 'whispree:update-settings',
   resetSettings: 'whispree:reset-settings',
+  quickFixWord: 'whispree:quick-fix-word',
+  quickFixCorrection: 'whispree:quick-fix-correction',
   copyHistoryText: 'whispree:copy-history-text',
   clearHistory: 'whispree:clear-history',
 } as const;
@@ -161,7 +163,7 @@ export type CommandResult =
     };
 
 
-export type SettingsCommandAction = 'get-settings' | 'update-settings' | 'reset-settings';
+export type SettingsCommandAction = 'get-settings' | 'update-settings' | 'reset-settings' | 'quick-fix-word' | 'quick-fix-correction';
 
 export type SettingsCommandResult =
   | {
@@ -179,6 +181,17 @@ export type SettingsCommandResult =
 
 export type SettingsUpdateInput = AppSettingsUpdate;
 export type HistoryTextVariant = 'original' | 'corrected';
+
+export interface QuickFixWordInput {
+  readonly correctedText: string;
+  readonly replaceSelection?: boolean;
+}
+
+export interface QuickFixCorrectionInput {
+  readonly fromText: string;
+  readonly toText: string;
+  readonly replaceSelection?: boolean;
+}
 
 export const initialQueueSnapshot: QueueSnapshot = {
   totalCount: 0,

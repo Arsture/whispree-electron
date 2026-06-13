@@ -8,9 +8,9 @@ import {
   type PermissionState,
   type RecordedAudioInput,
 } from '../shared/ipc';
-import type { AudioCaptureAdapter, BrowserContextAdapter, ScreenContextAdapter, TerminalContextAdapter, TextInsertionAdapter } from '../shared/adapters';
+import type { AudioCaptureAdapter, BrowserContextAdapter, MediaPlaybackAdapter, ScreenContextAdapter, TerminalContextAdapter, TextInsertionAdapter } from '../shared/adapters';
 import { createAdapterSet, permissionCardsForAdapterSet } from './adapters/adapter-factory';
-import { MockAudioCaptureAdapter, MockTextInsertionAdapter } from './adapters/mock-adapters';
+import { MockAudioCaptureAdapter, MockMediaPlaybackAdapter, MockTextInsertionAdapter } from './adapters/mock-adapters';
 import { llmProviderChoices, sttProviderChoices } from '../shared/provider-registry';
 import { localModelBackendRegistry } from '../shared/providers';
 import { DictationQueueState, isDeliverableJobStatus, isProcessingJobStatus, isTerminalJobStatus, type DictationJob, type DictationJobSnapshot } from '../shared/queue';
@@ -38,6 +38,7 @@ const historyRetentionLimit = 100;
 
 interface MockDictationPipelineAdapters {
   readonly audio?: AudioCaptureAdapter;
+  readonly mediaPlayback?: MediaPlaybackAdapter;
   readonly textInsertion?: TextInsertionAdapter;
   readonly screenContext?: ScreenContextAdapter;
   readonly browserContext?: BrowserContextAdapter;
@@ -79,6 +80,7 @@ export class MockDictationPipeline {
   readonly #tasks = new Set<Promise<void>>();
   readonly #delay: Delay;
   readonly #audioAdapter: AudioCaptureAdapter;
+  readonly #mediaPlaybackAdapter: MediaPlaybackAdapter;
   readonly #textInsertionAdapter: TextInsertionAdapter;
   readonly #screenContextAdapter: ScreenContextAdapter | null;
   readonly #browserContextAdapter: BrowserContextAdapter | null;
@@ -96,6 +98,7 @@ export class MockDictationPipeline {
     if (listener) this.#listeners.add(listener);
     this.#delay = delay;
     this.#audioAdapter = adapters.audio ?? new MockAudioCaptureAdapter();
+    this.#mediaPlaybackAdapter = adapters.mediaPlayback ?? new MockMediaPlaybackAdapter();
     this.#textInsertionAdapter = adapters.textInsertion ?? new MockTextInsertionAdapter();
     this.#screenContextAdapter = adapters.screenContext ?? null;
     this.#browserContextAdapter = adapters.browserContext ?? null;
@@ -174,6 +177,7 @@ export class MockDictationPipeline {
     this.#activeRecordingId = recordingId;
     this.#recordingMode = 'mock';
     this.#queue.setRecordingActive(true);
+    if (this.#settingsProvider().pauseMediaDuringRecording) void this.#mediaPlaybackAdapter.pauseIfPlaying();
     this.#emit();
     const task = this.#runMockJob(recordingId, {
       recordingDelayMs: 120,
@@ -195,6 +199,7 @@ export class MockDictationPipeline {
     this.#recordingMode = 'real';
     this.#currentError = null;
     this.#queue.setRecordingActive(true);
+    if (this.#settingsProvider().pauseMediaDuringRecording) void this.#mediaPlaybackAdapter.pauseIfPlaying();
     this.#emit();
     return this.getSnapshot();
   }
@@ -204,6 +209,7 @@ export class MockDictationPipeline {
     this.#activeRecordingId = null;
     this.#recordingMode = 'real';
     this.#queue.setRecordingActive(false);
+    void this.#mediaPlaybackAdapter.resumeIfPaused();
     if (input.bytes.byteLength === 0 || input.durationMs <= 0) {
       this.#emit();
       this.#track(this.#tryDeliverReadyJobs());
@@ -229,6 +235,7 @@ export class MockDictationPipeline {
       this.#activeRecordingId = null;
       this.#queue.setRecordingActive(false);
       void this.#audioAdapter.stop().catch(() => undefined);
+      void this.#mediaPlaybackAdapter.resumeIfPaused();
       this.#emit();
       this.#track(this.#tryDeliverReadyJobs());
       return this.getSnapshot();
@@ -275,6 +282,7 @@ export class MockDictationPipeline {
     try {
       const settings = this.#settingsProvider();
       this.#queue.setRecordingActive(false);
+      void this.#mediaPlaybackAdapter.resumeIfPaused();
       const context = await this.#captureJobContext(settings, audioRef.kind === 'mock' ? 'mock-target' : null);
       const job = this.#queue.enqueue({
         id: `${audioRef.kind === 'mock' ? 'mock' : 'real'}-${Date.now()}-${Math.random().toString(16).slice(2)}`,

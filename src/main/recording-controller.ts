@@ -13,7 +13,7 @@ export class RecordingController {
   readonly #hotkeyAdapter: HotkeyAdapter;
   readonly #settingsProvider: () => AppSettingsSnapshot;
   readonly #realRecordingBridge: RealRecordingBridge | null;
-  readonly #shortcut: string;
+  #shortcut: string;
   #registered = false;
 
   constructor({
@@ -48,6 +48,14 @@ export class RecordingController {
     if (!this.#registered) return;
     await this.#hotkeyAdapter.unregister(this.#shortcut);
     this.#registered = false;
+  }
+
+  async updateShortcut(shortcut: string): Promise<void> {
+    if (shortcut === this.#shortcut) return;
+    const wasRegistered = this.#registered;
+    if (wasRegistered) await this.unregister();
+    this.#shortcut = shortcut;
+    if (wasRegistered) await this.register();
   }
 
   toggleRecording(): AppSnapshot {

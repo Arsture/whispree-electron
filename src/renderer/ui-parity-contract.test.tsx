@@ -18,6 +18,8 @@ const whispreeMock = {
   getSettings: vi.fn<() => Promise<AppSettingsSnapshot>>(),
   updateSettings: vi.fn<(update: unknown) => Promise<unknown>>(),
   resetSettings: vi.fn<() => Promise<unknown>>(),
+  quickFixWord: vi.fn<(input: unknown) => Promise<unknown>>(),
+  quickFixCorrection: vi.fn<(input: unknown) => Promise<unknown>>(),
   copyHistoryText: vi.fn<(historyId: string, variant: 'original' | 'corrected') => Promise<unknown>>(),
   clearHistory: vi.fn<() => Promise<unknown>>(),
 };
@@ -34,6 +36,8 @@ function installWhispreeMock() {
   whispreeMock.getSettings.mockResolvedValue(defaultAppSettings);
   whispreeMock.updateSettings.mockImplementation(async (update) => ({ ok: true, settings: { ...defaultAppSettings, ...(update as Partial<AppSettingsSnapshot>) } }));
   whispreeMock.resetSettings.mockResolvedValue({ ok: true, settings: defaultAppSettings });
+  whispreeMock.quickFixWord.mockResolvedValue({ ok: true, settings: defaultAppSettings });
+  whispreeMock.quickFixCorrection.mockResolvedValue({ ok: true, settings: defaultAppSettings });
   whispreeMock.copyHistoryText.mockResolvedValue({});
   whispreeMock.clearHistory.mockResolvedValue({});
   Object.defineProperty(window, 'whispree', {

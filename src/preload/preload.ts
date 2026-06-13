@@ -8,6 +8,8 @@ import {
   type CommandResult,
   type HistoryTextVariant,
   type PermissionKind,
+  type QuickFixCorrectionInput,
+  type QuickFixWordInput,
   type RecordedAudioInput,
   type RecordingHotkeyMessage,
   type SettingsUpdateInput,
@@ -84,6 +86,10 @@ const whispreeApi: WhispreeAPI = {
   updateSettings: (update: SettingsUpdateInput) =>
     ipcRenderer.invoke(IPC_CHANNELS.updateSettings, update) as ReturnType<WhispreeAPI['updateSettings']>,
   resetSettings: () => ipcRenderer.invoke(IPC_CHANNELS.resetSettings) as ReturnType<WhispreeAPI['resetSettings']>,
+  quickFixWord: (input: QuickFixWordInput) =>
+    ipcRenderer.invoke(IPC_CHANNELS.quickFixWord, input) as ReturnType<WhispreeAPI['quickFixWord']>,
+  quickFixCorrection: (input: QuickFixCorrectionInput) =>
+    ipcRenderer.invoke(IPC_CHANNELS.quickFixCorrection, input) as ReturnType<WhispreeAPI['quickFixCorrection']>,
   copyHistoryText: (historyId: string, variant: HistoryTextVariant) =>
     ipcRenderer.invoke(IPC_CHANNELS.copyHistoryText, historyId, variant) as ReturnType<WhispreeAPI['copyHistoryText']>,
   clearHistory: () =>

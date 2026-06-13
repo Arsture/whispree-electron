@@ -30,6 +30,12 @@ export interface AudioCaptureAdapter {
   stop(): Promise<{ readonly audioRef: string }>;
 }
 
+export interface MediaPlaybackAdapter {
+  readonly descriptor: AdapterDescriptor;
+  pauseIfPlaying(): Promise<void>;
+  resumeIfPaused(): Promise<void>;
+}
+
 export interface TextInsertionAdapter {
   readonly descriptor: AdapterDescriptor;
   insertText(text: string, targetContextId: string | null): Promise<'inserted' | 'copied-to-clipboard'>;

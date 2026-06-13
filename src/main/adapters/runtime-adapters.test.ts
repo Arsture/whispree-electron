@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { CommandTextInsertionAdapter, ElectronGlobalShortcutAdapter, MacOSPermissionAdapter, WindowsPermissionAdapter, shortcutLabelToAccelerator } from './runtime-adapters';
+import { CommandMediaPlaybackAdapter, CommandTextInsertionAdapter, ElectronGlobalShortcutAdapter, MacOSPermissionAdapter, WindowsPermissionAdapter, shortcutLabelToAccelerator } from './runtime-adapters';
 
 describe('runtime adapters', () => {
   it('maps Swift shortcut labels to Electron accelerators', () => {
@@ -67,12 +67,30 @@ describe('runtime adapters', () => {
 
   it('pastes through OS command and falls back to clipboard on command failure', async () => {
     const copied: string[] = [];
-    const inserted = new CommandTextInsertionAdapter('macos', { writeText: (text) => copied.push(text) }, async () => ({ ok: true, stdout: '', stderr: '' }));
+    const inserted = new CommandTextInsertionAdapter('macos', { readText: () => 'previous', writeText: (text) => copied.push(text) }, async () => ({ ok: true, stdout: '', stderr: '' }), 0);
     await expect(inserted.insertText('hello', null)).resolves.toBe('inserted');
     expect(copied).toEqual(['hello']);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(copied.at(-1)).toBe('previous');
 
     const fallback = new CommandTextInsertionAdapter('windows', { writeText: (text) => copied.push(text) }, async () => ({ ok: false, stdout: '', stderr: 'denied' }));
     await expect(fallback.insertText('world', null)).resolves.toBe('copied-to-clipboard');
     expect(copied.at(-1)).toBe('world');
+  });
+
+  it('pauses and resumes media playback through command runner seam', async () => {
+    const commands: string[] = [];
+    const adapter = new CommandMediaPlaybackAdapter('macos', async (command, args) => {
+      commands.push(`${command} ${args.join(' ')}`);
+      return { ok: true, stdout: '', stderr: '' };
+    });
+
+    await adapter.pauseIfPlaying();
+    await adapter.resumeIfPaused();
+    await adapter.resumeIfPaused();
+
+    expect(commands).toHaveLength(2);
+    expect(commands[0]).toContain('Music');
+    expect(commands[1]).toContain('Spotify');
   });
 });

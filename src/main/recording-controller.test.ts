@@ -86,6 +86,18 @@ describe('RecordingController', () => {
     expect(calls).toEqual(['stop-real-recording']);
   });
 
+  it('re-registers the global shortcut when settings change it', async () => {
+    const hotkey = new MockHotkeyAdapter();
+    const pipeline = new MockDictationPipeline(undefined, immediateDelay);
+    const controller = new RecordingController({ pipeline, hotkeyAdapter: hotkey, shortcut: '⌃⇧R' });
+
+    await controller.register();
+    await controller.updateShortcut('⌃⇧D');
+
+    expect(hotkey.trigger('⌃⇧R')).toBe(false);
+    expect(hotkey.trigger('⌃⇧D')).toBe(true);
+  });
+
   it('surfaces audio adapter failures without corrupting the queue', async () => {
     const failingAudio = new PlannedAudioCaptureAdapter('macos', 'planned', 'not implemented');
     const pipeline = new MockDictationPipeline(undefined, immediateDelay, { audio: failingAudio });

@@ -1,4 +1,4 @@
-import type { AppSnapshot, CommandResult, HistoryTextVariant, PermissionKind, SettingsCommandResult, SettingsUpdateInput } from './ipc';
+import type { AppSnapshot, CommandResult, HistoryTextVariant, PermissionKind, QuickFixCorrectionInput, QuickFixWordInput, SettingsCommandResult, SettingsUpdateInput } from './ipc';
 import type { AppSettingsSnapshot } from './settings';
 
 export interface WhispreeAPI {
@@ -13,6 +13,8 @@ export interface WhispreeAPI {
   getSettings(): Promise<AppSettingsSnapshot>;
   updateSettings(update: SettingsUpdateInput): Promise<SettingsCommandResult>;
   resetSettings(): Promise<SettingsCommandResult>;
+  quickFixWord(input: QuickFixWordInput): Promise<SettingsCommandResult>;
+  quickFixCorrection(input: QuickFixCorrectionInput): Promise<SettingsCommandResult>;
   copyHistoryText(historyId: string, variant: HistoryTextVariant): Promise<CommandResult>;
   clearHistory(): Promise<CommandResult>;
 }

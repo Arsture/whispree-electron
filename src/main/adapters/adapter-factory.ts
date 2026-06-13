@@ -2,6 +2,7 @@ import type {
   AudioCaptureAdapter,
   BrowserContextAdapter,
   HotkeyAdapter,
+  MediaPlaybackAdapter,
   PermissionAdapter,
   ScreenContextAdapter,
   TerminalContextAdapter,
@@ -16,10 +17,12 @@ import {
   ClipboardFallbackTextInsertionAdapter,
   MockAudioCaptureAdapter,
   MockHotkeyAdapter,
+  MockMediaPlaybackAdapter,
   MockScreenContextAdapter,
   MockTextInsertionAdapter,
   PlannedAudioCaptureAdapter,
   PlannedHotkeyAdapter,
+  PlannedMediaPlaybackAdapter,
   PlannedScreenContextAdapter,
   StaticBrowserContextAdapter,
   StaticPermissionAdapter,
@@ -28,6 +31,7 @@ import {
 import {
   AppleScriptBrowserContextAdapter,
   AppleScriptTerminalContextAdapter,
+  CommandMediaPlaybackAdapter,
   CommandTextInsertionAdapter,
   ElectronGlobalShortcutAdapter,
   MacOSPermissionAdapter,
@@ -47,6 +51,7 @@ export interface AdapterSet {
   readonly permission: PermissionAdapter;
   readonly hotkey: HotkeyAdapter;
   readonly audio: AudioCaptureAdapter;
+  readonly mediaPlayback: MediaPlaybackAdapter;
   readonly textInsertion: TextInsertionAdapter;
   readonly screenContext: ScreenContextAdapter;
   readonly browserContext: BrowserContextAdapter;
@@ -110,6 +115,7 @@ function createMockAdapterSet(): AdapterSet {
     permission: new StaticPermissionAdapter('cross-platform', 'mock', 'mock', 'Mock permissions are granted by test harness only.'),
     hotkey: new MockHotkeyAdapter(),
     audio: new MockAudioCaptureAdapter(),
+    mediaPlayback: new MockMediaPlaybackAdapter(),
     textInsertion: new MockTextInsertionAdapter(),
     screenContext: new MockScreenContextAdapter(),
     browserContext: new StaticBrowserContextAdapter('cross-platform', 'mock', 'Mock browser context returns null by default.'),
@@ -130,6 +136,7 @@ function createMacOSAdapterSet(dependencies: AdapterRuntimeDependencies): Adapte
       ? new ElectronGlobalShortcutAdapter(dependencies.globalShortcutBridge, 'macos')
       : new PlannedHotkeyAdapter('macos', 'planned', 'Future Electron/globalShortcut or event-tap bridge; conflict UX preserved from Swift.'),
     audio: new PlannedAudioCaptureAdapter('macos', 'partial', 'Renderer MediaRecorder captures real microphone bytes; native AVAudioEngine helper remains future work.'),
+    mediaPlayback: new CommandMediaPlaybackAdapter('macos', runner),
     textInsertion: dependencies.clipboardBridge
       ? new CommandTextInsertionAdapter('macos', dependencies.clipboardBridge, runner)
       : new ClipboardFallbackTextInsertionAdapter('macos', 'planned', 'Future Accessibility + clipboard insertion; current shell falls back to clipboard semantics.'),
@@ -148,6 +155,7 @@ function createWindowsAdapterSet(dependencies: AdapterRuntimeDependencies): Adap
       ? new ElectronGlobalShortcutAdapter(dependencies.globalShortcutBridge, 'windows')
       : new PlannedHotkeyAdapter('windows', 'not-tested', 'Future RegisterHotKey/globalShortcut path; not executed on Windows.'),
     audio: new PlannedAudioCaptureAdapter('windows', 'not-tested', 'Future WASAPI/native helper path; not executed on Windows.'),
+    mediaPlayback: new PlannedMediaPlaybackAdapter('windows', 'not-tested', 'Windows media playback pause/resume requires Windows execution evidence.'),
     textInsertion: dependencies.clipboardBridge
       ? new CommandTextInsertionAdapter('windows', dependencies.clipboardBridge, runner)
       : new ClipboardFallbackTextInsertionAdapter('windows', 'partial', 'Clipboard fallback is available; SendInput paste remains command-runner gated on Windows.'),
@@ -163,6 +171,7 @@ function createUnknownAdapterSet(): AdapterSet {
     permission: new StaticPermissionAdapter('cross-platform', 'unsupported', 'unsupported', 'Unknown platform is unsupported until an adapter set is selected.'),
     hotkey: new PlannedHotkeyAdapter('cross-platform', 'unsupported', 'Unknown platform hotkeys are unsupported.'),
     audio: new PlannedAudioCaptureAdapter('cross-platform', 'unsupported', 'Unknown platform audio capture is unsupported.'),
+    mediaPlayback: new PlannedMediaPlaybackAdapter('cross-platform', 'unsupported', 'Unknown platform media playback is unsupported.'),
     textInsertion: new ClipboardFallbackTextInsertionAdapter('cross-platform', 'unsupported', 'Unknown platform insertion falls back to clipboard semantics.'),
     screenContext: new PlannedScreenContextAdapter('cross-platform', 'unsupported', 'Unknown platform screen context is unsupported.'),
     browserContext: new StaticBrowserContextAdapter('cross-platform', 'unsupported', 'Unknown platform browser context is unsupported.'),

@@ -20,6 +20,7 @@ import { copyHistoryTextFromSnapshot } from './history-copy';
 import { createAdapterSet, queryPermissionCardsForAdapterSet, type AdapterSet } from './adapters/adapter-factory';
 import { RecordingController } from './recording-controller';
 import { SettingsProviderRouter } from './provider-router';
+import { addQuickFixCorrection, addQuickFixWord } from '../shared/domain-wordsets';
 
 const dirname = __dirname;
 
@@ -271,6 +272,7 @@ async function initializeMainState(): Promise<void> {
     historyStore: store,
     initialHistory: history,
     permissionCards,
+    mediaPlayback: adapters.mediaPlayback,
     textInsertion: adapters.textInsertion,
     screenContext: adapters.screenContext,
     browserContext: adapters.browserContext,
@@ -297,6 +299,26 @@ function shouldRegisterGlobalShortcuts(): boolean {
   return !process.env.WHISPREE_CAPTURE_SCREENSHOT;
 }
 
+function isQuickFixWordInput(value: unknown): value is { readonly correctedText: string; readonly replaceSelection?: boolean } {
+  if (!isRecord(value)) return false;
+  return typeof value.correctedText === 'string'
+    && value.correctedText.trim().length > 0
+    && (value.replaceSelection === undefined || typeof value.replaceSelection === 'boolean');
+}
+
+function isQuickFixCorrectionInput(value: unknown): value is { readonly fromText: string; readonly toText: string; readonly replaceSelection?: boolean } {
+  if (!isRecord(value)) return false;
+  return typeof value.fromText === 'string'
+    && value.fromText.trim().length > 0
+    && typeof value.toText === 'string'
+    && value.toText.trim().length > 0
+    && (value.replaceSelection === undefined || typeof value.replaceSelection === 'boolean');
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.getAppSnapshot, () => getPipeline().getSnapshot());
 
@@ -314,13 +336,46 @@ function registerIpcHandlers(): void {
     if (!result.ok) {
       return settingsCommandError('update-settings', result.settings, result.issues.join('; '), 'invalid-input');
     }
+    await recordingController?.updateShortcut(result.settings.toggleRecordingShortcut.label).catch((error) => {
+      console.warn(`Recording shortcut re-registration failed: ${error instanceof Error ? error.message : String(error)}`);
+    });
     return settingsCommandOk('update-settings', result.settings, 'Settings updated.');
   });
   ipcMain.handle(IPC_CHANNELS.resetSettings, async (_event, ...args: unknown[]) => {
     const store = getSettingsStore();
     const rejected = rejectUnexpectedSettingsArgs('reset-settings', store.getSnapshot(), args);
     if (rejected) return rejected;
-    return settingsCommandOk('reset-settings', await store.reset(), 'Settings reset.');
+    const settings = await store.reset();
+    await recordingController?.updateShortcut(settings.toggleRecordingShortcut.label).catch((error) => {
+      console.warn(`Recording shortcut re-registration failed: ${error instanceof Error ? error.message : String(error)}`);
+    });
+    return settingsCommandOk('reset-settings', settings, 'Settings reset.');
+  });
+  ipcMain.handle(IPC_CHANNELS.quickFixWord, async (_event, input: unknown, ...args: unknown[]) => {
+    const store = getSettingsStore();
+    const rejected = rejectUnexpectedSettingsArgs('quick-fix-word', store.getSnapshot(), args);
+    if (rejected) return rejected;
+    if (!isQuickFixWordInput(input)) return settingsCommandError('quick-fix-word', store.getSnapshot(), 'Quick Fix word input is invalid.', 'invalid-input');
+    if (input.replaceSelection === true) {
+      await getAdapterSet().textInsertion.insertText(input.correctedText, null);
+    }
+    const updated = await store.updateUnknown({ domainWordSets: addQuickFixWord(store.getSnapshot().domainWordSets, input.correctedText) });
+    return updated.ok
+      ? settingsCommandOk('quick-fix-word', updated.settings, 'Quick Fix word saved.')
+      : settingsCommandError('quick-fix-word', updated.settings, updated.issues.join('; '), 'invalid-input');
+  });
+  ipcMain.handle(IPC_CHANNELS.quickFixCorrection, async (_event, input: unknown, ...args: unknown[]) => {
+    const store = getSettingsStore();
+    const rejected = rejectUnexpectedSettingsArgs('quick-fix-correction', store.getSnapshot(), args);
+    if (rejected) return rejected;
+    if (!isQuickFixCorrectionInput(input)) return settingsCommandError('quick-fix-correction', store.getSnapshot(), 'Quick Fix correction input is invalid.', 'invalid-input');
+    if (input.replaceSelection === true) {
+      await getAdapterSet().textInsertion.insertText(input.toText, null);
+    }
+    const updated = await store.updateUnknown({ domainWordSets: addQuickFixCorrection(store.getSnapshot().domainWordSets, input.fromText, input.toText) });
+    return updated.ok
+      ? settingsCommandOk('quick-fix-correction', updated.settings, 'Quick Fix correction saved.')
+      : settingsCommandError('quick-fix-correction', updated.settings, updated.issues.join('; '), 'invalid-input');
   });
   ipcMain.handle(IPC_CHANNELS.enqueueMockDictation, (_event, ...args: unknown[]) => {
     const currentPipeline = getPipeline();
