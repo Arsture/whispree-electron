@@ -107,6 +107,51 @@ describe('App Swift parity shell markup', () => {
 
 
 
+  it('renders neutral provider/queue copy when processing provenance is unknown', async () => {
+    const processingSnapshot: AppSnapshot = {
+      ...initialAppSnapshot,
+      appStatus: 'processing',
+      queue: {
+        ...initialAppSnapshot.queue,
+        totalCount: 1,
+        processingCount: 1,
+        foregroundJobSequence: 1,
+        items: [
+          {
+            id: 'job-1',
+            sequence: 1,
+            status: 'transcribing',
+            originalText: '',
+            correctedText: '',
+            isDeliverable: false,
+            isProcessing: true,
+            isTerminal: false,
+          },
+        ],
+      },
+      providers: [
+        ...initialAppSnapshot.providers,
+        {
+          id: 'groq-llm-runtime',
+          label: 'Groq Cloud Correction',
+          family: 'llm',
+          status: 'partial',
+          platform: 'cross-platform',
+          detail: 'Real provider path is available when credentials exist.',
+        },
+      ],
+    };
+    whispreeMock.getAppSnapshot.mockResolvedValue(processingSnapshot);
+    render(<App />);
+
+    await screen.findByText('Processing dictation queue');
+    expect(screen.getByText('waiting for provider')).toBeTruthy();
+    expect(screen.getByText('provider status')).toBeTruthy();
+    expect(screen.queryByText('Processing mock dictation queue')).toBeNull();
+    expect(screen.queryByText('waiting for mock provider')).toBeNull();
+  });
+
+
   it('renders Swift-anchored settings controls and updates through typed settings IPC', async () => {
     render(<App />);
     await screen.findByText('Ready — press hotkey to record');

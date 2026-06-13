@@ -59,7 +59,7 @@ describe('renderer Swift UI parity model', () => {
     };
 
     expect(statusTitle(initialAppSnapshot)).toBe('Ready — press hotkey to record');
-    expect(statusTitle(processing)).toBe('Processing mock dictation queue');
+    expect(statusTitle(processing)).toBe('Processing dictation queue');
     expect(statusTitle({
       ...processing,
       recording: { active: false, mode: 'real', label: 'Real provider pipeline processing' },
@@ -71,6 +71,10 @@ describe('renderer Swift UI parity model', () => {
       recording: { active: false, mode: 'real', label: 'Real provider pipeline processing' },
       queue: { ...initialAppSnapshot.queue, processingCount: 1 },
     })).toBe('Processing your microphone dictation…');
+    expect(queueProcessingText({
+      ...initialAppSnapshot,
+      queue: { ...initialAppSnapshot.queue, processingCount: 1 },
+    })).toBe('Processing your dictation…');
     expect(overlayStatusText(processing)).toBe('Processing 2 items');
     expect(foregroundCancelLabel(processing)).toBe('Cancel #7');
     expect(foregroundCancelLabel(recording)).toBe('Cancel');

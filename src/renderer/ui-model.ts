@@ -137,7 +137,7 @@ export function nextSectionId(current: SidebarSectionId, key: TabNavigationKey):
 export function statusTitle(snapshot: AppSnapshot): string {
   if (snapshot.recording.active) return snapshot.recording.label;
   if ((snapshot.queue.processingCount ?? 0) > 0) {
-    return snapshot.recording.mode === 'real' ? 'Processing microphone dictation queue' : 'Processing mock dictation queue';
+    return snapshot.recording.mode === 'real' ? 'Processing microphone dictation queue' : 'Processing dictation queue';
   }
   if (snapshot.history.length > 0) return 'Ready — latest dictation delivered';
   return 'Ready — press hotkey to record';
@@ -154,7 +154,7 @@ export function queueProcessingText(snapshot: AppSnapshot): string {
   const active = snapshot.queue.processingCount + snapshot.queue.deliveryReadyCount;
   if (active > 1) return `${active} dictations in queue · insertion remains FIFO`;
   if (snapshot.queue.processingCount === 1) {
-    return snapshot.recording.mode === 'real' ? 'Processing your microphone dictation…' : 'Processing your mock dictation…';
+    return snapshot.recording.mode === 'real' ? 'Processing your microphone dictation…' : 'Processing your dictation…';
   }
   return 'Queue is calm and ready.';
 }
