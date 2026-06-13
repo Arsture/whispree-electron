@@ -1,0 +1,6 @@
+@import './settings-stt.css';
+@import './settings-llm.css';
+@import './models.css';
+@import './wordsets.css';
+
+/* settings parity styles: owned by UI parity task registry. */
