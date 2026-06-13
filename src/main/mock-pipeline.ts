@@ -1,11 +1,11 @@
 import {
-  initialAppSnapshot,
   type AppSnapshot,
   type HistoryRecordSnapshot,
   type PermissionCardSnapshot,
   type ProviderCardSnapshot,
   type QueueItemSnapshot,
 } from '../shared/ipc';
+import { createAdapterSet, permissionCardsForAdapterSet } from './adapters/adapter-factory';
 import { llmProviderChoices, sttProviderChoices } from '../shared/provider-registry';
 import { MockLLMProvider, MockSTTProvider, localModelBackendRegistry } from '../shared/providers';
 import { DictationQueueState, isDeliverableJobStatus, isProcessingJobStatus, isTerminalJobStatus, type DictationJob, type DictationJobSnapshot } from '../shared/queue';
@@ -41,7 +41,7 @@ function providerChoiceToCard(provider: (typeof sttProviderChoices | typeof llmP
   };
 }
 
-const permissionCards: readonly PermissionCardSnapshot[] = initialAppSnapshot.permissions;
+const permissionCards: readonly PermissionCardSnapshot[] = permissionCardsForAdapterSet(createAdapterSet(process.platform));
 
 export class MockDictationPipeline {
   readonly #queue = new DictationQueueState();
