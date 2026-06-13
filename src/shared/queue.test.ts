@@ -64,6 +64,20 @@ describe('DictationQueueState', () => {
     }
   });
 
+
+
+  it('allows screenshot selection only for the FIFO delivery head', () => {
+    const queue = new DictationQueueState();
+    const first = queue.enqueue({ snapshot: snapshot() });
+    const second = queue.enqueue({ snapshot: snapshot() });
+    queue.transitionJob(second.id, 'ready-for-delivery');
+
+    expect(() => queue.beginScreenshotSelection(second.id)).toThrow(/FIFO delivery head/);
+    queue.transitionJob(first.id, 'ready-for-delivery');
+    expect(queue.beginScreenshotSelection(first.id).status).toBe('awaiting-screenshot-selection');
+    expect(queue.completeScreenshotSelection(first.id, ['shot-1']).selectedImageIds).toEqual(['shot-1']);
+  });
+
   it('blocks delivery while recording is active', () => {
     const queue = new DictationQueueState();
     const first = queue.enqueue({ snapshot: snapshot() });

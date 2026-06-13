@@ -177,6 +177,36 @@ function TranscriptionOverlay({ snapshot }: { readonly snapshot: AppSnapshot }) 
   );
 }
 
+
+function ContextFoundation() {
+  return (
+    <section className="liquid-card" data-testid="context-foundation">
+      <div className="card-heading">
+        <h2>Context & Quick Fix</h2>
+        <StatusPill tone="warning">planned adapters</StatusPill>
+      </div>
+      <ul className="status-list">
+        <li data-context-surface="screenshot-selection">
+          <span><strong>Screenshot Selection</strong><small>FIFO-head-only image selection for future VLM correction.</small></span>
+          <StatusPill tone="warning" status="planned">planned</StatusPill>
+        </li>
+        <li data-context-surface="browser-restore">
+          <span><strong>Browser Restore</strong><small>Chrome tab/input context will stay job-scoped behind OS adapters.</small></span>
+          <StatusPill tone="warning" status="planned">planned</StatusPill>
+        </li>
+        <li data-context-surface="terminal-restore">
+          <span><strong>Terminal Restore</strong><small>iTerm2/tmux or Windows terminal state remains adapter-owned.</small></span>
+          <StatusPill tone="neutral" status="not-tested">not-tested</StatusPill>
+        </li>
+        <li data-context-surface="quick-fix">
+          <span><strong>Quick Fix</strong><small>Selected text correction and dictionary registration through typed IPC.</small></span>
+          <StatusPill tone="warning" status="planned">planned</StatusPill>
+        </li>
+      </ul>
+    </section>
+  );
+}
+
 export function HomePanel({ snapshot }: { readonly snapshot: AppSnapshot }) {
   return (
     <div className="home-grid">
@@ -204,6 +234,7 @@ export function HomePanel({ snapshot }: { readonly snapshot: AppSnapshot }) {
         <ProviderRows providers={snapshot.providers} />
         <PermissionRows permissions={snapshot.permissions} />
       </div>
+      <ContextFoundation />
     </div>
   );
 }

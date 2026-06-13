@@ -85,10 +85,13 @@ describe('App Swift parity shell markup', () => {
       'transcription-overlay',
       'overlay-waveform',
       'queue-list',
+      'context-foundation',
     ]) {
       expect(html).toContain(`data-testid="${testId}"`);
     }
     expect(html).toContain('data-hotkey="cancel"');
+    expect(html).toContain('data-context-surface="quick-fix"');
+    expect(html).toContain('data-context-surface="screenshot-selection"');
     expect(html).toContain('esc');
     expect(html).toContain('Whispree');
     expect(html).not.toContain('Whispree Electron Migration');

@@ -171,6 +171,23 @@ export class DictationQueueState {
     return cloneSerializable(head);
   }
 
+
+  beginScreenshotSelection(id: DictationJobId): DictationJob {
+    const deliverable = this.nextDeliverableJob();
+    if (!deliverable || deliverable.id !== id || deliverable.status !== 'ready-for-delivery') {
+      throw new Error(`Screenshot selection is only allowed for the FIFO delivery head: ${id}`);
+    }
+    return this.transitionJob(id, 'awaiting-screenshot-selection');
+  }
+
+  completeScreenshotSelection(id: DictationJobId, selectedImageIds: readonly string[]): DictationJob {
+    const deliverable = this.nextDeliverableJob();
+    if (!deliverable || deliverable.id !== id || deliverable.status !== 'awaiting-screenshot-selection') {
+      throw new Error(`Screenshot selection is not active for FIFO head: ${id}`);
+    }
+    return this.transitionJob(id, 'ready-for-delivery', { selectedImageIds });
+  }
+
   startDelivery(id: DictationJobId): DictationJob {
     const deliverable = this.nextDeliverableJob();
     if (!deliverable || deliverable.id !== id) {

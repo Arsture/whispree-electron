@@ -1,4 +1,5 @@
 export * from './adapters';
+export * from './context';
 export * from './ipc';
 export * from './prompts';
 export * from './provider-registry';
