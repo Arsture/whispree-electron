@@ -85,6 +85,12 @@ export class RecordingController {
     return this.#pipeline.cancelForegroundJob();
   }
 
+  handleRecorderHostLost(): AppSnapshot {
+    const snapshot = this.#pipeline.getSnapshot();
+    if (!snapshot.recording.active || snapshot.recording.mode !== 'real') return snapshot;
+    return this.#pipeline.cancelForegroundJob();
+  }
+
   #startRealRecordingPreferred(): AppSnapshot {
     if (this.#realRecordingBridge) {
       this.#realRecordingBridge.startRealRecording();

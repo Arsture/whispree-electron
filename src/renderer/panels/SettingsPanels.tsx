@@ -23,7 +23,7 @@ interface SettingsPanelProps {
 }
 
 const recordingModeLabels: Record<RecordingMode, { readonly title: string; readonly description: string }> = {
-  'push-to-talk': { title: 'Push to Talk', description: 'Hold key to record, release to transcribe' },
+  'push-to-talk': { title: 'Push to Talk', description: 'Press to start; press again to stop with the current Electron global shortcut adapter' },
   toggle: { title: 'Toggle', description: 'Press to start, press again to stop' },
 };
 

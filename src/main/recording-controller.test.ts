@@ -114,6 +114,21 @@ describe('RecordingController', () => {
     expect(calls).toEqual(['start-real-recording', 'stop-real-recording']);
   });
 
+  it('cancels main recording state if the renderer recorder host is lost mid-recording', () => {
+    const pipeline = new MockDictationPipeline(undefined, immediateDelay);
+    const controller = new RecordingController({
+      pipeline,
+      hotkeyAdapter: new MockHotkeyAdapter({ supportsKeyRelease: false }),
+      shortcut: '⌃⇧R',
+    });
+
+    pipeline.startRealRecording({ mimeType: 'audio/webm' });
+    const recovered = controller.handleRecorderHostLost();
+
+    expect(recovered.recording.active).toBe(false);
+    expect(pipeline.getSnapshot().queue.isRecordingActive).toBe(false);
+  });
+
   it('re-registers the global shortcut when settings change it', async () => {
     const hotkey = new MockHotkeyAdapter();
     const pipeline = new MockDictationPipeline(undefined, immediateDelay);

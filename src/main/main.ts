@@ -31,6 +31,7 @@ let historyStore: FileHistoryStore | null = null;
 let pipeline: MockDictationPipeline | null = null;
 let adapterSet: AdapterSet | null = null;
 let recordingController: RecordingController | null = null;
+let isQuitting = false;
 const emitAppSnapshot = (snapshot: ReturnType<MockDictationPipeline['getSnapshot']>) => {
   mainWindow?.webContents.send(IPC_CHANNELS.appSnapshotUpdated, snapshot);
 };
@@ -141,7 +142,19 @@ function createMainWindow(options: { readonly show?: boolean } = {}): void {
     },
   });
 
+  mainWindow.on('close', (event) => {
+    if (!isQuitting && isRealRecordingActive()) {
+      event.preventDefault();
+      mainWindow?.hide();
+    }
+  });
+
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    recoverLostRecordingHost(`renderer process gone: ${details.reason}`);
+  });
+
   mainWindow.on('closed', () => {
+    recoverLostRecordingHost('recording window closed');
     mainWindow = null;
   });
 
@@ -169,6 +182,17 @@ function createMainWindow(options: { readonly show?: boolean } = {}): void {
 function getOrCreateRecordingWindow(): BrowserWindow | null {
   if (!mainWindow) createMainWindow({ show: false });
   return mainWindow;
+}
+
+function isRealRecordingActive(): boolean {
+  const recording = pipeline?.getSnapshot().recording;
+  return recording?.active === true && recording.mode === 'real';
+}
+
+function recoverLostRecordingHost(reason: string): void {
+  if (!isRealRecordingActive()) return;
+  recordingController?.handleRecorderHostLost();
+  console.warn(`Recovered active recording after recorder host loss: ${reason}`);
 }
 
 function initialSectionQuery(): Record<string, string> {
@@ -465,6 +489,11 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
     else mainWindow?.show();
   });
+});
+
+app.on('before-quit', () => {
+  isQuitting = true;
+  if (isRealRecordingActive()) recordingController?.handleRecorderHostLost();
 });
 
 app.on('window-all-closed', () => {

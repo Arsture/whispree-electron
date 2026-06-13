@@ -233,7 +233,7 @@ function RecordingGuideStep({
         <ModeRow
           icon="☝"
           title="Push to Talk"
-          description="키를 누르고 있는 동안 녹음, 떼면 전사"
+          description="현재 Electron 단축키는 한 번 눌러 시작, 다시 눌러 중지"
           selected={selectedMode === 'pushToTalk'}
           onSelect={() => onSelectMode('pushToTalk')}
         />
