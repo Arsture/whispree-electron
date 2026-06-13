@@ -17,6 +17,7 @@ export interface SettingsStorePaths {
 export class FileSettingsStore {
   readonly #settingsFile: string;
   #settings: PersistedAppSettingsSnapshot = defaultPersistedAppSettings;
+  #groqApiKey: string | null = null;
   #lastError: string | null = null;
 
   constructor(paths: SettingsStorePaths) {
@@ -28,7 +29,7 @@ export class FileSettingsStore {
   }
 
   getSnapshot(): AppSettingsSnapshot {
-    return redactSettings(this.#settings);
+    return redactSettings(this.#settings, { groqApiKey: this.#groqApiKey });
   }
 
   getPersistedSnapshotForTests(): PersistedAppSettingsSnapshot {
@@ -39,13 +40,16 @@ export class FileSettingsStore {
     try {
       const text = await readFile(this.#settingsFile, 'utf8');
       this.#settings = normalizePersistedSettings(JSON.parse(text));
+      this.#groqApiKey = null;
       this.#lastError = null;
     } catch (error) {
       if (isFileMissing(error)) {
         this.#settings = defaultPersistedAppSettings;
+        this.#groqApiKey = null;
         this.#lastError = null;
       } else {
         this.#settings = defaultPersistedAppSettings;
+        this.#groqApiKey = null;
         this.#lastError = error instanceof Error ? error.message : String(error);
       }
     }
@@ -55,6 +59,7 @@ export class FileSettingsStore {
   async updateUnknown(value: unknown): Promise<{ readonly ok: true; readonly settings: AppSettingsSnapshot } | { readonly ok: false; readonly issues: readonly string[]; readonly settings: AppSettingsSnapshot }> {
     const validation = validateSettingsUpdate(value);
     if (!validation.ok) return { ok: false, issues: validation.issues, settings: this.getSnapshot() };
+    if (validation.update.groqApiKey !== undefined) this.#groqApiKey = validation.update.groqApiKey;
     this.#settings = applySettingsUpdate(this.#settings, validation.update);
     await this.#persist();
     return { ok: true, settings: this.getSnapshot() };
@@ -62,6 +67,7 @@ export class FileSettingsStore {
 
   async reset(): Promise<AppSettingsSnapshot> {
     this.#settings = defaultPersistedAppSettings;
+    this.#groqApiKey = null;
     await this.#persist();
     return this.getSnapshot();
   }

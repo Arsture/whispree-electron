@@ -32,6 +32,7 @@ interface MockDictationPipelineAdapters {
   readonly audio?: AudioCaptureAdapter;
   readonly textInsertion?: TextInsertionAdapter;
   readonly historyStore?: HistoryAppender;
+  readonly initialHistory?: readonly HistoryRecordSnapshot[];
 }
 
 const defaultDelay: Delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -77,6 +78,7 @@ export class MockDictationPipeline {
     this.#audioAdapter = adapters.audio ?? new MockAudioCaptureAdapter();
     this.#textInsertionAdapter = adapters.textInsertion ?? new MockTextInsertionAdapter();
     this.#historyStore = adapters.historyStore ?? null;
+    this.#history = [...(adapters.initialHistory ?? [])].slice(0, 20);
   }
 
   subscribe(listener: SnapshotListener): () => void {

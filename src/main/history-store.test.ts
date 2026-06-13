@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -24,6 +24,19 @@ describe('FileHistoryStore', () => {
       expect(JSON.parse(await readFile(file, 'utf8'))).toEqual([record]);
       const second = new FileHistoryStore(file);
       await expect(second.load()).resolves.toEqual([record]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('falls back to empty history on corrupt JSON with a visible local error', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'whispree-history-'));
+    const file = path.join(dir, 'history.json');
+    const store = new FileHistoryStore(file);
+    try {
+      await writeFile(file, '{bad history', 'utf8');
+      await expect(store.load()).resolves.toEqual([]);
+      expect(store.lastError).toContain('JSON');
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

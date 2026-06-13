@@ -5,6 +5,7 @@ import type { HistoryRecordSnapshot } from '../shared/ipc';
 export class FileHistoryStore {
   readonly #historyFile: string;
   #records: HistoryRecordSnapshot[] = [];
+  #lastError: string | null = null;
 
   constructor(historyFile: string) {
     this.#historyFile = historyFile;
@@ -14,14 +15,19 @@ export class FileHistoryStore {
     return [...this.#records];
   }
 
+  get lastError(): string | null {
+    return this.#lastError;
+  }
+
   async load(): Promise<readonly HistoryRecordSnapshot[]> {
     try {
       const text = await readFile(this.#historyFile, 'utf8');
       const parsed = JSON.parse(text) as unknown;
       this.#records = Array.isArray(parsed) ? parsed.filter(isHistoryRecord) : [];
+      this.#lastError = null;
     } catch (error) {
-      if (!isFileMissing(error)) throw error;
       this.#records = [];
+      this.#lastError = isFileMissing(error) ? null : error instanceof Error ? error.message : String(error);
     }
     return this.records;
   }
@@ -29,12 +35,14 @@ export class FileHistoryStore {
   async append(record: HistoryRecordSnapshot): Promise<readonly HistoryRecordSnapshot[]> {
     this.#records = [record, ...this.#records.filter((candidate) => candidate.id !== record.id)];
     await this.#persist();
+    this.#lastError = null;
     return this.records;
   }
 
   async clear(): Promise<void> {
     this.#records = [];
     await this.#persist();
+    this.#lastError = null;
   }
 
   async #persist(): Promise<void> {

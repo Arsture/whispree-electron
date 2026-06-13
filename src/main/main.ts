@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage } from 'electron';
+import { app, BrowserWindow, Menu, Tray, clipboard, ipcMain, nativeImage } from 'electron';
 import started from 'electron-squirrel-startup';
 import path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -7,15 +7,19 @@ import { resolveScreenshotCapturePath } from './screenshot-capture';
 import { commandError, commandOk, rejectUnexpectedArgs, rejectUnexpectedSettingsArgs, settingsCommandError, settingsCommandOk, validatePermissionKindInput } from './ipc-validation';
 import { MockDictationPipeline } from './mock-pipeline';
 import { createSettingsStore, type FileSettingsStore } from './settings-store';
+import { createHistoryStore, type FileHistoryStore } from './history-store';
+import { copyHistoryTextFromSnapshot } from './history-copy';
 
 const dirname = __dirname;
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let settingsStore: FileSettingsStore | null = null;
-const pipeline = new MockDictationPipeline((snapshot) => {
+let historyStore: FileHistoryStore | null = null;
+let pipeline: MockDictationPipeline | null = null;
+const emitAppSnapshot = (snapshot: ReturnType<MockDictationPipeline['getSnapshot']>) => {
   mainWindow?.webContents.send(IPC_CHANNELS.appSnapshotUpdated, snapshot);
-});
+};
 
 if (started) {
   app.quit();
@@ -99,7 +103,7 @@ function createTray(): void {
       {
         label: 'Enqueue Mock Dictation',
         click: () => {
-          pipeline.enqueueMockDictation();
+          getPipeline().enqueueMockDictation();
         },
       },
       { type: 'separator' },
@@ -116,14 +120,33 @@ function getSettingsStore(): FileSettingsStore {
   return settingsStore;
 }
 
+function getHistoryStore(): FileHistoryStore {
+  historyStore ??= createHistoryStore(app.getPath('userData'));
+  return historyStore;
+}
+
+function getPipeline(): MockDictationPipeline {
+  pipeline ??= new MockDictationPipeline(emitAppSnapshot);
+  return pipeline;
+}
+
+async function initializeMainState(): Promise<void> {
+  await getSettingsStore().load();
+  const store = getHistoryStore();
+  const history = await store.load();
+  pipeline = new MockDictationPipeline(emitAppSnapshot, undefined, {
+    historyStore: store,
+    initialHistory: history,
+  });
+}
+
 function registerIpcHandlers(): void {
-  ipcMain.handle(IPC_CHANNELS.getAppSnapshot, () => pipeline.getSnapshot());
+  ipcMain.handle(IPC_CHANNELS.getAppSnapshot, () => getPipeline().getSnapshot());
 
   ipcMain.handle(IPC_CHANNELS.getSettings, async (_event, ...args: unknown[]) => {
     const store = getSettingsStore();
     const rejected = rejectUnexpectedSettingsArgs('get-settings', store.getSnapshot(), args);
     if (rejected) return rejected;
-    await store.load();
     return store.getSnapshot();
   });
   ipcMain.handle(IPC_CHANNELS.updateSettings, async (_event, update: unknown, ...args: unknown[]) => {
@@ -143,36 +166,33 @@ function registerIpcHandlers(): void {
     return settingsCommandOk('reset-settings', await store.reset(), 'Settings reset.');
   });
   ipcMain.handle(IPC_CHANNELS.enqueueMockDictation, (_event, ...args: unknown[]) => {
-    const rejected = rejectUnexpectedArgs('enqueue-mock-dictation', pipeline.getSnapshot(), args);
+    const currentPipeline = getPipeline();
+    const rejected = rejectUnexpectedArgs('enqueue-mock-dictation', currentPipeline.getSnapshot(), args);
     if (rejected) return rejected;
-    return commandOk('enqueue-mock-dictation', pipeline.enqueueMockDictation(), 'Mock dictation enqueued.');
+    return commandOk('enqueue-mock-dictation', currentPipeline.enqueueMockDictation(), 'Mock dictation enqueued.');
   });
   ipcMain.handle(IPC_CHANNELS.cancelForegroundJob, (_event, ...args: unknown[]) => {
-    const rejected = rejectUnexpectedArgs('cancel-foreground-job', pipeline.getSnapshot(), args);
+    const currentPipeline = getPipeline();
+    const rejected = rejectUnexpectedArgs('cancel-foreground-job', currentPipeline.getSnapshot(), args);
     if (rejected) return rejected;
-    return commandOk('cancel-foreground-job', pipeline.cancelForegroundJob(), 'Foreground mock scope canceled.');
+    return commandOk('cancel-foreground-job', currentPipeline.cancelForegroundJob(), 'Foreground mock scope canceled.');
   });
   ipcMain.handle(IPC_CHANNELS.openSettings, (_event, ...args: unknown[]) => {
-    const rejected = rejectUnexpectedArgs('open-settings', pipeline.getSnapshot(), args);
+    const snapshot = getPipeline().getSnapshot();
+    const rejected = rejectUnexpectedArgs('open-settings', snapshot, args);
     if (rejected) return rejected;
-    return commandError('open-settings', pipeline.getSnapshot(), 'Settings window is planned after the dashboard shell.', 'not-implemented');
+    return commandError('open-settings', snapshot, 'Settings window is planned after the dashboard shell.', 'not-implemented');
   });
 
   ipcMain.handle(IPC_CHANNELS.copyHistoryText, (_event, historyId: unknown, variant: unknown, ...args: unknown[]) => {
-    const snapshot = pipeline.getSnapshot();
+    const snapshot = getPipeline().getSnapshot();
     const rejected = rejectUnexpectedArgs('copy-history-text', snapshot, args);
     if (rejected) return rejected;
-    if (typeof historyId !== 'string' || (variant !== 'original' && variant !== 'corrected')) {
-      return commandError('copy-history-text', snapshot, 'Invalid history copy request.', 'invalid-input');
-    }
-    const record = snapshot.history.find((candidate) => candidate.id === historyId);
-    if (!record) return commandError('copy-history-text', snapshot, `Unknown history record: ${historyId}`, 'invalid-input');
-    const text = variant === 'original' ? record.originalText : record.correctedText;
-    return commandOk('copy-history-text', snapshot, `${variant} text copy requested (${text.length} chars).`);
+    return copyHistoryTextFromSnapshot(snapshot, historyId, variant, clipboard);
   });
 
   ipcMain.handle(IPC_CHANNELS.requestPermission, (_event, kind: unknown, ...args: unknown[]) => {
-    const snapshot = pipeline.getSnapshot();
+    const snapshot = getPipeline().getSnapshot();
     const rejected = rejectUnexpectedArgs('request-permission', snapshot, args);
     if (rejected) return rejected;
     const validation = validatePermissionKindInput(snapshot, kind);
@@ -187,10 +207,11 @@ function registerIpcHandlers(): void {
 }
 
 app.whenReady().then(() => {
-  registerIpcHandlers();
-  void getSettingsStore().load();
-  createMainWindow();
-  createTray();
+  void initializeMainState().then(() => {
+    registerIpcHandlers();
+    createMainWindow();
+    createTray();
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow();

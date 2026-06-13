@@ -64,19 +64,23 @@ describe('App settings schema', () => {
     expect(normalized.screenshotPasteEnabled).toBe(false);
   });
 
-  it('redacts Groq API key into a configured flag', () => {
-    const publicSettings = redactSettings({ ...defaultPersistedAppSettings, groqApiKey: 'gsk_test_123' });
+  it('redacts transient Groq API key metadata into a configured flag', () => {
+    const publicSettings = redactSettings(defaultPersistedAppSettings, { groqApiKey: 'gsk_test_123' });
 
     expect(publicSettings.groqApiKeyConfigured).toBe(true);
     expect(JSON.stringify(publicSettings)).not.toContain('gsk_test_123');
+    expect(JSON.stringify(defaultPersistedAppSettings)).not.toContain('gsk_test_123');
   });
 
-  it('validates updates and rejects unknown keys', () => {
+  it('validates updates and rejects unknown or invalid values', () => {
     expect(validateSettingsUpdate({ recordingMode: 'toggle', groqApiKey: 'gsk_test' })).toEqual({
       ok: true,
       update: { recordingMode: 'toggle', groqApiKey: 'gsk_test' },
     });
     expect(validateSettingsUpdate({ unknown: true })).toMatchObject({ ok: false });
+    expect(validateSettingsUpdate({ recordingMode: 'bad-mode' })).toMatchObject({ ok: false });
+    expect(validateSettingsUpdate({ audioInputChannel: -1 })).toMatchObject({ ok: false });
+    expect(validateSettingsUpdate({ llmEnabled: 'yes' })).toMatchObject({ ok: false });
     expect(validateSettingsUpdate(null)).toMatchObject({ ok: false });
   });
 
@@ -85,8 +89,8 @@ describe('App settings schema', () => {
     const next = applySettingsUpdate(current, { recordingMode: 'toggle', groqApiKey: 'gsk_test' });
 
     expect(current.recordingMode).toBe('push-to-talk');
-    expect(current.groqApiKey).toBe('');
+    expect(JSON.stringify(current)).not.toContain('gsk_test');
     expect(next.recordingMode).toBe('toggle');
-    expect(next.groqApiKey).toBe('gsk_test');
+    expect(JSON.stringify(next)).not.toContain('gsk_test');
   });
 });

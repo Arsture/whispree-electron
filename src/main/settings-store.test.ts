@@ -24,15 +24,32 @@ describe('FileSettingsStore', () => {
     }
   });
 
-  it('persists updates atomically and redacts secrets from public snapshots', async () => {
+  it('persists updates atomically without writing raw secrets to disk', async () => {
     const { dir, store, file } = await tempStore();
     try {
       await store.load();
       const result = await store.updateUnknown({ recordingMode: 'toggle', groqApiKey: 'gsk_test_123' });
       expect(result).toMatchObject({ ok: true, settings: { recordingMode: 'toggle', groqApiKeyConfigured: true } });
       expect(JSON.stringify(result)).not.toContain('gsk_test_123');
-      const persisted = JSON.parse(await readFile(file, 'utf8')) as typeof defaultPersistedAppSettings;
-      expect(persisted.groqApiKey).toBe('gsk_test_123');
+      const persistedText = await readFile(file, 'utf8');
+      const persisted = JSON.parse(persistedText) as typeof defaultPersistedAppSettings;
+      expect(persisted.recordingMode).toBe('toggle');
+      expect(persistedText).not.toContain('gsk_test_123');
+      expect('groqApiKey' in persisted).toBe(false);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+
+  it('drops legacy plaintext Groq keys on load instead of reserializing them', async () => {
+    const { dir, store, file } = await tempStore();
+    try {
+      await writeFile(file, JSON.stringify({ ...defaultPersistedAppSettings, groqApiKey: 'gsk_legacy_plaintext' }), 'utf8');
+      const settings = await store.load();
+      expect(settings.groqApiKeyConfigured).toBe(false);
+      await store.updateUnknown({ showOverlay: false });
+      expect(await readFile(file, 'utf8')).not.toContain('gsk_legacy_plaintext');
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

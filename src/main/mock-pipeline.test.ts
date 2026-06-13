@@ -84,6 +84,37 @@ describe('MockDictationPipeline', () => {
     expect(pipeline.getSnapshot().queue.items[0]).toMatchObject({ status: 'copied-to-clipboard', isTerminal: true });
   });
 
+
+  it('hydrates persisted history and appends new deliveries through the history store', async () => {
+    const appended: unknown[] = [];
+    const pipeline = new MockDictationPipeline(undefined, immediateDelay, {
+      initialHistory: [
+        {
+          id: 'history-99',
+          sequence: 99,
+          originalText: 'previous raw',
+          correctedText: 'previous corrected',
+          deliveredAtIso: new Date(0).toISOString(),
+          status: 'delivered',
+        },
+      ],
+      historyStore: {
+        append: async (record) => {
+          appended.push(record);
+          return appended;
+        },
+      },
+    });
+
+    expect(pipeline.getSnapshot().history[0]?.id).toBe('history-99');
+
+    pipeline.enqueueMockDictation({ recordingDelayMs: 0, sttDelayMs: 0, llmDelayMs: 0, deliveryDelayMs: 0 });
+    await pipeline.whenIdle();
+
+    expect(appended).toHaveLength(1);
+    expect(pipeline.getSnapshot().history[0]?.id).toBe('history-1');
+  });
+
   it('surfaces async provider failures as failed jobs and visible error state', async () => {
     let calls = 0;
     const failingSecondDelay = () => {

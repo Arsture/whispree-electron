@@ -66,9 +66,7 @@ export interface AppSettingsSnapshot {
   readonly quickFixShortcut: WhispreeShortcutSnapshot;
 }
 
-export interface PersistedAppSettingsSnapshot extends Omit<AppSettingsSnapshot, 'groqApiKeyConfigured'> {
-  readonly groqApiKey: string;
-}
+export type PersistedAppSettingsSnapshot = Omit<AppSettingsSnapshot, 'groqApiKeyConfigured'>;
 
 export type AppSettingsUpdate = Partial<
   Omit<AppSettingsSnapshot, 'schemaVersion' | 'groqApiKeyConfigured'> & {
@@ -124,7 +122,6 @@ export const defaultPersistedAppSettings: PersistedAppSettingsSnapshot = {
   groqLLMModel: 'qwen/qwen3-32b',
   screenshotContextEnabled: false,
   screenshotPasteEnabled: false,
-  groqApiKey: '',
   audioInputChannel: 0,
   vadEnabled: true,
   pauseMediaDuringRecording: true,
@@ -140,11 +137,14 @@ export const defaultPersistedAppSettings: PersistedAppSettingsSnapshot = {
 
 export const defaultAppSettings: AppSettingsSnapshot = redactSettings(defaultPersistedAppSettings);
 
-export function redactSettings(settings: PersistedAppSettingsSnapshot): AppSettingsSnapshot {
-  const { groqApiKey: _groqApiKey, ...publicSettings } = normalizePersistedSettings(settings);
+export function redactSettings(
+  settings: PersistedAppSettingsSnapshot,
+  secrets: { readonly groqApiKey?: string | null } = {},
+): AppSettingsSnapshot {
+  const publicSettings = normalizePersistedSettings(settings);
   return {
     ...publicSettings,
-    groqApiKeyConfigured: settings.groqApiKey.trim().length > 0,
+    groqApiKeyConfigured: typeof secrets.groqApiKey === 'string' && secrets.groqApiKey.trim().length > 0,
   };
 }
 
@@ -208,7 +208,6 @@ export function normalizePersistedSettings(raw: unknown): PersistedAppSettingsSn
     groqLLMModel: normalizeGroqLLMModel(String(source.groqLLMModel ?? defaultPersistedAppSettings.groqLLMModel)),
     screenshotContextEnabled: contextEnabled,
     screenshotPasteEnabled: pasteEnabled,
-    groqApiKey: stringOr(source.groqApiKey, defaultPersistedAppSettings.groqApiKey),
     audioInputChannel: nonNegativeIntegerOr(source.audioInputChannel, defaultPersistedAppSettings.audioInputChannel),
     vadEnabled: boolOr(source.vadEnabled, defaultPersistedAppSettings.vadEnabled),
     pauseMediaDuringRecording: boolOr(source.pauseMediaDuringRecording, defaultPersistedAppSettings.pauseMediaDuringRecording),
@@ -225,59 +224,88 @@ export function normalizePersistedSettings(raw: unknown): PersistedAppSettingsSn
 
 export function validateSettingsUpdate(value: unknown): { readonly ok: true; readonly update: AppSettingsUpdate } | { readonly ok: false; readonly issues: readonly string[] } {
   if (!isRecord(value)) return { ok: false, issues: ['settings update must be an object'] };
-  const allowed = new Set([
-    'recordingMode',
-    'language',
-    'sttProviderType',
-    'llmProviderType',
-    'llmEnabled',
-    'hasCompletedOnboarding',
-    'launchAtLogin',
-    'showOverlay',
-    'correctionMode',
-    'customLLMPrompt',
-    'whisperModelId',
-    'llmModelId',
-    'mlxAudioModelId',
-    'openaiModel',
-    'groqLLMModel',
-    'screenshotContextEnabled',
-    'screenshotPasteEnabled',
-    'groqApiKey',
-    'audioInputChannel',
-    'vadEnabled',
-    'pauseMediaDuringRecording',
-    'restoreBrowserTab',
-    'restoreTerminalContext',
-    'domainWordSets',
-    'correctionMappings',
-    'sharedDictionaryEnabled',
-    'sharedDictionaryPath',
-    'toggleRecordingShortcut',
-    'quickFixShortcut',
-  ]);
+
   const issues: string[] = [];
-  for (const key of Object.keys(value)) {
-    if (!allowed.has(key)) issues.push(`unknown settings key: ${key}`);
-  }
-  const candidate = normalizePersistedSettings({ ...defaultPersistedAppSettings, ...value });
   const update: AppSettingsUpdate = {};
   const mutableUpdate = update as Record<string, unknown>;
-  for (const key of Object.keys(value) as Array<keyof AppSettingsUpdate>) {
-    if (key === 'groqApiKey') {
-      if (typeof value.groqApiKey !== 'string') issues.push('groqApiKey must be a string');
-      else mutableUpdate.groqApiKey = value.groqApiKey;
-      continue;
-    }
-    if (key in candidate) {
-      mutableUpdate[key] = (candidate as unknown as Record<string, unknown>)[key];
+
+  for (const [key, rawValue] of Object.entries(value)) {
+    switch (key) {
+      case 'recordingMode':
+        assignOneOf(mutableUpdate, key, rawValue, RECORDING_MODES, issues);
+        break;
+      case 'language':
+        assignOneOf(mutableUpdate, key, rawValue, SUPPORTED_LANGUAGES, issues);
+        break;
+      case 'sttProviderType':
+        assignOneOf(mutableUpdate, key, rawValue, STT_PROVIDER_TYPES, issues);
+        break;
+      case 'llmProviderType':
+        assignOneOf(mutableUpdate, key, rawValue, LLM_PROVIDER_TYPES, issues);
+        break;
+      case 'correctionMode':
+        assignOneOf(mutableUpdate, key, rawValue, CORRECTION_MODES, issues);
+        break;
+      case 'openaiModel':
+        assignOneOf(mutableUpdate, key, rawValue, OPENAI_MODELS, issues);
+        break;
+      case 'groqLLMModel':
+        assignOneOf(mutableUpdate, key, rawValue, GROQ_LLM_MODELS, issues);
+        break;
+      case 'llmEnabled':
+      case 'hasCompletedOnboarding':
+      case 'launchAtLogin':
+      case 'showOverlay':
+      case 'screenshotContextEnabled':
+      case 'screenshotPasteEnabled':
+      case 'vadEnabled':
+      case 'pauseMediaDuringRecording':
+      case 'restoreBrowserTab':
+      case 'restoreTerminalContext':
+      case 'sharedDictionaryEnabled':
+        if (typeof rawValue === 'boolean') mutableUpdate[key] = rawValue;
+        else issues.push(`${key} must be a boolean`);
+        break;
+      case 'customLLMPrompt':
+      case 'sharedDictionaryPath':
+        if (rawValue === null || typeof rawValue === 'string') mutableUpdate[key] = rawValue;
+        else issues.push(`${key} must be a string or null`);
+        break;
+      case 'whisperModelId':
+      case 'llmModelId':
+      case 'mlxAudioModelId':
+      case 'groqApiKey':
+        if (typeof rawValue === 'string') mutableUpdate[key] = rawValue;
+        else issues.push(`${key} must be a string`);
+        break;
+      case 'audioInputChannel':
+        if (typeof rawValue === 'number' && Number.isInteger(rawValue) && rawValue >= 0) mutableUpdate[key] = rawValue;
+        else issues.push('audioInputChannel must be a non-negative integer');
+        break;
+      case 'domainWordSets':
+        if (Array.isArray(rawValue)) mutableUpdate[key] = normalizeDomainWordSets(rawValue);
+        else issues.push('domainWordSets must be an array');
+        break;
+      case 'correctionMappings':
+        if (Array.isArray(rawValue)) mutableUpdate[key] = normalizeCorrectionMappings(rawValue);
+        else issues.push('correctionMappings must be an array');
+        break;
+      case 'toggleRecordingShortcut':
+      case 'quickFixShortcut':
+        if (isValidShortcut(rawValue)) mutableUpdate[key] = normalizeShortcut(rawValue, key === 'toggleRecordingShortcut' ? defaultToggleRecordingShortcut : defaultQuickFixShortcut);
+        else issues.push(`${key} must be a shortcut object`);
+        break;
+      default:
+        issues.push(`unknown settings key: ${key}`);
     }
   }
+
   return issues.length > 0 ? { ok: false, issues } : { ok: true, update };
 }
 
 export function applySettingsUpdate(current: PersistedAppSettingsSnapshot, update: AppSettingsUpdate): PersistedAppSettingsSnapshot {
-  return normalizePersistedSettings({ ...current, ...update });
+  const { groqApiKey: _groqApiKey, ...persistableUpdate } = update;
+  return normalizePersistedSettings({ ...current, ...persistableUpdate });
 }
 
 function normalizeRecordingMode(value: unknown): RecordingMode {
@@ -329,6 +357,28 @@ function normalizeShortcut(value: unknown, fallback: WhispreeShortcutSnapshot): 
   const modifiersRaw = kind === 'combo' ? nonNegativeIntegerOr(value.modifiersRaw, fallback.modifiersRaw ?? 0) : undefined;
   const label = stringOr(value.label, fallback.label);
   return modifiersRaw === undefined ? { kind, keyCode, label } : { kind, keyCode, modifiersRaw, label };
+}
+
+function isValidShortcut(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  if (value.kind !== 'combo' && value.kind !== 'modifier-only') return false;
+  if (typeof value.keyCode !== 'number' || !Number.isInteger(value.keyCode) || value.keyCode < 0) return false;
+  if (value.kind === 'combo' && (typeof value.modifiersRaw !== 'number' || !Number.isInteger(value.modifiersRaw) || value.modifiersRaw < 0)) return false;
+  return typeof value.label === 'string' && value.label.length > 0;
+}
+
+function assignOneOf<const T extends readonly string[]>(
+  target: Record<string, unknown>,
+  key: string,
+  value: unknown,
+  allowedValues: T,
+  issues: string[],
+): void {
+  if (isOneOf(allowedValues, value)) {
+    target[key] = value;
+    return;
+  }
+  issues.push(`${key} must be one of: ${allowedValues.join(', ')}`);
 }
 
 function migrateLLMModelId(value: string): string {
