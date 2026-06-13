@@ -1,6 +1,12 @@
 import type { AppSnapshot, PermissionCardSnapshot, ProviderCardSnapshot, QueueItemSnapshot } from '../../shared/ipc';
-import { foregroundCancelLabel, implementationTone, jobLabel, overlayStatusText, queueProcessingText, statusTitle, statusTone } from '../ui-model';
-import { HotkeyBadge, Keycap, StatusPill, Waveform } from '../components/primitives';
+import { implementationTone, jobLabel, queueProcessingText, statusTitle, statusTone } from '../ui-model';
+import { StatusPill, Waveform } from '../components/primitives';
+
+const screenshotMocks = [
+  { id: 'screen-1', appName: 'Safari', timestamp: '10:42:18', tone: 'blue' },
+  { id: 'screen-2', appName: 'Xcode', timestamp: '10:42:22', tone: 'purple' },
+  { id: 'screen-3', appName: 'Terminal', timestamp: '10:42:26', tone: 'green' },
+] as const;
 
 function count(snapshot: AppSnapshot, key: 'total' | 'processing' | 'ready' | 'history'): number {
   switch (key) {
@@ -16,55 +22,74 @@ function count(snapshot: AppSnapshot, key: 'total' | 'processing' | 'ready' | 'h
 }
 
 function RecordingStatus({ snapshot }: { readonly snapshot: AppSnapshot }) {
-  const cancelLabel = foregroundCancelLabel(snapshot);
-  const realRecordingActive = snapshot.recording.active && snapshot.recording.mode === 'real';
+  const isBusy = snapshot.recording.active || snapshot.appStatus === 'processing';
+  const icon = snapshot.recording.active ? '●' : snapshot.appStatus === 'processing' ? '◌' : '◎';
+  const copy = snapshot.recording.active ? 'Listening... (ESC to cancel)' : queueProcessingText(snapshot);
+
   return (
-    <section className="liquid-card recording-card" data-testid="recording-status" data-app-status={snapshot.appStatus}>
+    <section className="liquid-card recording-card home-recording-card" data-testid="recording-status" data-app-status={snapshot.appStatus}>
       <div className="recording-copy">
         <span className="recording-icon" data-tone={statusTone(snapshot)} aria-hidden="true">
-          {snapshot.recording.active ? '●' : snapshot.appStatus === 'processing' ? '◌' : '◎'}
+          {icon}
         </span>
         <div>
           <h2>Recording</h2>
-          <p>{snapshot.recording.active ? 'Listening... (ESC to cancel)' : queueProcessingText(snapshot)}</p>
+          <p>{copy}</p>
         </div>
       </div>
-      <Waveform active={snapshot.recording.active || snapshot.appStatus === 'processing'} />
-      <div className="recording-actions">
-        <button type="button" className="primary-action" onClick={() => void window.whispree.enqueueMockDictation()}>
-          Start mock recording
-        </button>
-        <button
-          type="button"
-          className="plain-action"
-          onClick={() => void (realRecordingActive ? window.whispree.stopRealRecording() : window.whispree.startRealRecording())}
-        >
-          {realRecordingActive ? 'Stop real recording' : 'Start real recording'}
-        </button>
-        <button type="button" className="plain-action" onClick={() => void window.whispree.cancelForegroundJob()}>
-          {cancelLabel ?? 'Cancel foreground'} <Keycap>esc</Keycap>
-        </button>
-      </div>
+      <Waveform active={isBusy} />
+      <p className="recording-hint">Press hotkey to start recording</p>
     </section>
   );
 }
 
-function QueueSummary({ snapshot }: { readonly snapshot: AppSnapshot }) {
+function ActionDock() {
   return (
-    <section className="liquid-card" data-testid="queue-summary">
+    <section className="home-action-dock" aria-label="Recording controls">
+      <button type="button" onClick={() => void window.whispree.enqueueMockDictation()}>Start mock recording</button>
+      <button type="button" onClick={() => void window.whispree.startRealRecording()}>Start real recording</button>
+      <button type="button" onClick={() => void window.whispree.cancelForegroundJob()}>Cancel foreground</button>
+    </section>
+  );
+}
+
+function AccessibilityWarning({ permissions }: { readonly permissions: readonly PermissionCardSnapshot[] }) {
+  const accessibility = permissions.find((permission) => permission.kind === 'accessibility');
+  if (accessibility?.state === 'granted') return null;
+
+  return (
+    <section className="accessibility-warning" data-testid="accessibility-warning" aria-label="Accessibility permission warning">
+      <span className="warning-icon" aria-hidden="true">⚠</span>
+      <span>
+        <strong>Accessibility 권한 필요</strong>
+        <small>텍스트 자동 삽입에 손쉬운 사용 권한이 필요합니다</small>
+      </span>
+      <button type="button" disabled>허용</button>
+    </section>
+  );
+}
+
+function PermissionsPanel({ permissions }: { readonly permissions: readonly PermissionCardSnapshot[] }) {
+  return (
+    <section className="liquid-card permissions-panel" data-testid="permissions">
       <div className="card-heading">
-        <h2>Queue</h2>
-        <StatusPill tone="accent">FIFO</StatusPill>
+        <h2>Permissions</h2>
+        <StatusPill tone="warning">OS-gated</StatusPill>
       </div>
-      <div className="count-grid">
-        {(['total', 'processing', 'ready', 'history'] as const).map((key) => (
-          <div className="count-tile" key={key}>
-            <span>{key}</span>
-            <strong data-count={key}>{count(snapshot, key)}</strong>
-          </div>
+      <div className="permission-row-list">
+        {permissions.map((permission) => (
+          <article className="permission-row" data-permission-kind={permission.kind} data-permission-state={permission.state} key={permission.kind}>
+            <span className="permission-row-icon" aria-hidden="true">{permission.state === 'granted' ? '✓' : '!'}</span>
+            <span className="permission-row-copy">
+              <strong>{permission.label}</strong>
+              <small>{permission.detail}</small>
+            </span>
+            <button type="button" onClick={() => void window.whispree.requestPermission(permission.kind)}>
+              Request {permission.label}
+            </button>
+          </article>
         ))}
       </div>
-      <p className="caption">{queueProcessingText(snapshot)}</p>
     </section>
   );
 }
@@ -73,11 +98,11 @@ function LatestTranscription({ snapshot }: { readonly snapshot: AppSnapshot }) {
   return (
     <section className="liquid-card latest-card" data-testid="latest-transcription">
       <div className="card-heading">
-        <h2>Latest transcription</h2>
+        <h2>Last Transcription</h2>
         {snapshot.latest ? <StatusPill tone="success">delivered</StatusPill> : <StatusPill tone="neutral">empty</StatusPill>}
       </div>
       {snapshot.latest ? (
-        <div className="text-wells">
+        <div className="text-wells transcription-wells">
           <div>
             <span>STT Result</span>
             <p>{snapshot.latest.originalText}</p>
@@ -94,134 +119,164 @@ function LatestTranscription({ snapshot }: { readonly snapshot: AppSnapshot }) {
   );
 }
 
-function QueueList({ jobs }: { readonly jobs: readonly QueueItemSnapshot[] }) {
+function ScreenshotStrip() {
   return (
-    <section className="liquid-card queue-list-card">
+    <section className="liquid-card screenshot-strip" data-testid="screenshot-strip">
+      <div className="screenshot-strip-heading">
+        <span aria-hidden="true">▣</span>
+        <h2>스크린 컨텍스트</h2>
+        <small>{screenshotMocks.length}장</small>
+      </div>
+      <div className="screenshot-scroll" aria-label="Screenshot context thumbnails">
+        {screenshotMocks.map((screenshot) => (
+          <article className="screenshot-thumb" data-tone={screenshot.tone} key={screenshot.id}>
+            <div className="screenshot-image" aria-hidden="true">
+              <span />
+            </div>
+            <strong>{screenshot.appName}</strong>
+            <small>{screenshot.timestamp}</small>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ProviderStatusCards({ providers }: { readonly providers: readonly ProviderCardSnapshot[] }) {
+  const stt = providers.find((provider) => provider.family === 'stt') ?? providers[0];
+  const llm = providers.find((provider) => provider.family === 'llm') ?? providers.find((provider) => provider.family === 'cloud-backend');
+
+  const cards = [
+    { id: 'stt', title: 'STT', icon: '●', provider: stt, picker: stt?.label ?? 'WhisperKit' },
+    { id: 'llm', title: 'LLM', icon: llm?.family === 'cloud-backend' ? '◎' : '✦', provider: llm, picker: llm?.label ?? 'None' },
+  ] as const;
+
+  return (
+    <section className="liquid-card provider-section" data-testid="providers">
+      <h2>Providers</h2>
+      <p className="provider-status-copy">provider status</p>
+      <div className="provider-card-stack">
+        {cards.map((card) => (
+          <article className="provider-card" data-provider-family={card.id} key={card.id}>
+            <div className="provider-main-row">
+              <span className="provider-icon" aria-hidden="true">{card.icon}</span>
+              <strong>{card.title}</strong>
+              <span className="provider-picker" aria-label={`${card.title} selected provider`}>{card.picker}</span>
+              {card.provider ? (
+                <StatusPill tone={implementationTone(card.provider.status)} status={card.provider.status}>
+                  {card.provider.status === 'implemented' ? 'Ready' : card.provider.status}
+                </StatusPill>
+              ) : null}
+            </div>
+            <p>{card.provider?.detail ?? 'Provider configuration is not ready yet.'}</p>
+            {card.id === 'stt' && card.provider?.status !== 'implemented' ? (
+              <small className="provider-warning">STT 설정에서 Groq API Key를 입력하세요</small>
+            ) : null}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function QueueSummary({ snapshot }: { readonly snapshot: AppSnapshot }) {
+  return (
+    <section className="liquid-card queue-summary-card" data-testid="queue-summary">
       <div className="card-heading">
-        <h2>Queue items</h2>
+        <h2>Queue</h2>
+        <StatusPill tone="accent">FIFO</StatusPill>
+      </div>
+      <div className="count-grid queue-count-grid">
+        {(['total', 'processing', 'ready', 'history'] as const).map((key) => (
+          <div className="count-tile" key={key}>
+            <span>{key}</span>
+            <strong data-count={key}>{count(snapshot, key)}</strong>
+          </div>
+        ))}
+      </div>
+      <p className="caption">{queueProcessingText(snapshot)}</p>
+    </section>
+  );
+}
+
+function QueueCards({ jobs }: { readonly jobs: readonly QueueItemSnapshot[] }) {
+  const queueJobs = jobs.length > 0 ? jobs : [
+    {
+      id: 'mock-queue-empty',
+      sequence: 1,
+      status: 'queued',
+      originalText: '',
+      correctedText: '',
+      targetContextId: null,
+      screenshotIds: [],
+      isDeliverable: false,
+      isProcessing: false,
+      isTerminal: false,
+    } satisfies QueueItemSnapshot,
+  ];
+
+  return (
+    <section className="liquid-card queue-list-card" data-testid="queue-list">
+      <div className="card-heading">
+        <h2>Queue cards</h2>
         <StatusPill tone="neutral">calm counts</StatusPill>
       </div>
-      <ol className="queue-list" data-testid="queue-list">
-        {jobs.map((job) => (
+      <ol className="queue-card-list">
+        {queueJobs.map((job) => (
           <li key={job.id} data-sequence={job.sequence} data-status={job.status} data-terminal={job.isTerminal}>
             <span>{jobLabel(job)}</span>
             <small>{job.correctedText || job.originalText || 'waiting for provider'}</small>
           </li>
         ))}
       </ol>
-      {jobs.length === 0 ? <p className="empty-copy">Queue is empty.</p> : null}
     </section>
   );
 }
 
-function ProviderRows({ providers }: { readonly providers: readonly ProviderCardSnapshot[] }) {
+function OverlayPlaceholder() {
   return (
-    <section className="liquid-card" data-testid="providers">
+    <aside className="overlay-placeholder" data-testid="transcription-overlay" aria-label="Transcription overlay integration placeholder">
       <div className="card-heading">
-        <h2>Providers</h2>
-        <StatusPill tone="neutral">provider status</StatusPill>
+        <h2>Overlay</h2>
+        <StatusPill tone="neutral">UI-04</StatusPill>
       </div>
-      <ul className="status-list">
-        {providers.map((provider) => (
-          <li key={provider.id} data-provider-id={provider.id} data-status={provider.status}>
-            <span>
-              <strong>{provider.label}</strong>
-              <small>{provider.detail}</small>
-            </span>
-            <StatusPill tone={implementationTone(provider.status)} status={provider.status}>
-              {provider.status}
-            </StatusPill>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-function PermissionRows({ permissions }: { readonly permissions: readonly PermissionCardSnapshot[] }) {
-  return (
-    <section className="liquid-card" data-testid="permissions">
-      <div className="card-heading">
-        <h2>Permissions</h2>
-        <StatusPill tone="warning">OS grants</StatusPill>
-      </div>
-      <ul className="status-list">
-        {permissions.map((permission) => (
-          <li key={permission.kind} data-permission-kind={permission.kind} data-status={permission.status} data-state={permission.state}>
-            <span>
-              <strong>{permission.label}</strong>
-              <small>{permission.detail}</small>
-            </span>
-            <StatusPill tone={implementationTone(permission.status)} status={permission.status}>
-              {permission.state}
-            </StatusPill>
-            <button type="button" className="mini-action" onClick={() => void window.whispree.requestPermission(permission.kind)}>
-              Request
-            </button>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-function TranscriptionOverlay({ snapshot }: { readonly snapshot: AppSnapshot }) {
-  const cancelLabel = foregroundCancelLabel(snapshot);
-  return (
-    <aside className="transcription-overlay" data-testid="transcription-overlay" aria-label="Transcription overlay preview">
-      <div className="overlay-status-row">
-        <span className="overlay-icon" data-tone={statusTone(snapshot)} aria-hidden="true">
-          {snapshot.recording.active ? '●' : '◌'}
-        </span>
-        <span data-testid="overlay-status">{overlayStatusText(snapshot)}</span>
-        {snapshot.appStatus === 'processing' ? <span className="tiny-spinner" aria-hidden="true" /> : null}
-      </div>
-      <div data-testid="overlay-waveform">
-        <Waveform active={snapshot.recording.active || snapshot.appStatus === 'processing'} />
+      <div data-testid="overlay-waveform" className="overlay-waveform-shell" aria-hidden="true">
+        <Waveform active={false} />
       </div>
       <div className="overlay-hotkeys">
-        {snapshot.recording.active ? <HotkeyBadge id="stop" label="Stop" keys="⌘⇧Space" /> : null}
-        <HotkeyBadge id="cancel" label={cancelLabel ?? 'Cancel'} keys="esc" />
-        <HotkeyBadge id="image-attach" label="Img Attach" keys="⌥" active={false} />
+        <span data-hotkey="record">record</span>
+        <span data-hotkey="cancel">esc</span>
       </div>
+      <p>Detailed transcription overlay mock is reserved for UI-04.</p>
     </aside>
   );
 }
 
-
 function ContextFoundation() {
   return (
-    <section className="liquid-card" data-testid="context-foundation">
+    <section className="liquid-card context-foundation" data-testid="context-foundation">
       <div className="card-heading">
-        <h2>Context & Quick Fix</h2>
-        <StatusPill tone="warning">adapter seams</StatusPill>
+        <h2>Context</h2>
+        <StatusPill tone="neutral">mock</StatusPill>
       </div>
-      <ul className="status-list">
-        <li data-context-surface="screenshot-selection">
-          <span><strong>Screenshot Selection</strong><small>FIFO-head-only image context is job-scoped through screen adapters.</small></span>
-          <StatusPill tone="warning" status="partial">partial</StatusPill>
-        </li>
-        <li data-context-surface="browser-restore">
-          <span><strong>Browser Restore</strong><small>Chrome tab/input context is captured and restored through OS adapters.</small></span>
-          <StatusPill tone="warning" status="partial">partial</StatusPill>
-        </li>
-        <li data-context-surface="terminal-restore">
-          <span><strong>Terminal Restore</strong><small>iTerm2/tmux or Windows terminal state remains adapter-owned and job-scoped.</small></span>
-          <StatusPill tone="warning" status="partial">partial</StatusPill>
-        </li>
-        <li data-context-surface="quick-fix">
-          <span><strong>Quick Fix</strong><small>Selected text correction and dictionary registration through typed IPC.</small></span>
-          <StatusPill tone="warning" status="planned">planned</StatusPill>
-        </li>
-      </ul>
+      <div className="context-surface-grid">
+        <article data-context-surface="quick-fix">
+          <strong>Quick Fix</strong>
+          <small>Selected text correction/register surface.</small>
+        </article>
+        <article data-context-surface="screenshot-selection">
+          <strong>Screenshot Selection</strong>
+          <small>Visual context picker and thumbnail state.</small>
+        </article>
+      </div>
     </section>
   );
 }
 
 export function HomePanel({ snapshot }: { readonly snapshot: AppSnapshot }) {
   return (
-    <div className="home-grid">
-      <header className="dashboard-header">
+    <div className="home-grid home-dashboard">
+      <header className="dashboard-header home-dashboard-header">
         <div className="brand-lockup">
           <span className="brand-icon" aria-hidden="true">≋</span>
           <div>
@@ -229,23 +284,28 @@ export function HomePanel({ snapshot }: { readonly snapshot: AppSnapshot }) {
             <p aria-live="polite">{statusTitle(snapshot)}</p>
           </div>
         </div>
-        <StatusPill tone={statusTone(snapshot)} status={snapshot.appStatus}>{snapshot.appStatus}</StatusPill>
+        <span className="dashboard-status-dot" data-tone={statusTone(snapshot)} aria-label={`Status: ${snapshot.appStatus}`} />
       </header>
       {snapshot.currentError ? <p className="error-banner">{snapshot.currentError.message}</p> : null}
       <RecordingStatus snapshot={snapshot} />
-      <div className="dashboard-columns">
-        <QueueSummary snapshot={snapshot} />
+      <ActionDock />
+      <ScreenshotStrip />
+      <AccessibilityWarning permissions={snapshot.permissions} />
+      <PermissionsPanel permissions={snapshot.permissions} />
+      <div className="dashboard-columns home-two-column">
         <LatestTranscription snapshot={snapshot} />
+        <ProviderStatusCards providers={snapshot.providers} />
       </div>
-      <div className="dashboard-columns wide-left">
-        <QueueList jobs={snapshot.queue.items} />
-        <TranscriptionOverlay snapshot={snapshot} />
+      <div className="dashboard-columns wide-left home-queue-layout">
+        <div className="queue-stack">
+          <QueueSummary snapshot={snapshot} />
+          <QueueCards jobs={snapshot.queue.items} />
+        </div>
+        <div className="home-side-stack">
+          <OverlayPlaceholder />
+          <ContextFoundation />
+        </div>
       </div>
-      <div className="dashboard-columns">
-        <ProviderRows providers={snapshot.providers} />
-        <PermissionRows permissions={snapshot.permissions} />
-      </div>
-      <ContextFoundation />
     </div>
   );
 }

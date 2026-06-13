@@ -1,1 +1,164 @@
-/* shell parity styles: owned by UI parity task registry. */
+/* UI-02 Swift unified shell parity: overrides legacy shell rules in styles.css by specificity. */
+.app-shell[data-view="whispree-shell"] {
+  grid-template-columns: var(--sidebar-expanded) minmax(0, 1fr);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.12)),
+    var(--surface-background);
+  transition: grid-template-columns 250ms ease-in-out;
+}
+
+.app-shell[data-view="whispree-shell"][data-sidebar-collapsed="true"] {
+  grid-template-columns: var(--sidebar-collapsed) minmax(0, 1fr);
+}
+
+.app-shell[data-view="whispree-shell"] > .sidebar {
+  gap: 16px;
+  width: var(--sidebar-expanded);
+  min-width: var(--sidebar-expanded);
+  padding: 60px 14px 16px;
+  border-right: 0;
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  box-shadow: none;
+}
+
+.app-shell[data-view="whispree-shell"] > .sidebar[data-collapsed="true"] {
+  width: var(--sidebar-collapsed);
+  min-width: var(--sidebar-collapsed);
+  align-items: center;
+  padding-inline: 8px;
+}
+
+.app-shell[data-view="whispree-shell"] .sidebar-toggle {
+  display: grid;
+  place-items: center;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  margin: 0 0 0 -4px;
+  padding: 0;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  background: transparent;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.app-shell[data-view="whispree-shell"] .sidebar[data-collapsed="true"] .sidebar-toggle {
+  margin-inline: auto;
+}
+
+.app-shell[data-view="whispree-shell"] .sidebar-toggle:hover {
+  background: color-mix(in srgb, var(--text-primary) 7%, transparent);
+}
+
+.app-shell[data-view="whispree-shell"] .sidebar-tabs {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+}
+
+.app-shell[data-view="whispree-shell"] .sidebar-tab {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--text-primary);
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+}
+
+.app-shell[data-view="whispree-shell"] .sidebar-tab:hover:not([data-selected="true"]) {
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+}
+
+.app-shell[data-view="whispree-shell"] .sidebar-tab[data-selected="true"] {
+  color: white;
+  background: var(--accent);
+  box-shadow: none;
+}
+
+.app-shell[data-view="whispree-shell"] .sidebar[data-collapsed="true"] .sidebar-tab {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  min-height: 40px;
+  padding: 6px 0;
+}
+
+.app-shell[data-view="whispree-shell"] .sidebar-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.26);
+}
+
+.app-shell[data-view="whispree-shell"] .sidebar-icon[data-icon-tone="orange"] { background: var(--orange); }
+.app-shell[data-view="whispree-shell"] .sidebar-icon[data-icon-tone="gray"] { background: var(--gray); }
+.app-shell[data-view="whispree-shell"] .sidebar-icon[data-icon-tone="blue"] { background: var(--blue); }
+.app-shell[data-view="whispree-shell"] .sidebar-icon[data-icon-tone="purple"] { background: var(--purple); }
+.app-shell[data-view="whispree-shell"] .sidebar-icon[data-icon-tone="green"] { background: var(--green); }
+.app-shell[data-view="whispree-shell"] .sidebar-icon[data-icon-tone="teal"] { background: var(--teal); }
+.app-shell[data-view="whispree-shell"] .sidebar-icon[data-icon-tone="indigo"] { background: var(--indigo); }
+
+.app-shell[data-view="whispree-shell"] .sidebar-label {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.app-shell[data-view="whispree-shell"] .sidebar[data-collapsed="true"] .sidebar-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.app-shell[data-view="whispree-shell"] > .detail-shell {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: transparent;
+  border-left: 0;
+  box-shadow: none;
+}
+
+.app-shell[data-view="whispree-shell"] > .detail-shell::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -1px;
+  width: 1px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent 0, transparent var(--titlebar-inset), var(--border-subtle) var(--titlebar-inset));
+}
+
+.app-shell[data-view="whispree-shell"] .titlebar-spacer {
+  height: var(--titlebar-inset);
+  pointer-events: none;
+}
+
+.app-shell[data-view="whispree-shell"] .detail-panel {
+  height: calc(100vh - var(--titlebar-inset));
+  overflow: auto;
+  padding: 0 var(--outer-padding) var(--outer-padding);
+  animation: panel-fade 220ms ease-out;
+}

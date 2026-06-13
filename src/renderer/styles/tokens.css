@@ -1,1 +1,72 @@
-/* tokens parity styles: owned by UI parity task registry. */
+/* Swift DesignTokens parity: glass/material tokens shared by Wave 1 UI tasks. */
+:root {
+  --whispree-outer-padding: 24px;
+  --whispree-section-spacing: 20px;
+  --whispree-card-padding: 12px;
+  --whispree-card-radius: 18px;
+  --whispree-space-xs: 4px;
+  --whispree-space-sm: 8px;
+  --whispree-space-md: 12px;
+  --whispree-space-lg: 16px;
+  --whispree-space-xl: 24px;
+  --whispree-radius-sm: 4px;
+  --whispree-radius-md: 8px;
+  --whispree-radius-lg: 16px;
+  --whispree-radius-xl: 22px;
+  --whispree-radius-xxl: 30px;
+
+  --whispree-accent: var(--accent, #0a84ff);
+  --whispree-success: #34ab7d;
+  --whispree-warning: #d69938;
+  --whispree-danger: #d46475;
+  --whispree-neutral: var(--text-secondary, rgba(45, 52, 66, 0.64));
+  --whispree-text-primary: var(--text-primary, rgba(18, 23, 32, 0.94));
+  --whispree-text-secondary: var(--text-secondary, rgba(45, 52, 66, 0.64));
+  --whispree-text-tertiary: var(--text-tertiary, rgba(45, 52, 66, 0.42));
+  --whispree-surface-background: var(--surface-background, rgba(244, 246, 250, 0.72));
+  --whispree-surface-card: var(--surface-card, rgba(255, 255, 255, 0.52));
+  --whispree-surface-card-tint: rgba(255, 255, 255, 0.02);
+  --whispree-surface-subdued: rgba(18, 23, 32, 0.05);
+  --whispree-surface-overlay: rgba(255, 255, 255, 0.64);
+  --whispree-border-subtle: var(--border-subtle, rgba(30, 35, 45, 0.08));
+  --whispree-border-emphasized: var(--border-emphasized, rgba(30, 35, 45, 0.14));
+
+  --surface-card-material: rgba(255, 255, 255, 0.52);
+  --surface-card-tint: rgba(255, 255, 255, 0.02);
+  --surface-card-border: rgba(255, 255, 255, 0.06);
+  --surface-card-highlight: rgba(255, 255, 255, 0.06);
+  --surface-card-shadow: rgba(0, 0, 0, 0.06);
+  --surface-inset-material: rgba(255, 255, 255, 0.30);
+  --surface-inset-tint: rgba(0, 0, 0, 0.02);
+  --surface-inset-border: rgba(255, 255, 255, 0.04);
+  --surface-inset-highlight: rgba(255, 255, 255, 0.02);
+  --surface-inset-shadow: rgba(0, 0, 0, 0.01);
+  --surface-editor-material: rgba(255, 255, 255, 0.58);
+  --surface-editor-tint: rgba(255, 255, 255, 0.03);
+  --surface-editor-border: rgba(255, 255, 255, 0.08);
+  --surface-editor-highlight: rgba(255, 255, 255, 0.08);
+  --surface-editor-shadow: rgba(0, 0, 0, 0.08);
+  --surface-overlay-material: rgba(255, 255, 255, 0.68);
+  --surface-overlay-tint: rgba(255, 255, 255, 0.04);
+  --surface-overlay-border: rgba(255, 255, 255, 0.12);
+  --surface-overlay-highlight: rgba(255, 255, 255, 0.10);
+  --surface-overlay-shadow: rgba(0, 0, 0, 0.10);
+
+  --tone-accent-foreground: var(--whispree-accent);
+  --tone-accent-background: color-mix(in srgb, var(--whispree-accent) 14%, transparent);
+  --tone-accent-border: color-mix(in srgb, var(--whispree-accent) 22%, transparent);
+  --tone-success-foreground: var(--whispree-success);
+  --tone-success-background: rgba(52, 171, 125, 0.14);
+  --tone-success-border: rgba(52, 171, 125, 0.22);
+  --tone-warning-foreground: var(--whispree-warning);
+  --tone-warning-background: rgba(214, 153, 56, 0.14);
+  --tone-warning-border: rgba(214, 153, 56, 0.22);
+  --tone-danger-foreground: var(--whispree-danger);
+  --tone-danger-background: rgba(212, 100, 117, 0.14);
+  --tone-danger-border: rgba(212, 100, 117, 0.22);
+  --tone-neutral-foreground: var(--whispree-text-secondary);
+  --tone-neutral-background: var(--whispree-surface-subdued);
+  --tone-neutral-border: var(--whispree-border-subtle);
+  --tone-selection-background: color-mix(in srgb, var(--whispree-accent) 11%, transparent);
+  --tone-selection-border: color-mix(in srgb, var(--whispree-accent) 30%, transparent);
+}

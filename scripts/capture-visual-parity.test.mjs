@@ -27,8 +27,24 @@ if (parsed.pixelPerfectClaimAllowed !== false) throw new Error('dry-run/default 
 if (parsed.automatedPixelDiff?.implemented !== false) throw new Error('visual parity verdict must explicitly report that automated pixel diff is not implemented');
 if (parsed.artifacts.swiftApp !== null) throw new Error('default verdict must not select /Applications/Whispree.app or any implicit Swift app path');
 if (!parsed.blockers.includes('swift-reference-capture-requires-explicit-opt-in')) throw new Error('default run must keep Swift capture opt-in blocker');
-for (const token of ['tabOrder', 'cssTokens', 'permissionRows', 'settingsAnchors', 'historyAnchors', 'contextSurfaces']) {
+for (const token of ['registry', 'uiTaskContracts', 'tabOrder', 'cssTokens', 'permissionRows', 'settingsAnchors', 'historyAnchors', 'contextSurfaces']) {
   if (!(token in parsed.swiftContract)) throw new Error(`swift contract missing ${token}`);
+}
+if (parsed.registry?.trackedPath !== 'docs/UI_PARITY_TASK_REGISTRY.md') {
+  throw new Error('visual parity verdict must record the tracked registry path');
+}
+const expectedTaskIds = Array.from({ length: 18 }, (_, index) => `UI-${String(index + 1).padStart(2, '0')}`);
+const actualTaskIds = parsed.uiTaskContracts.map((task) => task.id);
+if (JSON.stringify(actualTaskIds) !== JSON.stringify(expectedTaskIds)) {
+  throw new Error(`visual parity contract must cover UI-01 through UI-18 exactly: ${JSON.stringify(actualTaskIds)}`);
+}
+for (const task of parsed.uiTaskContracts) {
+  if (task.registryPath !== 'docs/UI_PARITY_TASK_REGISTRY.md') throw new Error(`${task.id} missing tracked registry path`);
+  if (!Array.isArray(task.swiftSources) || task.swiftSources.length === 0) throw new Error(`${task.id} missing Swift source references`);
+  if (task.status !== 'covered') throw new Error(`${task.id} source contract is not covered: ${task.blockedReasons?.join(', ')}`);
+}
+for (const taskId of expectedTaskIds) {
+  if (!parsed.checklist.some((item) => item.id === taskId)) throw new Error(`checklist missing ${taskId}`);
 }
 if (!parsed.swiftContract.cssTokens.cardRadius || !parsed.swiftContract.cssTokens.overlayWidth) {
   throw new Error('swift contract missing radius/overlay dimensions');

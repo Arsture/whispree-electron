@@ -3,7 +3,7 @@ import { SIDEBAR_SECTIONS, type SidebarSectionDefinition, type SidebarSectionId 
 
 function SectionIcon({ section }: { readonly section: SidebarSectionDefinition }) {
   return (
-    <span className="sidebar-icon" data-icon-tone={section.iconTone} aria-hidden="true">
+    <span className="sidebar-icon" data-icon-tone={section.iconTone} data-swift-icon={section.swiftIcon} aria-hidden="true">
       {section.icon}
     </span>
   );
@@ -28,6 +28,7 @@ export function SidebarShell({
         type="button"
         className="sidebar-toggle"
         aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         onClick={onToggleCollapsed}
       >
         ◫
@@ -44,6 +45,8 @@ export function SidebarShell({
             data-tab={section.id}
             data-selected={activeSection === section.id}
             data-icon-tone={section.iconTone}
+            data-swift-icon={section.swiftIcon}
+            title={isCollapsed ? section.label : undefined}
             className="sidebar-tab"
             tabIndex={activeSection === section.id ? 0 : -1}
             onClick={() => onSelectSection(section.id)}

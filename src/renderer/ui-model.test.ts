@@ -3,6 +3,7 @@ import { initialAppSnapshot, type AppSnapshot } from '../shared/ipc';
 import {
   SETTINGS_PLACEHOLDERS,
   SIDEBAR_SECTIONS,
+  SWIFT_SETTINGS_TABS,
   SWIFT_PARITY_CSS_CONTRACT,
   foregroundCancelLabel,
   overlayStatusText,
@@ -31,6 +32,25 @@ describe('renderer Swift UI parity model', () => {
       'green',
       'teal',
       'indigo',
+    ]);
+    expect(SIDEBAR_SECTIONS.map((section) => section.swiftIcon)).toEqual([
+      'house.fill',
+      'gearshape',
+      'mic.fill',
+      'brain',
+      'arrow.down.circle.fill',
+      'text.book.closed.fill',
+      'clock.fill',
+    ]);
+  });
+
+  it('captures the legacy SettingsView tab labels and SF Symbols for panel parity work', () => {
+    expect(SWIFT_SETTINGS_TABS).toEqual([
+      { label: 'General', swiftIcon: 'gear' },
+      { label: 'STT', swiftIcon: 'mic.fill' },
+      { label: 'LLM', swiftIcon: 'text.badge.checkmark' },
+      { label: '모델', swiftIcon: 'arrow.down.circle' },
+      { label: '단어 사전', swiftIcon: 'text.book.closed' },
     ]);
   });
 

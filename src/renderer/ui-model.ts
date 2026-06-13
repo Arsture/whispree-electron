@@ -9,6 +9,7 @@ export interface SidebarSectionDefinition {
   readonly label: string;
   readonly shortLabel: string;
   readonly icon: string;
+  readonly swiftIcon: string;
   readonly iconTone: IconTone;
 }
 
@@ -30,13 +31,21 @@ export const SWIFT_PARITY_CSS_CONTRACT = {
 } as const;
 
 export const SIDEBAR_SECTIONS: readonly SidebarSectionDefinition[] = [
-  { id: 'home', label: 'Home', shortLabel: 'Home', icon: '⌂', iconTone: 'orange' },
-  { id: 'general', label: '일반', shortLabel: '일반', icon: '⚙', iconTone: 'gray' },
-  { id: 'stt', label: 'STT', shortLabel: 'STT', icon: '●', iconTone: 'blue' },
-  { id: 'llm', label: 'LLM', shortLabel: 'LLM', icon: '✦', iconTone: 'purple' },
-  { id: 'models', label: 'Downloads', shortLabel: 'DL', icon: '↓', iconTone: 'green' },
-  { id: 'word-sets', label: '단어 사전', shortLabel: '사전', icon: '文', iconTone: 'teal' },
-  { id: 'history', label: '기록', shortLabel: '기록', icon: '◷', iconTone: 'indigo' },
+  { id: 'home', label: 'Home', shortLabel: 'Home', icon: '⌂', swiftIcon: 'house.fill', iconTone: 'orange' },
+  { id: 'general', label: '일반', shortLabel: '일반', icon: '⚙', swiftIcon: 'gearshape', iconTone: 'gray' },
+  { id: 'stt', label: 'STT', shortLabel: 'STT', icon: '●', swiftIcon: 'mic.fill', iconTone: 'blue' },
+  { id: 'llm', label: 'LLM', shortLabel: 'LLM', icon: '✦', swiftIcon: 'brain', iconTone: 'purple' },
+  { id: 'models', label: 'Downloads', shortLabel: 'DL', icon: '↓', swiftIcon: 'arrow.down.circle.fill', iconTone: 'green' },
+  { id: 'word-sets', label: '단어 사전', shortLabel: '사전', icon: '文', swiftIcon: 'text.book.closed.fill', iconTone: 'teal' },
+  { id: 'history', label: '기록', shortLabel: '기록', icon: '◷', swiftIcon: 'clock.fill', iconTone: 'indigo' },
+] as const;
+
+export const SWIFT_SETTINGS_TABS = [
+  { label: 'General', swiftIcon: 'gear' },
+  { label: 'STT', swiftIcon: 'mic.fill' },
+  { label: 'LLM', swiftIcon: 'text.badge.checkmark' },
+  { label: '모델', swiftIcon: 'arrow.down.circle' },
+  { label: '단어 사전', swiftIcon: 'text.book.closed' },
 ] as const;
 
 export const SETTINGS_PLACEHOLDERS: Record<Exclude<SidebarSectionId, 'home' | 'history'>, readonly PlaceholderGroup[]> = {
