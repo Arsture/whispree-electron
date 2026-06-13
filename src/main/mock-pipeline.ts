@@ -5,7 +5,9 @@ import {
   type ProviderCardSnapshot,
   type QueueItemSnapshot,
 } from '../shared/ipc';
+import type { AudioCaptureAdapter } from '../shared/adapters';
 import { createAdapterSet, permissionCardsForAdapterSet } from './adapters/adapter-factory';
+import { MockAudioCaptureAdapter } from './adapters/mock-adapters';
 import { llmProviderChoices, sttProviderChoices } from '../shared/provider-registry';
 import { MockLLMProvider, MockSTTProvider, localModelBackendRegistry } from '../shared/providers';
 import { DictationQueueState, isDeliverableJobStatus, isProcessingJobStatus, isTerminalJobStatus, type DictationJob, type DictationJobSnapshot } from '../shared/queue';
@@ -21,6 +23,10 @@ interface MockPipelineOptions {
 
 type SnapshotListener = (snapshot: AppSnapshot) => void;
 type Delay = (milliseconds: number) => Promise<void>;
+
+interface MockDictationPipelineAdapters {
+  readonly audio?: AudioCaptureAdapter;
+}
 
 const defaultDelay: Delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
@@ -50,15 +56,17 @@ export class MockDictationPipeline {
   readonly #listeners = new Set<SnapshotListener>();
   readonly #tasks = new Set<Promise<void>>();
   readonly #delay: Delay;
+  readonly #audioAdapter: AudioCaptureAdapter;
   #history: HistoryRecordSnapshot[] = [];
   #currentError: { readonly message: string } | null = null;
   #activeRecordingId: string | null = null;
   #nextRecordingId = 1;
   readonly #canceledRecordingIds = new Set<string>();
 
-  constructor(listener?: SnapshotListener, delay: Delay = defaultDelay) {
+  constructor(listener?: SnapshotListener, delay: Delay = defaultDelay, adapters: MockDictationPipelineAdapters = {}) {
     if (listener) this.#listeners.add(listener);
     this.#delay = delay;
+    this.#audioAdapter = adapters.audio ?? new MockAudioCaptureAdapter();
   }
 
   subscribe(listener: SnapshotListener): () => void {
@@ -128,6 +136,7 @@ export class MockDictationPipeline {
       this.#canceledRecordingIds.add(this.#activeRecordingId);
       this.#activeRecordingId = null;
       this.#queue.setRecordingActive(false);
+      void this.#audioAdapter.stop().catch(() => undefined);
       this.#emit();
       return this.getSnapshot();
     }
@@ -147,9 +156,12 @@ export class MockDictationPipeline {
   async #runMockJob(recordingId: string, options: Required<MockPipelineOptions>): Promise<void> {
     let jobId: string | null = null;
     try {
+      await this.#audioAdapter.start();
       await this.#delay(options.recordingDelayMs);
       if (this.#canceledRecordingIds.delete(recordingId)) return;
       if (this.#activeRecordingId === recordingId) this.#activeRecordingId = null;
+
+      const audio = await this.#audioAdapter.stop();
 
       const job = this.#queue.enqueue({
         id: `mock-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -169,7 +181,7 @@ export class MockDictationPipeline {
         sequence: job.sequence,
         language: job.snapshot.language,
         glossary: job.snapshot.glossary,
-        audioRef: { kind: 'mock', value: job.id },
+        audioRef: { kind: 'mock', value: audio.audioRef || job.id },
       });
       this.#queue.transitionJob(job.id, 'correcting', { transcribedText: transcription.text });
       this.#emit();

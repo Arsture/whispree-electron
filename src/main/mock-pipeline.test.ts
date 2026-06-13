@@ -39,6 +39,8 @@ describe('MockDictationPipeline', () => {
 
     pipeline.enqueueMockDictation({ sttDelayMs: 20, llmDelayMs: 20, recordingDelayMs: 0 });
     await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
     pipeline.enqueueMockDictation({ sttDelayMs: 0, llmDelayMs: 0, recordingDelayMs: 0 });
     await pipeline.whenIdle();
 
