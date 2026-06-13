@@ -13,6 +13,7 @@ const packagedExecutable = resolve(repoRoot, 'out/Whispree-darwin-arm64/Whispree
 const swiftShot = resolve(artifactRoot, 'swift-reference.png');
 const verdictPath = resolve(artifactRoot, 'parity-verdict.md');
 const jsonPath = resolve(artifactRoot, 'parity-verdict.json');
+const visualDiffVerdictPath = resolve(artifactRoot, 'diff/visual-parity-verdict.json');
 const dryRun = process.argv.includes('--dry-run');
 
 const registryPath = resolve(repoRoot, 'docs/UI_PARITY_TASK_REGISTRY.md');
@@ -193,11 +194,7 @@ const verdict = {
   shouldCaptureSwift,
   claim,
   pixelPerfectClaimAllowed: false,
-  automatedPixelDiff: {
-    implemented: false,
-    status: 'manual-required',
-    reason: 'This script captures artifacts and source-derived UI contract only; it does not compute pixel diffs.',
-  },
+  automatedPixelDiff: readAutomatedVisualDiff(),
   artifacts: {
     electronScreenshot: electronExists ? electronShot : null,
     swiftApp: swiftApp ?? null,
@@ -354,6 +351,38 @@ async function execOutput(command, args) {
   });
 }
 
+
+function readAutomatedVisualDiff() {
+  if (!existsSync(visualDiffVerdictPath)) {
+    return {
+      implemented: true,
+      status: 'not-run',
+      verdictPath: visualDiffVerdictPath,
+      reason: 'Run npm run visual:diff-tabs after Electron/Swift tab captures to compute automated MAE/RMS/threshold diff metrics.',
+    };
+  }
+  try {
+    const parsed = JSON.parse(readFileSync(visualDiffVerdictPath, 'utf8'));
+    return {
+      implemented: true,
+      status: parsed.status ?? 'unknown',
+      ok: parsed.ok === true,
+      verdictPath: visualDiffVerdictPath,
+      comparedTabs: parsed.comparedTabs ?? null,
+      totalTabs: parsed.totalTabs ?? null,
+      blockers: Array.isArray(parsed.blockers) ? parsed.blockers : [],
+      reason: 'Automated tab visual metrics are computed by scripts/compare-visual-tabs.mjs; this does not permit a pixel-perfect claim by itself.',
+    };
+  } catch (error) {
+    return {
+      implemented: true,
+      status: 'invalid-artifact',
+      verdictPath: visualDiffVerdictPath,
+      reason: errorMessage(error),
+    };
+  }
+}
+
 function readSwiftContract() {
   const registryText = readIfExists('docs/UI_PARITY_TASK_REGISTRY.md');
   const sourceInventory = listSwiftReferenceFiles();
@@ -471,7 +500,7 @@ Generated: ${new Date().toISOString()}
 
 - ${value.claim}
 - Pixel-perfect claim allowed: ${value.pixelPerfectClaimAllowed ? 'yes' : 'no'}
-- Automated pixel diff: ${value.automatedPixelDiff.implemented ? 'implemented' : 'not implemented'} (${value.automatedPixelDiff.status})
+- Automated visual diff: ${value.automatedPixelDiff.implemented ? 'implemented' : 'not implemented'} (${value.automatedPixelDiff.status})
 
 ## Sources
 

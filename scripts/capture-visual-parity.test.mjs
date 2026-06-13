@@ -24,7 +24,8 @@ for (const key of ['ok', 'claim', 'artifacts', 'blockers', 'checklist', 'swiftCo
   if (!(key in parsed)) throw new Error(`JSON verdict missing ${key}`);
 }
 if (parsed.pixelPerfectClaimAllowed !== false) throw new Error('dry-run/default verdict must not allow pixel-perfect claims');
-if (parsed.automatedPixelDiff?.implemented !== false) throw new Error('visual parity verdict must explicitly report that automated pixel diff is not implemented');
+if (parsed.automatedPixelDiff?.implemented !== true) throw new Error('visual parity verdict must report automated visual diff support as implemented');
+if (!['pass', 'warn', 'fail', 'blocked', 'not-run', 'invalid-artifact'].includes(parsed.automatedPixelDiff?.status)) throw new Error(`unexpected automated visual diff status: ${parsed.automatedPixelDiff?.status}`);
 if (parsed.artifacts.swiftApp !== null) throw new Error('default verdict must not select /Applications/Whispree.app or any implicit Swift app path');
 if (!parsed.blockers.includes('swift-reference-capture-requires-explicit-opt-in')) throw new Error('default run must keep Swift capture opt-in blocker');
 for (const token of ['registry', 'uiTaskContracts', 'tabOrder', 'cssTokens', 'permissionRows', 'settingsAnchors', 'historyAnchors', 'contextSurfaces']) {
