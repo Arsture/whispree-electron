@@ -3,6 +3,7 @@ import started from 'electron-squirrel-startup';
 import path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { IPC_CHANNELS } from '../shared/ipc';
+import { resolveScreenshotCapturePath } from './screenshot-capture';
 import { commandError, commandOk, rejectUnexpectedArgs, validatePermissionKindInput } from './ipc-validation';
 import { MockDictationPipeline } from './mock-pipeline';
 
@@ -21,11 +22,14 @@ if (started) {
 
 async function captureAndQuit(outputPath: string): Promise<void> {
   if (!mainWindow) return;
-  await new Promise((resolve) => setTimeout(resolve, 350));
-  const image = await mainWindow.webContents.capturePage();
-  await mkdir(path.dirname(outputPath), { recursive: true });
-  await writeFile(outputPath, image.toPNG());
-  app.quit();
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    const image = await mainWindow.webContents.capturePage();
+    await mkdir(path.dirname(outputPath), { recursive: true });
+    await writeFile(outputPath, image.toPNG());
+  } finally {
+    app.quit();
+  }
 }
 
 function createMainWindow(): void {
@@ -47,9 +51,14 @@ function createMainWindow(): void {
     mainWindow = null;
   });
 
-  if (process.env.WHISPREE_CAPTURE_SCREENSHOT) {
+  const screenshotCapture = resolveScreenshotCapturePath(process.env.WHISPREE_CAPTURE_SCREENSHOT, {
+    repoRoot: app.getAppPath(),
+    isPackaged: app.isPackaged,
+    nodeEnv: process.env.NODE_ENV,
+  });
+  if (screenshotCapture.enabled) {
     mainWindow.webContents.once('did-finish-load', () => {
-      void captureAndQuit(process.env.WHISPREE_CAPTURE_SCREENSHOT!);
+      void captureAndQuit(screenshotCapture.outputPath);
     });
   }
 

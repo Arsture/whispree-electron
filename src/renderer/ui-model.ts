@@ -121,6 +121,19 @@ export function sectionIds(): readonly SidebarSectionId[] {
   return SIDEBAR_SECTIONS.map((section) => section.id);
 }
 
+
+export type TabNavigationKey = 'ArrowDown' | 'ArrowRight' | 'ArrowUp' | 'ArrowLeft' | 'Home' | 'End';
+
+export function nextSectionId(current: SidebarSectionId, key: TabNavigationKey): SidebarSectionId {
+  const ids = sectionIds();
+  const index = ids.indexOf(current);
+  if (key === 'Home') return ids[0]!;
+  if (key === 'End') return ids[ids.length - 1]!;
+  const delta = key === 'ArrowDown' || key === 'ArrowRight' ? 1 : -1;
+  const nextIndex = (index + delta + ids.length) % ids.length;
+  return ids[nextIndex]!;
+}
+
 export function statusTitle(snapshot: AppSnapshot): string {
   if (snapshot.recording.active) return snapshot.recording.label;
   if ((snapshot.queue.processingCount ?? 0) > 0) return 'Processing mock dictation queue';

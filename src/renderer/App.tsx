@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { initialAppSnapshot, type AppSnapshot, type PermissionCardSnapshot, type ProviderCardSnapshot, type QueueItemSnapshot } from '../shared/ipc';
 import {
   SETTINGS_PLACEHOLDERS,
@@ -13,7 +13,9 @@ import {
   type BadgeTone,
   type PlaceholderGroup,
   type SidebarSectionDefinition,
+  nextSectionId,
   type SidebarSectionId,
+  type TabNavigationKey,
 } from './ui-model';
 
 function count(snapshot: AppSnapshot, key: 'total' | 'processing' | 'ready' | 'history'): number {
@@ -37,7 +39,7 @@ function SectionIcon({ section }: { readonly section: SidebarSectionDefinition }
   );
 }
 
-function StatusPill({ children, tone, status }: { readonly children: React.ReactNode; readonly tone: BadgeTone; readonly status?: string }) {
+function StatusPill({ children, tone, status }: { readonly children: ReactNode; readonly tone: BadgeTone; readonly status?: string }) {
   return (
     <span className="status-pill" data-tone={tone} data-status={status ?? tone}>
       {children}
@@ -45,7 +47,7 @@ function StatusPill({ children, tone, status }: { readonly children: React.React
   );
 }
 
-function Keycap({ children }: { readonly children: React.ReactNode }) {
+function Keycap({ children }: { readonly children: ReactNode }) {
   return <kbd className="keycap">{children}</kbd>;
 }
 
@@ -350,6 +352,17 @@ export function App() {
     setActiveSection(sectionId);
   }
 
+  function selectAndFocusSection(sectionId: SidebarSectionId) {
+    selectSection(sectionId);
+    window.requestAnimationFrame(() => document.getElementById(`tab-${sectionId}`)?.focus());
+  }
+
+  function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, sectionId: SidebarSectionId) {
+    if (!isTabNavigationKey(event.key)) return;
+    event.preventDefault();
+    selectAndFocusSection(nextSectionId(sectionId, event.key));
+  }
+
   return (
     <main className="app-shell" data-view="whispree-shell" data-app-status={snapshot.appStatus} data-sidebar-collapsed={isSidebarCollapsed}>
       <aside className="sidebar" data-collapsed={isSidebarCollapsed} aria-label="Whispree sections">
@@ -374,7 +387,9 @@ export function App() {
               data-selected={activeSection === section.id}
               data-icon-tone={section.iconTone}
               className="sidebar-tab"
+              tabIndex={activeSection === section.id ? 0 : -1}
               onClick={() => selectSection(section.id)}
+              onKeyDown={(event) => handleTabKeyDown(event, section.id)}
             >
               <SectionIcon section={section} />
               <span className="sidebar-label">{isSidebarCollapsed ? section.shortLabel : section.label}</span>
@@ -388,7 +403,6 @@ export function App() {
         {SIDEBAR_SECTIONS.map((section) => {
           const isVisited = visited.has(section.id);
           const isActive = activeSection === section.id;
-          if (!isVisited) return null;
           return (
             <section
               role="tabpanel"
@@ -396,7 +410,7 @@ export function App() {
               aria-labelledby={`tab-${section.id}`}
               data-panel={section.id}
               data-active={isActive}
-              data-visited="true"
+              data-visited={isVisited}
               hidden={!isActive}
               className="detail-panel"
               key={section.id}
@@ -408,4 +422,8 @@ export function App() {
       </section>
     </main>
   );
+}
+
+function isTabNavigationKey(value: string): value is TabNavigationKey {
+  return value === 'ArrowDown' || value === 'ArrowRight' || value === 'ArrowUp' || value === 'ArrowLeft' || value === 'Home' || value === 'End';
 }

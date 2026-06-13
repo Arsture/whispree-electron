@@ -41,3 +41,19 @@ Deferred scope:
 ## Visual claim boundary
 
 The current renderer is structurally and stylistically aligned with the Swift reference. It is not yet pixel-perfect. A future visual-verdict loop should run the legacy Swift app and Electron app side by side, capture both, and compare spacing, material intensity, text density, icon fidelity, and tab transition behavior.
+
+## Review-cycle safeguards
+
+The screenshot evidence hook is intentionally a test harness, not product functionality:
+
+- It only runs for unpackaged, non-production Electron sessions.
+- It only writes `.png` files under `.omx/artifacts/electron-ui-parity/`.
+- It quits in a `finally` path after capture/write attempts so smoke runs do not hang.
+
+The renderer shell also treats the tab UI as an accessibility contract:
+
+- All tab panels exist in the DOM so `aria-controls` references stay valid.
+- Tabs use roving `tabIndex` plus arrow/Home/End navigation.
+- Interaction tests cover tab selection, collapse preservation, command wiring, snapshot update, and unsubscribe cleanup.
+
+Architecture watch: `src/renderer/App.tsx` is allowed to remain a compact local-component shell for this visual parity milestone. Before implementing real settings/history/provider behavior, split Home, settings placeholders, history, and shared visual primitives into separate renderer modules.
