@@ -60,6 +60,10 @@ describe('renderer Swift UI parity model', () => {
 
     expect(statusTitle(initialAppSnapshot)).toBe('Ready — press hotkey to record');
     expect(statusTitle(processing)).toBe('Processing mock dictation queue');
+    expect(statusTitle({
+      ...processing,
+      recording: { active: false, mode: 'real', label: 'Real provider pipeline processing' },
+    })).toBe('Processing microphone dictation queue');
     expect(statusTitle(recording)).toBe('Mock recording in progress');
     expect(queueProcessingText(processing)).toContain('insertion remains FIFO');
     expect(queueProcessingText({

@@ -136,7 +136,9 @@ export function nextSectionId(current: SidebarSectionId, key: TabNavigationKey):
 
 export function statusTitle(snapshot: AppSnapshot): string {
   if (snapshot.recording.active) return snapshot.recording.label;
-  if ((snapshot.queue.processingCount ?? 0) > 0) return 'Processing mock dictation queue';
+  if ((snapshot.queue.processingCount ?? 0) > 0) {
+    return snapshot.recording.mode === 'real' ? 'Processing microphone dictation queue' : 'Processing mock dictation queue';
+  }
   if (snapshot.history.length > 0) return 'Ready — latest dictation delivered';
   return 'Ready — press hotkey to record';
 }

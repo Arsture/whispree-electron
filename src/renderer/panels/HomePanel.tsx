@@ -105,7 +105,7 @@ function QueueList({ jobs }: { readonly jobs: readonly QueueItemSnapshot[] }) {
         {jobs.map((job) => (
           <li key={job.id} data-sequence={job.sequence} data-status={job.status} data-terminal={job.isTerminal}>
             <span>{jobLabel(job)}</span>
-            <small>{job.correctedText || job.originalText || 'waiting for mock provider'}</small>
+            <small>{job.correctedText || job.originalText || 'waiting for provider'}</small>
           </li>
         ))}
       </ol>
@@ -119,7 +119,7 @@ function ProviderRows({ providers }: { readonly providers: readonly ProviderCard
     <section className="liquid-card" data-testid="providers">
       <div className="card-heading">
         <h2>Providers</h2>
-        <StatusPill tone="neutral">mock/planned</StatusPill>
+        <StatusPill tone="neutral">provider status</StatusPill>
       </div>
       <ul className="status-list">
         {providers.map((provider) => (

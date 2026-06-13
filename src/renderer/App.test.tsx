@@ -96,6 +96,8 @@ describe('App Swift parity shell markup', () => {
     expect(html).toContain('data-hotkey="cancel"');
     expect(html).toContain('data-context-surface="quick-fix"');
     expect(html).toContain('data-context-surface="screenshot-selection"');
+    expect(html).toContain('provider status');
+    expect(html).not.toContain('waiting for mock provider');
     expect(html).toContain('esc');
     expect(html).toContain('Whispree');
     expect(html).not.toContain('Whispree Electron Migration');
