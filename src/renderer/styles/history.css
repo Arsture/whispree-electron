@@ -105,7 +105,7 @@
 }
 
 .history-row:hover {
-  background: rgba(255, 255, 255, 0.26);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .history-row-meta {

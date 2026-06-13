@@ -282,6 +282,27 @@ function progressLabel(model: DownloadableModel): string {
   return `${percent} 다운로드 중...`;
 }
 
+function metricIconGlyph(icon: string): string {
+  switch (icon) {
+    case 'cpu':
+      return '◌';
+    case 'memorychip':
+      return '▣';
+    case 'arrow.left.arrow.right':
+      return '↔';
+    case 'gpu':
+      return '▥';
+    case 'internaldrive':
+      return '▰';
+    case 'bolt':
+      return '⚡';
+    case 'chart.bar':
+      return '▥';
+    default:
+      return icon;
+  }
+}
+
 function SectionCard({ title, children }: { readonly title: string; readonly children: ReactNode }) {
   return (
     <section className="models-section">
@@ -304,7 +325,7 @@ function ModelMetrics({ model }: { readonly model: DownloadableModel }) {
       <div className="models-metric-list">
         {model.metrics.map((metric) => (
           <span className="models-metric-label" data-tone={metric.tone ?? 'neutral'} key={`${model.id}-${metric.icon}-${metric.label}`}>
-            <span aria-hidden="true">{metric.icon}</span>
+            <span aria-hidden="true">{metricIconGlyph(metric.icon)}</span>
             {metric.label}
           </span>
         ))}
@@ -355,7 +376,7 @@ function StateControls({ model }: { readonly model: DownloadableModel }) {
   if (model.state === 'error') {
     return (
       <div className="models-state-line" data-tone="danger">
-        <span aria-hidden="true">exclamationmark.triangle.fill</span>
+        <span aria-hidden="true">⚠</span>
         <span>{model.errorText ?? '다운로드 실패'}</span>
         <button className="models-ghost-button" type="button">재시도</button>
       </div>
@@ -364,7 +385,7 @@ function StateControls({ model }: { readonly model: DownloadableModel }) {
 
   return (
     <div className="models-state-line" data-tone="neutral">
-      <span aria-hidden="true">checkmark.circle.fill</span>
+      <span aria-hidden="true">✓</span>
       <span>{stateSummary(model.state)}</span>
       <button className="models-delete-button" type="button">삭제</button>
     </div>
@@ -405,7 +426,7 @@ function DeviceCapabilityPills() {
     <div className="models-info-pills" aria-label="device capability mock">
       {devicePills.map((pill) => (
         <span className="models-info-pill" key={pill.label}>
-          <span aria-hidden="true">{pill.icon}</span>
+          <span aria-hidden="true">{metricIconGlyph(pill.icon)}</span>
           {pill.label}
         </span>
       ))}
