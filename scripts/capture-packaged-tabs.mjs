@@ -8,6 +8,7 @@ const packagedApp = resolve(repoRoot, 'out/Whispree-darwin-arm64/Whispree.app');
 const executable = resolve(packagedApp, 'Contents/MacOS/Whispree');
 const artifactRoot = resolve(repoRoot, '.omx/artifacts/visual-parity/tabs');
 const timeoutMs = 45_000;
+const maxAttempts = 2;
 const tabs = ['general', 'stt', 'llm', 'models', 'word-sets', 'history'];
 
 mkdirSync(artifactRoot, { recursive: true });
@@ -31,6 +32,36 @@ finish({
 }, ok ? 0 : 1);
 
 function captureTab(tab) {
+  const attempts = [];
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const report = captureTabOnce(tab, attempt);
+    attempts.push(toAttemptSummary(report));
+    if (report.ok) {
+      return { ...report, attempt, attempts };
+    }
+  }
+  const last = attempts.at(-1);
+  return {
+    ok: false,
+    tab,
+    attempt: attempts.length,
+    attempts,
+    screenshot: last?.screenshot ?? '',
+    screenshotBytes: last?.screenshotBytes ?? 0,
+    domReport: last?.domReport ?? '',
+    dom: last?.dom ?? { rootPresent: false, activePanel: null, bodyTextPreview: '', error: 'no attempts completed' },
+    userDataDir: last?.userDataDir ?? '',
+    swiftBaselineSeed: last?.swiftBaselineSeed ?? { ok: false, error: 'no attempts completed' },
+    durationMs: attempts.reduce((sum, item) => sum + item.durationMs, 0),
+    exitStatus: last?.exitStatus,
+    signal: last?.signal,
+    stderr: last?.stderr ?? '',
+    stdout: last?.stdout ?? '',
+    error: last?.error ?? 'Packaged tab capture failed after all retry attempts.',
+  };
+}
+
+function captureTabOnce(tab, attempt) {
   const tabRoot = resolve(artifactRoot, tab);
   const screenshot = resolve(tabRoot, `${tab}.png`);
   const domReport = resolve(tabRoot, `${tab}-dom.json`);
@@ -70,6 +101,7 @@ function captureTab(tab) {
   return {
     ok,
     tab,
+    attempt,
     screenshot,
     screenshotBytes,
     domReport,
@@ -82,6 +114,25 @@ function captureTab(tab) {
     stderr: trimForReport(result.stderr),
     stdout: trimForReport(result.stdout),
     error: ok ? undefined : failureReason(result, screenshotBytes, dom, tab),
+  };
+}
+
+function toAttemptSummary(report) {
+  return {
+    ok: report.ok,
+    attempt: report.attempt,
+    screenshot: report.screenshot,
+    screenshotBytes: report.screenshotBytes,
+    domReport: report.domReport,
+    dom: report.dom,
+    userDataDir: report.userDataDir,
+    swiftBaselineSeed: report.swiftBaselineSeed,
+    durationMs: report.durationMs,
+    exitStatus: report.exitStatus,
+    signal: report.signal,
+    stderr: report.stderr,
+    stdout: report.stdout,
+    error: report.error,
   };
 }
 

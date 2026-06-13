@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 import { existsSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 
 const repoRoot = process.cwd();
 const artifactRoot = resolve(repoRoot, '.omx/artifacts/visual-parity');
 const electronCaptureRoot = resolve(repoRoot, '.omx/artifacts/electron-ui-parity');
 const electronShot = resolve(electronCaptureRoot, 'electron-dashboard.png');
+const electronDomReport = resolve(electronCaptureRoot, 'electron-dashboard-dom.json');
+const electronUserDataDir = resolve(electronCaptureRoot, 'electron-user-data');
+const packagedExecutable = resolve(repoRoot, 'out/Whispree-darwin-arm64/Whispree.app/Contents/MacOS/Whispree');
 const swiftShot = resolve(artifactRoot, 'swift-reference.png');
 const verdictPath = resolve(artifactRoot, 'parity-verdict.md');
 const jsonPath = resolve(artifactRoot, 'parity-verdict.json');
@@ -154,6 +157,7 @@ let swiftBundleVerified = false;
 
 if (!dryRun) {
   removeStaleCapture(electronShot);
+  removeStaleCapture(electronDomReport);
   removeStaleCapture(swiftShot);
   await captureElectron().catch((error) => captureErrors.push(`electron-capture-failed: ${errorMessage(error)}`));
   if (swiftApp) {
@@ -216,15 +220,53 @@ writeFileSync(jsonPath, `${JSON.stringify(verdict, null, 2)}\n`, 'utf8');
 console.log(JSON.stringify({ ok: true, dryRun, shouldCaptureSwift, electronShot: verdict.artifacts.electronScreenshot, swiftShot: verdict.artifacts.swiftScreenshot, swiftApp: swiftApp ?? null, swiftBundleId, verdictPath, jsonPath, blockers }, null, 2));
 
 async function captureElectron() {
+  if (process.platform === 'darwin' && existsSync(packagedExecutable)) {
+    cleanupLingeringPackagedElectron();
+    let lastError = 'unknown packaged Electron capture failure';
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      rmSync(electronUserDataDir, { force: true, recursive: true });
+      mkdirSync(electronUserDataDir, { recursive: true });
+      const seed = seedSwiftVisualBaseline(electronUserDataDir);
+      const result = spawnSync(packagedExecutable, ['--use-mock-keychain', `--user-data-dir=${electronUserDataDir}`], {
+        cwd: repoRoot,
+        env: {
+          ...process.env,
+          NODE_ENV: 'test',
+          WHISPREE_CAPTURE_SCREENSHOT: electronShot,
+          WHISPREE_CAPTURE_DOM_REPORT: electronDomReport,
+          WHISPREE_REPO_ROOT: repoRoot,
+          WHISPREE_ALLOW_PACKAGED_SCREENSHOT: '1',
+          WHISPREE_SMOKE_MODE: `visual-parity-electron-attempt-${attempt}`,
+          WHISPREE_USE_MOCK_KEYCHAIN: '1',
+          WHISPREE_USER_DATA_DIR: electronUserDataDir,
+          ...(seed.groqApiKeyConfigured ? { WHISPREE_GROQ_API_KEY_FOR_TESTS: 'configured-for-visual-parity' } : {}),
+        },
+        encoding: 'utf8',
+        input: '',
+        timeout: 60_000,
+      });
+      if (result.status === 0 && !result.error && existsSync(electronShot)) return;
+      lastError = `Packaged Electron screenshot capture attempt ${attempt} failed (${result.status ?? 'no-status'}): ${result.error ? errorMessage(result.error) : result.stderr}`;
+      cleanupLingeringPackagedElectron();
+    }
+    throw new Error(lastError);
+  }
+
   await new Promise((resolvePromise, rejectPromise) => {
     const child = spawn('npm', ['start'], {
       cwd: repoRoot,
-      env: { ...process.env, WHISPREE_CAPTURE_SCREENSHOT: electronShot },
+      env: {
+        ...process.env,
+        WHISPREE_CAPTURE_SCREENSHOT: electronShot,
+        WHISPREE_CAPTURE_DOM_REPORT: electronDomReport,
+        WHISPREE_REPO_ROOT: repoRoot,
+      },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let stderr = '';
     const timer = setTimeout(() => {
-      child.kill();
+      child.kill('SIGTERM');
+      setTimeout(() => child.kill('SIGKILL'), 1500).unref();
       rejectPromise(new Error('Timed out capturing Electron screenshot.'));
     }, 45000);
     child.stderr.on('data', (chunk) => { stderr += String(chunk); });
@@ -237,10 +279,37 @@ async function captureElectron() {
   });
 }
 
+function cleanupLingeringPackagedElectron() {
+  if (process.platform !== 'darwin') return;
+  spawnSync('pkill', ['-f', packagedExecutable], { stdio: 'ignore' });
+}
+
+function seedSwiftVisualBaseline(userDataDir) {
+  const seedScript = resolve(repoRoot, 'scripts/seed-swift-visual-baseline.py');
+  if (!existsSync(seedScript) || process.platform !== 'darwin') return { ok: false, skipped: true };
+  const result = spawnSync('python3', [seedScript, userDataDir], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    input: '',
+    timeout: 10_000,
+  });
+  if (result.status !== 0 || result.error) return { ok: false };
+  try {
+    return JSON.parse(result.stdout.trim() || '{}');
+  } catch {
+    return { ok: false };
+  }
+}
+
 async function captureSwift(appPath, bundleId) {
-  await exec('open', ['-n', appPath]);
-  await new Promise((resolvePromise) => setTimeout(resolvePromise, 1800));
-  const processName = await processNameForBundleId(bundleId);
+  let processName = await processNameForBundleId(bundleId).catch(() => null);
+  if (processName) {
+    await exec('osascript', ['-e', `tell application id "${bundleId}" to activate`]).catch(() => undefined);
+  } else {
+    await exec('open', [appPath]);
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 1800));
+    processName = await processNameForBundleId(bundleId);
+  }
   const bounds = await execOutput('osascript', ['-e', `tell application "System Events" to tell process "${processName}" to get {position, size} of front window`]);
   const region = parseAppleScriptBounds(bounds);
   await exec('screencapture', ['-x', '-R', region, swiftShot]);
