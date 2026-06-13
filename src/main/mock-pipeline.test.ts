@@ -10,6 +10,7 @@ describe('MockDictationPipeline', () => {
     expect(pipeline.getSnapshot()).toMatchObject({
       appStatus: 'ready',
       queue: { totalCount: 0, items: [] },
+      currentError: null,
     });
     expect(pipeline.getSnapshot().providers.some((provider) => provider.status === 'mock')).toBe(true);
     expect(pipeline.getSnapshot().permissions.some((permission) => permission.status === 'planned')).toBe(true);
@@ -30,6 +31,7 @@ describe('MockDictationPipeline', () => {
     expect(snapshot.history[0]?.originalText).toContain('Codex');
     expect(snapshot.history[0]?.correctedText).toContain('[corrected:standard]');
     expect(snapshot.latest?.correctedText).toBe(snapshot.history[0]?.correctedText);
+    expect(snapshot.currentError).toBeNull();
   });
 
   it('keeps delivery history FIFO even when later processing finishes first', async () => {
@@ -55,5 +57,25 @@ describe('MockDictationPipeline', () => {
     await pipeline.whenIdle();
     expect(pipeline.getSnapshot().queue.items).toEqual([]);
     expect(pipeline.getSnapshot().history).toEqual([]);
+  });
+
+  it('surfaces async provider failures as failed jobs and visible error state', async () => {
+    let calls = 0;
+    const failingSecondDelay = () => {
+      calls += 1;
+      return calls === 2 ? Promise.reject(new Error('mock STT delay failed')) : Promise.resolve();
+    };
+    const pipeline = new MockDictationPipeline(undefined, failingSecondDelay);
+
+    pipeline.enqueueMockDictation({ recordingDelayMs: 0, sttDelayMs: 0, llmDelayMs: 0 });
+    await pipeline.whenIdle();
+    const snapshot = pipeline.getSnapshot();
+
+    expect(snapshot.currentError?.message).toBe('mock STT delay failed');
+    expect(snapshot.queue.items).toHaveLength(1);
+    expect(snapshot.queue.items[0]?.status).toBe('failed');
+    expect(snapshot.queue.terminalCount).toBe(1);
+    expect(snapshot.recording.active).toBe(false);
+    expect(snapshot.history).toEqual([]);
   });
 });

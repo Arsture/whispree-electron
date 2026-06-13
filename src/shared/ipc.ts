@@ -97,6 +97,7 @@ export interface AppSnapshot {
   readonly providers: readonly ProviderCardSnapshot[];
   readonly permissions: readonly PermissionCardSnapshot[];
   readonly history: readonly HistoryRecordSnapshot[];
+  readonly currentError: { readonly message: string } | null;
 }
 
 
@@ -217,4 +218,5 @@ export const initialAppSnapshot: AppSnapshot = {
     },
   ],
   history: [],
+  currentError: null,
 };

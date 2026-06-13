@@ -40,6 +40,7 @@ export function App() {
           <code> window.whispree</code>. React renders queue/provider/permission snapshots without
           direct Electron, Node, STT, LLM, audio, or OS automation imports.
         </p>
+        {snapshot?.currentError ? <p className="error-banner">{snapshot.currentError.message}</p> : null}
         <div className="actions">
           <button type="button" onClick={() => void window.whispree.enqueueMockDictation()}>
             Enqueue mock dictation

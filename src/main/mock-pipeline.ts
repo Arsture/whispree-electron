@@ -55,6 +55,7 @@ export class MockDictationPipeline {
   readonly #tasks = new Set<Promise<void>>();
   readonly #delay: Delay;
   #history: HistoryRecordSnapshot[] = [];
+  #currentError: { readonly message: string } | null = null;
   #activeRecordingId: string | null = null;
   #nextRecordingId = 1;
   readonly #canceledRecordingIds = new Set<string>();
@@ -102,6 +103,7 @@ export class MockDictationPipeline {
       providers: providerCards,
       permissions: permissionCards,
       history: this.#history,
+      currentError: this.#currentError,
     };
   }
 
@@ -142,52 +144,77 @@ export class MockDictationPipeline {
 
   async whenIdle(): Promise<void> {
     while (this.#tasks.size > 0) {
-      await Promise.allSettled([...this.#tasks]);
+      await Promise.all([...this.#tasks]);
     }
   }
 
   async #runMockJob(recordingId: string, options: Required<MockPipelineOptions>): Promise<void> {
-    await this.#delay(options.recordingDelayMs);
-    if (this.#canceledRecordingIds.delete(recordingId)) return;
-    if (this.#activeRecordingId === recordingId) this.#activeRecordingId = null;
+    let jobId: string | null = null;
+    try {
+      await this.#delay(options.recordingDelayMs);
+      if (this.#canceledRecordingIds.delete(recordingId)) return;
+      if (this.#activeRecordingId === recordingId) this.#activeRecordingId = null;
 
-    const job = this.#queue.enqueue({
-      id: `mock-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      createdAtIso: new Date().toISOString(),
-      snapshot: this.#createJobSnapshot(options.glossary),
-      targetContextId: 'mock-target',
-    });
-    this.#queue.setRecordingActive(false);
-    this.#queue.transitionJob(job.id, 'transcribing');
-    this.#emit();
+      const job = this.#queue.enqueue({
+        id: `mock-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        createdAtIso: new Date().toISOString(),
+        snapshot: this.#createJobSnapshot(options.glossary),
+        targetContextId: 'mock-target',
+      });
+      jobId = job.id;
+      this.#queue.setRecordingActive(false);
+      this.#queue.transitionJob(job.id, 'transcribing');
+      this.#currentError = null;
+      this.#emit();
 
-    await this.#delay(options.sttDelayMs);
-    const transcription = await this.#sttProvider.transcribe({
-      jobId: job.id,
-      sequence: job.sequence,
-      language: job.snapshot.language,
-      glossary: job.snapshot.glossary,
-      audioRef: { kind: 'mock', value: job.id },
-    });
-    this.#queue.transitionJob(job.id, 'correcting', { transcribedText: transcription.text });
-    this.#emit();
+      await this.#delay(options.sttDelayMs);
+      const transcription = await this.#sttProvider.transcribe({
+        jobId: job.id,
+        sequence: job.sequence,
+        language: job.snapshot.language,
+        glossary: job.snapshot.glossary,
+        audioRef: { kind: 'mock', value: job.id },
+      });
+      this.#queue.transitionJob(job.id, 'correcting', { transcribedText: transcription.text });
+      this.#emit();
 
-    await this.#delay(options.llmDelayMs);
-    const correction = await this.#llmProvider.correct({
-      jobId: job.id,
-      sequence: job.sequence,
-      text: transcription.text,
-      mode: job.snapshot.correctionMode,
-      glossary: job.snapshot.glossary,
-      screenshotRefs: job.screenshotIds,
-    });
-    this.#queue.transitionJob(job.id, 'ready-for-delivery', {
-      correctedText: correction.correctedText,
-    });
-    this.#emit();
+      await this.#delay(options.llmDelayMs);
+      const correction = await this.#llmProvider.correct({
+        jobId: job.id,
+        sequence: job.sequence,
+        text: transcription.text,
+        mode: job.snapshot.correctionMode,
+        glossary: job.snapshot.glossary,
+        screenshotRefs: job.screenshotIds,
+      });
+      this.#queue.transitionJob(job.id, 'ready-for-delivery', {
+        correctedText: correction.correctedText,
+      });
+      this.#emit();
 
-    await this.#tryDeliverReadyJobs(options.deliveryDelayMs);
+      await this.#tryDeliverReadyJobs(options.deliveryDelayMs);
+    } catch (error) {
+      this.#handlePipelineFailure(recordingId, jobId, error);
+    }
   }
+
+  #handlePipelineFailure(recordingId: string, jobId: string | null, error: unknown): void {
+    const message = error instanceof Error ? error.message : String(error);
+    if (this.#activeRecordingId === recordingId) this.#activeRecordingId = null;
+    this.#canceledRecordingIds.delete(recordingId);
+    this.#queue.setRecordingActive(false);
+    this.#currentError = { message };
+
+    if (jobId) {
+      const job = this.#queue.getJob(jobId);
+      if (job && !isTerminalJobStatus(job.status)) {
+        this.#queue.transitionJob(jobId, 'failed', { error: message });
+      }
+    }
+
+    this.#emit();
+  }
+
 
   async #tryDeliverReadyJobs(deliveryDelayMs = 0): Promise<void> {
     let next = this.#queue.nextDeliverableJob();
@@ -245,7 +272,7 @@ export class MockDictationPipeline {
 
   #track(task: Promise<void>): void {
     this.#tasks.add(task);
-    task.finally(() => this.#tasks.delete(task)).catch(() => undefined);
+    void task.finally(() => this.#tasks.delete(task));
   }
 
   #emit(): void {
