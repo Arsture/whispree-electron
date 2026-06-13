@@ -279,9 +279,15 @@ function RadioMark({ selected }: { readonly selected?: boolean }) {
 }
 
 function ProviderSelector({ selectedProvider }: { readonly selectedProvider: ProviderId }) {
+  const selected = providers.find((provider) => provider.id === selectedProvider) ?? providers[0];
   return (
     <SectionCard title="교정 엔진">
-      <div className="llm-provider-selector" role="radiogroup" aria-label="LLM provider mock selector">
+      <div className="llm-provider-picker" role="button" aria-label="LLM provider mock selector" tabIndex={0}>
+        <span>{selected.label}</span>
+        <small>{selected.subtitle}</small>
+        <span aria-hidden="true">⌄</span>
+      </div>
+      <div className="llm-provider-selector" role="radiogroup" aria-label="LLM provider options mirror">
         {providers.map((provider) => (
           <div className="llm-provider-option" data-selected={provider.id === selectedProvider} role="radio" aria-checked={provider.id === selectedProvider} tabIndex={0} key={provider.id}>
             <RadioMark selected={provider.id === selectedProvider} />

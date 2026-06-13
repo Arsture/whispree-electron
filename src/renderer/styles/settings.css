@@ -144,10 +144,39 @@
 }
 
 .settings-switch {
-  accent-color: var(--accent);
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
   flex: 0 0 auto;
+  height: 24px;
+  width: 42px;
+  margin: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(120, 126, 136, 0.36);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  cursor: pointer;
+}
+
+.settings-switch::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
   height: 18px;
-  width: 34px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+  content: "";
+  transition: transform 160ms ease-out;
+}
+
+.settings-switch:checked {
+  background: var(--accent);
+}
+
+.settings-switch:checked::after {
+  transform: translateX(18px);
 }
 
 .settings-radio-group {
