@@ -39,4 +39,23 @@ describe('screenshot capture gating', () => {
       }),
     ).toEqual({ enabled: false, reason: 'invalid-path' });
   });
+
+  it('allows packaged smoke captures only when explicitly enabled under .omx artifacts', () => {
+    expect(
+      resolveScreenshotCapturePath('.omx/artifacts/packaged-app-smoke/evidence.png', {
+        repoRoot,
+        isPackaged: true,
+        nodeEnv: 'test',
+        allowPackagedCapture: true,
+      }),
+    ).toEqual({ enabled: true, outputPath: path.resolve(repoRoot, '.omx/artifacts/packaged-app-smoke/evidence.png') });
+    expect(
+      resolveScreenshotCapturePath('/tmp/leak.png', {
+        repoRoot,
+        isPackaged: true,
+        nodeEnv: 'test',
+        allowPackagedCapture: true,
+      }),
+    ).toEqual({ enabled: false, reason: 'invalid-path' });
+  });
 });

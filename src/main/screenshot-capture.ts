@@ -4,6 +4,7 @@ export interface ScreenshotCaptureEnvironment {
   readonly repoRoot: string;
   readonly isPackaged: boolean;
   readonly nodeEnv: string | undefined;
+  readonly allowPackagedCapture?: boolean;
 }
 
 export type ScreenshotCaptureResolution =
@@ -26,10 +27,12 @@ export function resolveScreenshotCapturePath(
   environment: ScreenshotCaptureEnvironment,
 ): ScreenshotCaptureResolution {
   if (!requestedPath) return { enabled: false, reason: 'not-requested' };
-  if (environment.isPackaged) return { enabled: false, reason: 'packaged-app' };
+  if (environment.isPackaged && !environment.allowPackagedCapture) return { enabled: false, reason: 'packaged-app' };
   if (environment.nodeEnv === 'production') return { enabled: false, reason: 'production-env' };
 
-  const artifactRoot = electronUiParityArtifactRoot(environment.repoRoot);
+  const artifactRoot = environment.allowPackagedCapture
+    ? path.resolve(environment.repoRoot, '.omx', 'artifacts')
+    : electronUiParityArtifactRoot(environment.repoRoot);
   const resolvedPath = path.resolve(environment.repoRoot, requestedPath);
   if (!isInside(artifactRoot, resolvedPath) || path.extname(resolvedPath).toLowerCase() !== '.png') {
     return { enabled: false, reason: 'invalid-path' };

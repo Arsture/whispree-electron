@@ -24,7 +24,8 @@
     "parity:capture": "node scripts/capture-visual-parity.mjs",
     "signing:preflight": "node scripts/signing-preflight.mjs",
     "test:parity-script": "node scripts/capture-visual-parity.test.mjs",
-    "test:signing-preflight": "node scripts/signing-preflight.test.mjs"
+    "test:signing-preflight": "node scripts/signing-preflight.test.mjs",
+    "smoke:packaged-app": "node scripts/smoke-packaged-app.mjs"
   },
   "dependencies": {
     "electron-squirrel-startup": "1.0.1",

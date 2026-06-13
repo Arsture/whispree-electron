@@ -1,5 +1,4 @@
 import { app, BrowserWindow, Menu, Tray, clipboard, globalShortcut, ipcMain, nativeImage, shell, systemPreferences } from 'electron';
-import started from 'electron-squirrel-startup';
 import path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { IPC_CHANNELS } from '../shared/ipc';
@@ -35,8 +34,12 @@ const emitAppSnapshot = (snapshot: ReturnType<MockDictationPipeline['getSnapshot
   mainWindow?.webContents.send(IPC_CHANNELS.appSnapshotUpdated, snapshot);
 };
 
-if (started) {
+if (isSquirrelStartupEvent()) {
   app.quit();
+}
+
+function isSquirrelStartupEvent(): boolean {
+  return process.platform === 'win32' && process.argv.some((argument) => argument.startsWith('--squirrel-'));
 }
 
 
@@ -72,9 +75,10 @@ function createMainWindow(): void {
   });
 
   const screenshotCapture = resolveScreenshotCapturePath(process.env.WHISPREE_CAPTURE_SCREENSHOT, {
-    repoRoot: app.getAppPath(),
+    repoRoot: process.env.WHISPREE_REPO_ROOT ?? app.getAppPath(),
     isPackaged: app.isPackaged,
     nodeEnv: process.env.NODE_ENV,
+    allowPackagedCapture: process.env.WHISPREE_ALLOW_PACKAGED_SCREENSHOT === '1',
   });
   if (screenshotCapture.enabled) {
     mainWindow.webContents.once('did-finish-load', () => {
