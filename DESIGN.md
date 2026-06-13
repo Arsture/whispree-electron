@@ -123,3 +123,21 @@
 - [x] Default delivery waits for corrected/fallback text and inserts FIFO; raw-immediate-replace is deferred.
 - [x] Multiple completed jobs insert automatically FIFO, but delivery is blocked during active recording. Stale target confirmation remains a future safety enhancement.
 - [ ] What is the maximum safe local-concurrency limit per provider/device? Owner: engineering. Impact: memory and reliability.
+
+## Electron Swift UI parity migration (2026-06-13)
+- Status: Active implementation wave; Swift app is the visual source of truth and `/Users/arsture/ideas/whispree` remains read-only.
+- Tracked task registry: `docs/UI_PARITY_TASK_REGISTRY.md` (18 task slices, 6-agent waves).
+- Current UI goal: first reach mocked visual parity before wiring real behavior. Functionality-specific wiring must stay behind existing typed main/preload/renderer/shared boundaries.
+- Baseline slices:
+  - Shell/navigation: `UnifiedView.swift`, `SettingsView.swift` → Electron shell/sidebar/titlebar/tabs.
+  - Dashboard/overlay: `MainDashboardView.swift`, `TranscriptionOverlayView.swift` → home cards, provider status, recording overlay/waveform.
+  - Settings: General/STT/LLM/Models/Domain word sets Swift tabs → panel-specific React mocks with shared primitives.
+  - Secondary surfaces: History, Onboarding, Quick Fix, Screenshot Selection, Menu Bar popover.
+- Visual constraints:
+  - Preserve compact macOS spacing, rounded glass/material cards, subtle borders, semantic status colors, and Korean copy from Swift.
+  - Use shared CSS tokens/primitives instead of per-panel one-off styling; panel files may mock state but should not create backend side effects.
+  - Pixel parity cannot be claimed until a current Swift screenshot baseline is captured side-by-side with Electron artifacts.
+- Execution model:
+  - Wave 1: tokens/primitives, shell, home, STT tab, history, parity contract.
+  - Wave 2: overlay, general settings, LLM, model downloads, word sets, DOM visual contract tests.
+  - Wave 3: onboarding, quick fix, screenshot selection, menu bar, responsive/accessibility, final packaged smoke.
