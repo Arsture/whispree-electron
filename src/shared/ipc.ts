@@ -6,6 +6,8 @@ export const IPC_CHANNELS = {
   getAppSnapshot: 'whispree:get-app-snapshot',
   appSnapshotUpdated: 'whispree:app-snapshot-updated',
   enqueueMockDictation: 'whispree:enqueue-mock-dictation',
+  startRealRecording: 'whispree:start-real-recording',
+  submitRecordedAudio: 'whispree:submit-recorded-audio',
   cancelForegroundJob: 'whispree:cancel-foreground-job',
   openSettings: 'whispree:open-settings',
   requestPermission: 'whispree:request-permission',
@@ -105,9 +107,20 @@ export interface AppSnapshot {
   readonly currentError: { readonly message: string } | null;
 }
 
+export interface RecordedAudioInput {
+  readonly bytes: ArrayBuffer;
+  readonly mimeType: string;
+  readonly durationMs: number;
+}
+
+export interface RealRecordingStartInput {
+  readonly mimeType: string | null;
+}
 
 export type CommandAction =
   | 'enqueue-mock-dictation'
+  | 'start-real-recording'
+  | 'submit-recorded-audio'
   | 'cancel-foreground-job'
   | 'open-settings'
   | 'request-permission'

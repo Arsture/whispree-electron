@@ -84,6 +84,36 @@ describe('MockDictationPipeline', () => {
     expect(pipeline.getSnapshot().queue.items[0]).toMatchObject({ status: 'copied-to-clipboard', isTerminal: true });
   });
 
+  it('accepts captured real audio bytes and runs them through the provider router', async () => {
+    const pipeline = new MockDictationPipeline(undefined, immediateDelay);
+
+    const recording = pipeline.startRealRecording({ mimeType: 'audio/webm' });
+    expect(recording.recording).toMatchObject({ active: true, mode: 'real' });
+
+    pipeline.submitRecordedAudio({
+      bytes: new Uint8Array([1, 2, 3]).buffer,
+      mimeType: 'audio/webm',
+      durationMs: 50,
+    });
+    await pipeline.whenIdle();
+
+    const snapshot = pipeline.getSnapshot();
+    expect(snapshot.recording.mode).toBe('real');
+    expect(snapshot.history[0]?.status).toBe('delivered');
+    expect(snapshot.queue.items[0]?.id).toBe('history-1');
+  });
+
+  it('updates permission cards after the runtime permission adapter responds', () => {
+    const pipeline = new MockDictationPipeline(undefined, immediateDelay);
+
+    pipeline.updatePermission('microphone', 'granted');
+
+    expect(pipeline.getSnapshot().permissions.find((permission) => permission.kind === 'microphone')).toMatchObject({
+      state: 'granted',
+      status: 'implemented',
+    });
+  });
+
 
   it('hydrates persisted history and appends new deliveries through the history store', async () => {
     const appended: unknown[] = [];

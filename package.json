@@ -19,7 +19,10 @@
     "test:watch": "vitest",
     "check:boundaries": "node scripts/check-boundaries.mjs",
     "verify": "npm run check:workflows && npm run check:boundaries && npm run typecheck && npm run lint && npm test",
-    "check:workflows": "node scripts/check-workflows.mjs"
+    "check:workflows": "node scripts/check-workflows.mjs",
+    "probe:real": "node scripts/real-readiness-probe.mjs",
+    "parity:capture": "node scripts/capture-visual-parity.mjs --dry-run",
+    "signing:preflight": "node scripts/signing-preflight.mjs"
   },
   "dependencies": {
     "electron-squirrel-startup": "1.0.1",

@@ -17,6 +17,7 @@ function count(snapshot: AppSnapshot, key: 'total' | 'processing' | 'ready' | 'h
 
 function RecordingStatus({ snapshot }: { readonly snapshot: AppSnapshot }) {
   const cancelLabel = foregroundCancelLabel(snapshot);
+  const realRecordingActive = snapshot.recording.active && snapshot.recording.mode === 'real';
   return (
     <section className="liquid-card recording-card" data-testid="recording-status" data-app-status={snapshot.appStatus}>
       <div className="recording-copy">
@@ -32,6 +33,13 @@ function RecordingStatus({ snapshot }: { readonly snapshot: AppSnapshot }) {
       <div className="recording-actions">
         <button type="button" className="primary-action" onClick={() => void window.whispree.enqueueMockDictation()}>
           Start mock recording
+        </button>
+        <button
+          type="button"
+          className="plain-action"
+          onClick={() => void (realRecordingActive ? window.whispree.stopRealRecording() : window.whispree.startRealRecording())}
+        >
+          {realRecordingActive ? 'Stop real recording' : 'Start real recording'}
         </button>
         <button type="button" className="plain-action" onClick={() => void window.whispree.cancelForegroundJob()}>
           {cancelLabel ?? 'Cancel foreground'} <Keycap>esc</Keycap>
@@ -145,8 +153,11 @@ function PermissionRows({ permissions }: { readonly permissions: readonly Permis
               <small>{permission.detail}</small>
             </span>
             <StatusPill tone={implementationTone(permission.status)} status={permission.status}>
-              {permission.status}
+              {permission.state}
             </StatusPill>
+            <button type="button" className="mini-action" onClick={() => void window.whispree.requestPermission(permission.kind)}>
+              Request
+            </button>
           </li>
         ))}
       </ul>

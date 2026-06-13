@@ -394,7 +394,8 @@ h2 {
 
 .primary-action,
 .plain-action,
-.inline-button {
+.inline-button,
+.mini-action {
   border: 0;
   border-radius: 999px;
   cursor: pointer;
@@ -409,7 +410,8 @@ h2 {
 }
 
 .plain-action,
-.inline-button {
+.inline-button,
+.mini-action {
   color: var(--text-secondary);
   background: rgba(30, 35, 45, 0.06);
 }
@@ -422,6 +424,11 @@ h2 {
 .plain-action:disabled {
   cursor: default;
   opacity: 0.45;
+}
+
+.mini-action {
+  padding: 5px 8px;
+  font-size: 11px;
 }
 
 .keycap {
@@ -527,7 +534,7 @@ h2 {
 
 .status-list li {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: start;
   gap: 12px;
 }

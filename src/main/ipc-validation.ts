@@ -5,6 +5,8 @@ import {
   type CommandError,
   type CommandResult,
   type PermissionKind,
+  type RealRecordingStartInput,
+  type RecordedAudioInput,
   type SettingsCommandAction,
   type SettingsCommandResult,
 } from '../shared/ipc';
@@ -73,4 +75,44 @@ export function validatePermissionKindInput(
     ok: false,
     result: commandError('request-permission', snapshot, `Invalid permission kind: ${String(value)}`),
   };
+}
+
+export function validateRealRecordingStartInput(
+  snapshot: AppSnapshot,
+  value: unknown,
+): { readonly ok: true; readonly input: RealRecordingStartInput } | { readonly ok: false; readonly result: CommandResult } {
+  if (!isRecord(value)) return { ok: false, result: commandError('start-real-recording', snapshot, 'Recording start input must be an object.') };
+  const mimeType = value.mimeType;
+  if (mimeType !== null && typeof mimeType !== 'string') {
+    return { ok: false, result: commandError('start-real-recording', snapshot, 'mimeType must be a string or null.') };
+  }
+  return { ok: true, input: { mimeType } };
+}
+
+export function validateRecordedAudioInput(
+  snapshot: AppSnapshot,
+  value: unknown,
+): { readonly ok: true; readonly input: RecordedAudioInput } | { readonly ok: false; readonly result: CommandResult } {
+  if (!isRecord(value)) return { ok: false, result: commandError('submit-recorded-audio', snapshot, 'Recorded audio input must be an object.') };
+  if (!(value.bytes instanceof ArrayBuffer)) {
+    return { ok: false, result: commandError('submit-recorded-audio', snapshot, 'Recorded audio bytes must be an ArrayBuffer.') };
+  }
+  if (typeof value.mimeType !== 'string' || value.mimeType.trim().length === 0) {
+    return { ok: false, result: commandError('submit-recorded-audio', snapshot, 'Recorded audio mimeType must be a non-empty string.') };
+  }
+  if (typeof value.durationMs !== 'number' || !Number.isFinite(value.durationMs) || value.durationMs < 0) {
+    return { ok: false, result: commandError('submit-recorded-audio', snapshot, 'Recorded audio durationMs must be a non-negative finite number.') };
+  }
+  return {
+    ok: true,
+    input: {
+      bytes: value.bytes,
+      mimeType: value.mimeType,
+      durationMs: value.durationMs,
+    },
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

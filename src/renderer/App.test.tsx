@@ -11,6 +11,8 @@ const whispreeMock = {
   getAppSnapshot: vi.fn<() => Promise<AppSnapshot>>(),
   subscribeAppSnapshot: vi.fn<(callback: (snapshot: AppSnapshot) => void) => () => void>(),
   enqueueMockDictation: vi.fn<() => Promise<unknown>>(),
+  startRealRecording: vi.fn<() => Promise<unknown>>(),
+  stopRealRecording: vi.fn<() => Promise<unknown>>(),
   cancelForegroundJob: vi.fn<() => Promise<unknown>>(),
   openSettings: vi.fn<() => Promise<unknown>>(),
   requestPermission: vi.fn<() => Promise<unknown>>(),
@@ -32,6 +34,8 @@ function installWhispreeMock() {
     return unsubscribe;
   });
   whispreeMock.enqueueMockDictation.mockResolvedValue({});
+  whispreeMock.startRealRecording.mockResolvedValue({});
+  whispreeMock.stopRealRecording.mockResolvedValue({});
   whispreeMock.cancelForegroundJob.mockResolvedValue({});
   whispreeMock.openSettings.mockResolvedValue({});
   whispreeMock.requestPermission.mockResolvedValue({});
@@ -143,8 +147,10 @@ describe('App Swift parity shell markup', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: /Home/u }));
     fireEvent.click(screen.getByRole('button', { name: /Start mock recording/u }));
+    fireEvent.click(screen.getByRole('button', { name: /Start real recording/u }));
     fireEvent.click(screen.getByRole('button', { name: /Cancel foreground/u }));
     expect(whispreeMock.enqueueMockDictation).toHaveBeenCalledTimes(1);
+    expect(whispreeMock.startRealRecording).toHaveBeenCalledTimes(1);
     expect(whispreeMock.cancelForegroundJob).toHaveBeenCalledTimes(1);
 
     const delivered: AppSnapshot = {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { initialAppSnapshot } from '../shared/ipc';
-import { rejectUnexpectedArgs, validatePermissionKindInput } from './ipc-validation';
+import { rejectUnexpectedArgs, validatePermissionKindInput, validateRealRecordingStartInput, validateRecordedAudioInput } from './ipc-validation';
 
 describe('IPC runtime validation', () => {
   it('accepts only known permission kinds', () => {
@@ -21,5 +21,22 @@ describe('IPC runtime validation', () => {
       action: 'cancel-foreground-job',
       error: { code: 'invalid-input' },
     });
+  });
+
+  it('validates real recording start and recorded audio payloads', () => {
+    expect(validateRealRecordingStartInput(initialAppSnapshot, { mimeType: 'audio/webm' })).toEqual({
+      ok: true,
+      input: { mimeType: 'audio/webm' },
+    });
+    expect(validateRecordedAudioInput(initialAppSnapshot, {
+      bytes: new ArrayBuffer(2),
+      mimeType: 'audio/webm',
+      durationMs: 12,
+    })).toMatchObject({ ok: true });
+    expect(validateRecordedAudioInput(initialAppSnapshot, {
+      bytes: 'nope',
+      mimeType: 'audio/webm',
+      durationMs: 12,
+    })).toMatchObject({ ok: false });
   });
 });

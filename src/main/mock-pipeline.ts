@@ -4,14 +4,19 @@ import {
   type PermissionCardSnapshot,
   type ProviderCardSnapshot,
   type QueueItemSnapshot,
+  type PermissionKind,
+  type PermissionState,
+  type RecordedAudioInput,
 } from '../shared/ipc';
 import type { AudioCaptureAdapter, TextInsertionAdapter } from '../shared/adapters';
 import { createAdapterSet, permissionCardsForAdapterSet } from './adapters/adapter-factory';
 import { MockAudioCaptureAdapter, MockTextInsertionAdapter } from './adapters/mock-adapters';
 import { llmProviderChoices, sttProviderChoices } from '../shared/provider-registry';
-import { MockLLMProvider, MockSTTProvider, localModelBackendRegistry } from '../shared/providers';
+import { localModelBackendRegistry } from '../shared/providers';
 import { DictationQueueState, isDeliverableJobStatus, isProcessingJobStatus, isTerminalJobStatus, type DictationJob, type DictationJobSnapshot } from '../shared/queue';
-import { defaultAppSettings } from '../shared/settings';
+import { defaultAppSettings, type AppSettingsSnapshot } from '../shared/settings';
+import { StaticProviderRouter, type ProviderRouter } from './provider-router';
+import { localEngineRegistry } from './local-ai/engine-registry';
 
 interface MockPipelineOptions {
   readonly recordingDelayMs?: number;
@@ -33,6 +38,9 @@ interface MockDictationPipelineAdapters {
   readonly textInsertion?: TextInsertionAdapter;
   readonly historyStore?: HistoryAppender;
   readonly initialHistory?: readonly HistoryRecordSnapshot[];
+  readonly permissionCards?: readonly PermissionCardSnapshot[];
+  readonly providerRouter?: ProviderRouter;
+  readonly settingsProvider?: () => AppSettingsSnapshot;
 }
 
 const defaultDelay: Delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -41,6 +49,7 @@ const providerCards: readonly ProviderCardSnapshot[] = [
   ...sttProviderChoices.map(providerChoiceToCard),
   ...llmProviderChoices.map(providerChoiceToCard),
   ...localModelBackendRegistry.map((backend) => backend.descriptor),
+  ...localEngineRegistry.map((engine) => engine.provider),
 ];
 
 function providerChoiceToCard(provider: (typeof sttProviderChoices | typeof llmProviderChoices)[number]): ProviderCardSnapshot {
@@ -58,17 +67,19 @@ const permissionCards: readonly PermissionCardSnapshot[] = permissionCardsForAda
 
 export class MockDictationPipeline {
   readonly #queue = new DictationQueueState();
-  readonly #sttProvider = new MockSTTProvider();
-  readonly #llmProvider = new MockLLMProvider();
+  readonly #providerRouter: ProviderRouter;
+  readonly #settingsProvider: () => AppSettingsSnapshot;
   readonly #listeners = new Set<SnapshotListener>();
   readonly #tasks = new Set<Promise<void>>();
   readonly #delay: Delay;
   readonly #audioAdapter: AudioCaptureAdapter;
   readonly #textInsertionAdapter: TextInsertionAdapter;
   readonly #historyStore: HistoryAppender | null;
+  #permissionCards: readonly PermissionCardSnapshot[];
   #history: HistoryRecordSnapshot[] = [];
   #currentError: { readonly message: string } | null = null;
   #activeRecordingId: string | null = null;
+  #recordingMode: 'mock' | 'real' = 'mock';
   #nextRecordingId = 1;
   readonly #canceledRecordingIds = new Set<string>();
 
@@ -79,6 +90,9 @@ export class MockDictationPipeline {
     this.#textInsertionAdapter = adapters.textInsertion ?? new MockTextInsertionAdapter();
     this.#historyStore = adapters.historyStore ?? null;
     this.#history = [...(adapters.initialHistory ?? [])].slice(0, 20);
+    this.#permissionCards = adapters.permissionCards ?? permissionCards;
+    this.#settingsProvider = adapters.settingsProvider ?? (() => defaultAppSettings);
+    this.#providerRouter = adapters.providerRouter ?? new StaticProviderRouter();
   }
 
   subscribe(listener: SnapshotListener): () => void {
@@ -104,12 +118,12 @@ export class MockDictationPipeline {
           : 'ready',
       recording: {
         active: queueSnapshot.isRecordingActive,
-        mode: 'mock',
+        mode: this.#recordingMode,
         label: queueSnapshot.isRecordingActive
-          ? 'Mock recording in progress'
+          ? this.#recordingMode === 'real' ? 'Real microphone recording in progress' : 'Mock recording in progress'
           : queueSnapshot.processingCount > 0
-            ? 'Mock provider pipeline processing'
-            : 'Ready for mock recording',
+            ? this.#recordingMode === 'real' ? 'Real provider pipeline processing' : 'Mock provider pipeline processing'
+            : 'Ready for recording',
       },
       queue: {
         ...queueSnapshot,
@@ -117,10 +131,27 @@ export class MockDictationPipeline {
       },
       latest,
       providers: providerCards,
-      permissions: permissionCards,
+      permissions: this.#permissionCards,
       history: this.#history,
       currentError: this.#currentError,
     };
+  }
+
+  refreshPermissions(cards: readonly PermissionCardSnapshot[]): AppSnapshot {
+    this.#permissionCards = cards;
+    this.#emit();
+    return this.getSnapshot();
+  }
+
+  updatePermission(kind: PermissionKind, state: PermissionState): AppSnapshot {
+    this.#permissionCards = this.#permissionCards.map((card) => card.kind === kind ? {
+      ...card,
+      state,
+      status: state === 'granted' ? 'implemented' : state === 'unsupported' ? 'unsupported' : state === 'not-tested' ? 'not-tested' : card.status,
+      detail: `${card.detail} Latest state: ${state}.`,
+    } : card);
+    this.#emit();
+    return this.getSnapshot();
   }
 
   enqueueMockDictation(options: MockPipelineOptions = {}): AppSnapshot {
@@ -129,6 +160,7 @@ export class MockDictationPipeline {
     const recordingId = `recording-${this.#nextRecordingId}`;
     this.#nextRecordingId += 1;
     this.#activeRecordingId = recordingId;
+    this.#recordingMode = 'mock';
     this.#queue.setRecordingActive(true);
     this.#emit();
     const task = this.#runMockJob(recordingId, {
@@ -140,6 +172,37 @@ export class MockDictationPipeline {
       ...options,
     });
     this.#track(task);
+    return this.getSnapshot();
+  }
+
+  startRealRecording(_input: { readonly mimeType: string | null }): AppSnapshot {
+    if (this.#queue.isRecordingActive) return this.getSnapshot();
+    const recordingId = `recording-${this.#nextRecordingId}`;
+    this.#nextRecordingId += 1;
+    this.#activeRecordingId = recordingId;
+    this.#recordingMode = 'real';
+    this.#currentError = null;
+    this.#queue.setRecordingActive(true);
+    this.#emit();
+    return this.getSnapshot();
+  }
+
+  submitRecordedAudio(input: RecordedAudioInput): AppSnapshot {
+    const recordingId = this.#activeRecordingId ?? `recording-${this.#nextRecordingId++}`;
+    this.#activeRecordingId = null;
+    this.#recordingMode = 'real';
+    this.#queue.setRecordingActive(false);
+    const task = this.#runAudioJob(recordingId, {
+      kind: 'memory',
+      value: recordedAudioToDataUrl(input),
+    }, {
+      sttDelayMs: 0,
+      llmDelayMs: 0,
+      deliveryDelayMs: 0,
+      glossary: [],
+    });
+    this.#track(task);
+    this.#emit();
     return this.getSnapshot();
   }
 
@@ -166,7 +229,6 @@ export class MockDictationPipeline {
   }
 
   async #runMockJob(recordingId: string, options: Required<MockPipelineOptions>): Promise<void> {
-    let jobId: string | null = null;
     try {
       await this.#audioAdapter.start();
       await this.#delay(options.recordingDelayMs);
@@ -174,12 +236,25 @@ export class MockDictationPipeline {
       if (this.#activeRecordingId === recordingId) this.#activeRecordingId = null;
 
       const audio = await this.#audioAdapter.stop();
+      await this.#runAudioJob(recordingId, { kind: 'mock', value: audio.audioRef || recordingId }, options);
+    } catch (error) {
+      this.#handlePipelineFailure(recordingId, null, error);
+    }
+  }
 
+  async #runAudioJob(
+    recordingId: string,
+    audioRef: { readonly kind: 'mock' | 'memory' | 'file'; readonly value: string },
+    options: Pick<Required<MockPipelineOptions>, 'sttDelayMs' | 'llmDelayMs' | 'deliveryDelayMs' | 'glossary'>,
+  ): Promise<void> {
+    let jobId: string | null = null;
+    try {
+      const settings = this.#settingsProvider();
       const job = this.#queue.enqueue({
-        id: `mock-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        id: `${audioRef.kind === 'mock' ? 'mock' : 'real'}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
         createdAtIso: new Date().toISOString(),
-        snapshot: this.#createJobSnapshot(options.glossary),
-        targetContextId: 'mock-target',
+        snapshot: this.#createJobSnapshot(settings, options.glossary),
+        targetContextId: audioRef.kind === 'mock' ? 'mock-target' : null,
       });
       jobId = job.id;
       this.#queue.setRecordingActive(false);
@@ -188,18 +263,20 @@ export class MockDictationPipeline {
       this.#emit();
 
       await this.#delay(options.sttDelayMs);
-      const transcription = await this.#sttProvider.transcribe({
+      const sttProvider = this.#providerRouter.sttProvider();
+      const transcription = await sttProvider.transcribe({
         jobId: job.id,
         sequence: job.sequence,
         language: job.snapshot.language,
         glossary: job.snapshot.glossary,
-        audioRef: { kind: 'mock', value: audio.audioRef || job.id },
+        audioRef,
       });
       this.#queue.transitionJob(job.id, 'correcting', { transcribedText: transcription.text });
       this.#emit();
 
       await this.#delay(options.llmDelayMs);
-      const correction = await this.#llmProvider.correct({
+      const llmProvider = this.#providerRouter.llmProvider();
+      const correction = await llmProvider.correct({
         jobId: job.id,
         sequence: job.sequence,
         text: transcription.text,
@@ -256,20 +333,20 @@ export class MockDictationPipeline {
     }
   }
 
-  #createJobSnapshot(glossary: readonly string[] = []): DictationJobSnapshot {
+  #createJobSnapshot(settings: AppSettingsSnapshot, glossary: readonly string[] = []): DictationJobSnapshot {
     return {
-      sttProviderType: defaultAppSettings.sttProviderType,
-      llmProviderType: defaultAppSettings.llmProviderType,
-      llmEnabled: defaultAppSettings.llmEnabled,
-      correctionMode: defaultAppSettings.correctionMode,
-      customPrompt: defaultAppSettings.customLLMPrompt,
-      language: defaultAppSettings.language,
+      sttProviderType: settings.sttProviderType,
+      llmProviderType: settings.llmProviderType,
+      llmEnabled: settings.llmEnabled,
+      correctionMode: settings.correctionMode,
+      customPrompt: settings.customLLMPrompt,
+      language: settings.language,
       glossary,
-      domainWordSets: defaultAppSettings.domainWordSets,
-      correctionMappings: defaultAppSettings.correctionMappings,
-      screenshotContextEnabled: defaultAppSettings.screenshotContextEnabled,
-      screenshotPasteEnabled: defaultAppSettings.screenshotPasteEnabled,
-      vadEnabled: defaultAppSettings.vadEnabled,
+      domainWordSets: settings.domainWordSets,
+      correctionMappings: settings.correctionMappings,
+      screenshotContextEnabled: settings.screenshotContextEnabled,
+      screenshotPasteEnabled: settings.screenshotPasteEnabled,
+      vadEnabled: settings.vadEnabled,
     };
   }
 
@@ -306,4 +383,9 @@ export class MockDictationPipeline {
     const snapshot = this.getSnapshot();
     for (const listener of this.#listeners) listener(snapshot);
   }
+}
+
+function recordedAudioToDataUrl(input: RecordedAudioInput): string {
+  const bytes = Buffer.from(input.bytes);
+  return `data:${input.mimeType};base64,${bytes.toString('base64')}`;
 }

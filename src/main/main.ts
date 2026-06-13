@@ -1,14 +1,27 @@
-import { app, BrowserWindow, Menu, Tray, clipboard, ipcMain, nativeImage } from 'electron';
+import { app, BrowserWindow, Menu, Tray, clipboard, globalShortcut, ipcMain, nativeImage, shell, systemPreferences } from 'electron';
 import started from 'electron-squirrel-startup';
 import path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { IPC_CHANNELS } from '../shared/ipc';
 import { resolveScreenshotCapturePath } from './screenshot-capture';
-import { commandError, commandOk, rejectUnexpectedArgs, rejectUnexpectedSettingsArgs, settingsCommandError, settingsCommandOk, validatePermissionKindInput } from './ipc-validation';
+import {
+  commandError,
+  commandOk,
+  rejectUnexpectedArgs,
+  rejectUnexpectedSettingsArgs,
+  settingsCommandError,
+  settingsCommandOk,
+  validatePermissionKindInput,
+  validateRealRecordingStartInput,
+  validateRecordedAudioInput,
+} from './ipc-validation';
 import { MockDictationPipeline } from './mock-pipeline';
 import { createSettingsStore, type FileSettingsStore } from './settings-store';
 import { createHistoryStore, type FileHistoryStore } from './history-store';
 import { copyHistoryTextFromSnapshot } from './history-copy';
+import { createAdapterSet, queryPermissionCardsForAdapterSet, type AdapterSet } from './adapters/adapter-factory';
+import { RecordingController } from './recording-controller';
+import { SettingsProviderRouter } from './provider-router';
 
 const dirname = __dirname;
 
@@ -17,6 +30,8 @@ let tray: Tray | null = null;
 let settingsStore: FileSettingsStore | null = null;
 let historyStore: FileHistoryStore | null = null;
 let pipeline: MockDictationPipeline | null = null;
+let adapterSet: AdapterSet | null = null;
+let recordingController: RecordingController | null = null;
 const emitAppSnapshot = (snapshot: ReturnType<MockDictationPipeline['getSnapshot']>) => {
   mainWindow?.webContents.send(IPC_CHANNELS.appSnapshotUpdated, snapshot);
 };
@@ -130,13 +145,39 @@ function getPipeline(): MockDictationPipeline {
   return pipeline;
 }
 
+function getAdapterSet(): AdapterSet {
+  adapterSet ??= createAdapterSet(process.platform, 'shell', {
+    permissionBridge: systemPreferences,
+    externalUrlOpener: shell,
+    globalShortcutBridge: globalShortcut,
+    clipboardBridge: clipboard,
+  });
+  return adapterSet;
+}
+
 async function initializeMainState(): Promise<void> {
   await getSettingsStore().load();
   const store = getHistoryStore();
   const history = await store.load();
+  const adapters = getAdapterSet();
+  const settings = getSettingsStore();
+  const permissionCards = await queryPermissionCardsForAdapterSet(adapters);
   pipeline = new MockDictationPipeline(emitAppSnapshot, undefined, {
     historyStore: store,
     initialHistory: history,
+    permissionCards,
+    textInsertion: adapters.textInsertion,
+    settingsProvider: () => settings.getSnapshot(),
+    providerRouter: new SettingsProviderRouter(() => settings.getSnapshot(), settings),
+  });
+  recordingController = new RecordingController({
+    pipeline,
+    hotkeyAdapter: adapters.hotkey,
+    shortcut: settings.getSnapshot().toggleRecordingShortcut.label,
+  });
+  await recordingController.register().catch((error) => {
+    pipeline?.refreshPermissions(permissionCards);
+    console.warn(`Global shortcut registration failed: ${error instanceof Error ? error.message : String(error)}`);
   });
 }
 
@@ -171,6 +212,24 @@ function registerIpcHandlers(): void {
     if (rejected) return rejected;
     return commandOk('enqueue-mock-dictation', currentPipeline.enqueueMockDictation(), 'Mock dictation enqueued.');
   });
+  ipcMain.handle(IPC_CHANNELS.startRealRecording, (_event, input: unknown, ...args: unknown[]) => {
+    const currentPipeline = getPipeline();
+    const snapshot = currentPipeline.getSnapshot();
+    const rejected = rejectUnexpectedArgs('start-real-recording', snapshot, args);
+    if (rejected) return rejected;
+    const validation = validateRealRecordingStartInput(snapshot, input);
+    if (!validation.ok) return validation.result;
+    return commandOk('start-real-recording', currentPipeline.startRealRecording(validation.input), 'Real microphone recording started.');
+  });
+  ipcMain.handle(IPC_CHANNELS.submitRecordedAudio, (_event, input: unknown, ...args: unknown[]) => {
+    const currentPipeline = getPipeline();
+    const snapshot = currentPipeline.getSnapshot();
+    const rejected = rejectUnexpectedArgs('submit-recorded-audio', snapshot, args);
+    if (rejected) return rejected;
+    const validation = validateRecordedAudioInput(snapshot, input);
+    if (!validation.ok) return validation.result;
+    return commandOk('submit-recorded-audio', currentPipeline.submitRecordedAudio(validation.input), 'Captured audio submitted.');
+  });
   ipcMain.handle(IPC_CHANNELS.cancelForegroundJob, (_event, ...args: unknown[]) => {
     const currentPipeline = getPipeline();
     const rejected = rejectUnexpectedArgs('cancel-foreground-job', currentPipeline.getSnapshot(), args);
@@ -191,18 +250,15 @@ function registerIpcHandlers(): void {
     return copyHistoryTextFromSnapshot(snapshot, historyId, variant, clipboard);
   });
 
-  ipcMain.handle(IPC_CHANNELS.requestPermission, (_event, kind: unknown, ...args: unknown[]) => {
-    const snapshot = getPipeline().getSnapshot();
+  ipcMain.handle(IPC_CHANNELS.requestPermission, async (_event, kind: unknown, ...args: unknown[]) => {
+    const currentPipeline = getPipeline();
+    const snapshot = currentPipeline.getSnapshot();
     const rejected = rejectUnexpectedArgs('request-permission', snapshot, args);
     if (rejected) return rejected;
     const validation = validatePermissionKindInput(snapshot, kind);
     if (!validation.ok) return validation.result;
-    return commandError(
-      'request-permission',
-      snapshot,
-      `${validation.kind} permission is adapter-planned and not requested in mock mode.`,
-      'not-implemented',
-    );
+    const state = await getAdapterSet().permission.request(validation.kind);
+    return commandOk('request-permission', currentPipeline.updatePermission(validation.kind, state), `${validation.kind} permission state: ${state}.`);
   });
 }
 
@@ -220,4 +276,8 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('will-quit', () => {
+  void recordingController?.unregister();
 });

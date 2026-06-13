@@ -8,11 +8,47 @@ import { AutoUnpackNativesPlugin } from '@electron-forge/plugin-auto-unpack-nati
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
+const macosSignIdentity = process.env.MACOS_SIGN_IDENTITY;
+const appleId = process.env.APPLE_ID;
+const appleIdPassword = process.env.APPLE_APP_SPECIFIC_PASSWORD;
+const appleTeamId = process.env.APPLE_TEAM_ID;
+const appleApiKey = process.env.APPLE_API_KEY;
+const appleApiKeyId = process.env.APPLE_API_KEY_ID;
+const appleApiIssuer = process.env.APPLE_API_ISSUER;
+const hasAppleIdNotary = Boolean(appleId && appleIdPassword && appleTeamId);
+const hasAppleApiKeyNotary = Boolean(appleApiKey && appleApiKeyId && appleApiIssuer);
+
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
     executableName: 'Whispree',
     name: 'Whispree',
+    ...(macosSignIdentity
+      ? {
+          osxSign: {
+            identity: macosSignIdentity,
+            optionsForFile: () => ({
+              entitlements: 'build/entitlements.mac.plist',
+              hardenedRuntime: true,
+            }),
+          },
+        }
+      : {}),
+    ...((hasAppleIdNotary || hasAppleApiKeyNotary)
+      ? {
+          osxNotarize: hasAppleApiKeyNotary
+            ? {
+                appleApiKey: appleApiKey!,
+                appleApiKeyId: appleApiKeyId!,
+                appleApiIssuer: appleApiIssuer!,
+              }
+            : {
+                appleId: appleId!,
+                appleIdPassword: appleIdPassword!,
+                teamId: appleTeamId!,
+              },
+        }
+      : {}),
   },
   rebuildConfig: {},
   makers: [

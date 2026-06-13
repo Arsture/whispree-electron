@@ -36,6 +36,7 @@ describe('FileSettingsStore', () => {
       expect(persisted.recordingMode).toBe('toggle');
       expect(persistedText).not.toContain('gsk_test_123');
       expect('groqApiKey' in persisted).toBe(false);
+      await expect(store.getSecret('groq')).resolves.toBe('gsk_test_123');
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

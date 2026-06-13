@@ -176,7 +176,10 @@ export function implementationTone(status: ProviderCardSnapshot['status'] | Perm
     case 'mock':
       return 'accent';
     case 'planned':
+    case 'partial':
       return 'warning';
+    case 'implemented':
+      return 'success';
     case 'unsupported':
       return 'danger';
     case 'not-tested':
