@@ -34,6 +34,8 @@ import {
   CommandMediaPlaybackAdapter,
   CommandTextInsertionAdapter,
   ElectronGlobalShortcutAdapter,
+  FallbackHotkeyAdapter,
+  MacOSEventTapHotkeyAdapter,
   MacOSPermissionAdapter,
   MacOSScreenshotContextAdapter,
   WindowsPermissionAdapter,
@@ -42,6 +44,7 @@ import {
   type ElectronPermissionBridge,
   type ExternalUrlOpener,
   type GlobalShortcutBridge,
+  type NativeHotkeyHelperOptions,
 } from './runtime-adapters';
 
 export type RuntimePlatform = 'macos' | 'windows' | 'unknown';
@@ -64,6 +67,7 @@ export interface AdapterRuntimeDependencies {
   readonly globalShortcutBridge?: GlobalShortcutBridge;
   readonly clipboardBridge?: ClipboardBridge;
   readonly commandRunner?: CommandRunner;
+  readonly nativeHotkeyHelper?: NativeHotkeyHelperOptions;
 }
 
 const permissionLabels: Record<PermissionKind, { readonly label: string; readonly detail: string }> = {
@@ -132,9 +136,7 @@ function createMacOSAdapterSet(dependencies: AdapterRuntimeDependencies): Adapte
   return {
     platform: 'macos',
     permission,
-    hotkey: dependencies.globalShortcutBridge
-      ? new ElectronGlobalShortcutAdapter(dependencies.globalShortcutBridge, 'macos')
-      : new PlannedHotkeyAdapter('macos', 'planned', 'Future Electron/globalShortcut or event-tap bridge; conflict UX preserved from Swift.'),
+    hotkey: createMacOSHotkeyAdapter(dependencies),
     audio: new PlannedAudioCaptureAdapter('macos', 'partial', 'Renderer MediaRecorder captures real microphone bytes; native AVAudioEngine helper remains future work.'),
     mediaPlayback: new CommandMediaPlaybackAdapter('macos', runner),
     textInsertion: dependencies.clipboardBridge
@@ -144,6 +146,16 @@ function createMacOSAdapterSet(dependencies: AdapterRuntimeDependencies): Adapte
     browserContext: new AppleScriptBrowserContextAdapter(runner),
     terminalContext: new AppleScriptTerminalContextAdapter(runner),
   };
+}
+
+
+function createMacOSHotkeyAdapter(dependencies: AdapterRuntimeDependencies): HotkeyAdapter {
+  const electron = dependencies.globalShortcutBridge
+    ? new ElectronGlobalShortcutAdapter(dependencies.globalShortcutBridge, 'macos')
+    : new PlannedHotkeyAdapter('macos', 'planned', 'Future Electron/globalShortcut or event-tap bridge; conflict UX preserved from Swift.');
+  if (!dependencies.nativeHotkeyHelper) return electron;
+  const eventTap = new MacOSEventTapHotkeyAdapter(dependencies.nativeHotkeyHelper);
+  return dependencies.globalShortcutBridge ? new FallbackHotkeyAdapter(eventTap, electron) : eventTap;
 }
 
 function createWindowsAdapterSet(dependencies: AdapterRuntimeDependencies): AdapterSet {

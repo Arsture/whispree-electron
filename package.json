@@ -26,7 +26,10 @@
     "test:parity-script": "node scripts/capture-visual-parity.test.mjs",
     "test:signing-preflight": "node scripts/signing-preflight.test.mjs",
     "smoke:packaged-app": "node scripts/smoke-packaged-app.mjs",
-    "tabs:capture": "node scripts/capture-packaged-tabs.mjs"
+    "tabs:capture": "node scripts/capture-packaged-tabs.mjs",
+    "build:macos-hotkey-helper": "node scripts/build-macos-hotkey-helper.mjs",
+    "prepackage": "npm run build:macos-hotkey-helper",
+    "premake": "npm run build:macos-hotkey-helper"
   },
   "dependencies": {
     "electron-squirrel-startup": "1.0.1",

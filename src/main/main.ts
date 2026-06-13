@@ -1,5 +1,6 @@
 import { app, BrowserWindow, Menu, Tray, clipboard, globalShortcut, ipcMain, nativeImage, shell, systemPreferences } from 'electron';
 import path from 'node:path';
+import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { IPC_CHANNELS, type RecordingHotkeyCommand } from '../shared/ipc';
 import { resolveScreenshotCapturePath } from './screenshot-capture';
@@ -292,8 +293,21 @@ function getAdapterSet(): AdapterSet {
     externalUrlOpener: shell,
     globalShortcutBridge: globalShortcut,
     clipboardBridge: clipboard,
+    nativeHotkeyHelper: macOSNativeHotkeyHelperOptions(),
   });
   return adapterSet;
+}
+
+
+function macOSNativeHotkeyHelperOptions(): { readonly command: string; readonly args?: readonly string[] } | undefined {
+  if (process.platform !== 'darwin') return undefined;
+  const explicit = process.env.WHISPREE_MACOS_HOTKEY_HELPER;
+  if (explicit && existsSync(explicit)) return { command: explicit };
+  const packaged = path.join(process.resourcesPath, 'whispree-hotkey-helper');
+  if (app.isPackaged && existsSync(packaged)) return { command: packaged };
+  const devBuild = path.resolve(app.getAppPath(), 'build/macos-hotkey-helper/whispree-hotkey-helper');
+  if (!app.isPackaged && existsSync(devBuild)) return { command: devBuild };
+  return undefined;
 }
 
 async function initializeMainState(): Promise<void> {

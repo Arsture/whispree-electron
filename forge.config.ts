@@ -1,4 +1,5 @@
 import type { ForgeConfig } from '@electron-forge/shared-types';
+import { existsSync } from 'node:fs';
 import { MakerDeb } from '@electron-forge/maker-deb';
 import { MakerRpm } from '@electron-forge/maker-rpm';
 import { MakerSquirrel } from '@electron-forge/maker-squirrel';
@@ -17,6 +18,7 @@ const appleApiKeyId = process.env.APPLE_API_KEY_ID;
 const appleApiIssuer = process.env.APPLE_API_ISSUER;
 const hasAppleIdNotary = Boolean(appleId && appleIdPassword && appleTeamId);
 const hasAppleApiKeyNotary = Boolean(appleApiKey && appleApiKeyId && appleApiIssuer);
+const macosHotkeyHelper = 'build/macos-hotkey-helper/whispree-hotkey-helper';
 const windowsCertificateFile = process.env.WINDOWS_CERTIFICATE_FILE;
 const windowsCertificatePassword = process.env.WINDOWS_CERTIFICATE_PASSWORD;
 const hasWindowsPfxSigning = Boolean(windowsCertificateFile && windowsCertificatePassword);
@@ -26,6 +28,7 @@ const config: ForgeConfig = {
     asar: true,
     executableName: 'Whispree',
     name: 'Whispree',
+    extraResource: existsSync(macosHotkeyHelper) ? [macosHotkeyHelper] : [],
     ...(macosSignIdentity
       ? {
           osxSign: {

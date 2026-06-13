@@ -1,5 +1,6 @@
+import { EventEmitter } from 'node:events';
 import { describe, expect, it, vi } from 'vitest';
-import { CommandMediaPlaybackAdapter, CommandTextInsertionAdapter, ElectronGlobalShortcutAdapter, MacOSPermissionAdapter, WindowsPermissionAdapter, shortcutLabelToAccelerator } from './runtime-adapters';
+import { CommandMediaPlaybackAdapter, CommandTextInsertionAdapter, ElectronGlobalShortcutAdapter, FallbackHotkeyAdapter, MacOSEventTapHotkeyAdapter, MacOSPermissionAdapter, WindowsPermissionAdapter, shortcutLabelToAccelerator, type NativeHotkeyHelperProcess } from './runtime-adapters';
 
 describe('runtime adapters', () => {
   it('maps Swift shortcut labels to Electron accelerators', () => {
@@ -20,6 +21,52 @@ describe('runtime adapters', () => {
 
     const failing = new ElectronGlobalShortcutAdapter({ register: () => false, unregister: () => undefined }, 'macos');
     await expect(failing.register('⌃⇧R', () => undefined)).rejects.toThrow('Unable to register global shortcut');
+  });
+
+
+  it('uses a macOS event-tap helper for key-down and key-up callbacks', async () => {
+    const helper = fakeNativeHotkeyProcess();
+    const adapter = new MacOSEventTapHotkeyAdapter({
+      command: '/tmp/whispree-hotkey-helper',
+      readyTimeoutMs: 50,
+      launch: vi.fn(() => helper.process),
+    });
+    const pressed = vi.fn();
+    const released = vi.fn();
+    const registration = adapter.register('⌃⇧R', pressed, released);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    helper.stdout.emit('data', '{"type":"ready"}\n');
+    await registration;
+    helper.stdout.emit('data', '{"type":"pressed"}\n{"type":"released"}\n');
+
+    expect(adapter.supportsKeyRelease).toBe(true);
+    expect(pressed).toHaveBeenCalledTimes(1);
+    expect(released).toHaveBeenCalledTimes(1);
+    await adapter.unregister('⌃⇧R');
+    expect(helper.kill).toHaveBeenCalledWith('SIGTERM');
+  });
+
+  it('falls back to Electron globalShortcut when the event-tap helper is not ready', async () => {
+    const helper = fakeNativeHotkeyProcess();
+    const globalRegister = vi.fn((_shortcut: string, callback: () => void) => {
+      callback();
+      return true;
+    });
+    const fallback = new ElectronGlobalShortcutAdapter({ register: globalRegister, unregister: vi.fn() }, 'macos');
+    const adapter = new FallbackHotkeyAdapter(
+      new MacOSEventTapHotkeyAdapter({ command: '/tmp/missing-helper', readyTimeoutMs: 1, launch: vi.fn(() => helper.process) }),
+      fallback,
+    );
+    const pressed = vi.fn();
+    const released = vi.fn();
+
+    await adapter.register('⌃⇧R', pressed, released);
+
+    expect(adapter.supportsKeyRelease).toBe(false);
+    expect(globalRegister).toHaveBeenCalledWith('Control+Shift+R', expect.any(Function));
+    expect(pressed).toHaveBeenCalledTimes(1);
+    expect(released).not.toHaveBeenCalled();
   });
 
   it('queries and requests macOS microphone/accessibility permissions through injected Electron bridge', async () => {
@@ -94,3 +141,27 @@ describe('runtime adapters', () => {
     expect(commands[1]).toContain('Spotify');
   });
 });
+
+
+function fakeNativeHotkeyProcess(): {
+  readonly stdout: EventEmitter;
+  readonly stderr: EventEmitter;
+  readonly kill: ReturnType<typeof vi.fn>;
+  readonly process: NativeHotkeyHelperProcess;
+} {
+  const stdout = new EventEmitter();
+  const stderr = new EventEmitter();
+  const lifecycle = new EventEmitter();
+  const kill = vi.fn();
+  return {
+    stdout,
+    stderr,
+    kill,
+    process: {
+      stdout,
+      stderr,
+      on: (event, listener) => lifecycle.on(event, listener),
+      kill,
+    },
+  };
+}

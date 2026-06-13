@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process';
 import type {
   AdapterDescriptor,
   AdapterPlatform,
@@ -25,6 +26,22 @@ export interface ExternalUrlOpener {
 export interface GlobalShortcutBridge {
   register(shortcut: string, callback: () => void): boolean;
   unregister(shortcut: string): void;
+}
+
+export interface NativeHotkeyHelperProcess {
+  readonly stdout: { on(event: 'data', listener: (chunk: Buffer | string) => void): unknown };
+  readonly stderr?: { on(event: 'data', listener: (chunk: Buffer | string) => void): unknown };
+  on(event: 'exit' | 'error', listener: (...args: readonly unknown[]) => void): unknown;
+  kill(signal?: NodeJS.Signals | number): unknown;
+}
+
+export type NativeHotkeyHelperLauncher = (command: string, args: readonly string[]) => NativeHotkeyHelperProcess;
+
+export interface NativeHotkeyHelperOptions {
+  readonly command: string;
+  readonly args?: readonly string[];
+  readonly launch?: NativeHotkeyHelperLauncher;
+  readonly readyTimeoutMs?: number;
 }
 
 export interface ClipboardBridge {
@@ -142,6 +159,144 @@ export class ElectronGlobalShortcutAdapter implements HotkeyAdapter {
   async unregister(shortcut: string): Promise<void> {
     this.bridge.unregister(shortcutLabelToAccelerator(shortcut));
   }
+}
+
+
+export class FallbackHotkeyAdapter implements HotkeyAdapter {
+  readonly descriptor: AdapterDescriptor;
+  readonly #primary: HotkeyAdapter;
+  readonly #fallback: HotkeyAdapter;
+  #active: HotkeyAdapter | null = null;
+
+  constructor(primary: HotkeyAdapter, fallback: HotkeyAdapter) {
+    this.#primary = primary;
+    this.#fallback = fallback;
+    this.descriptor = descriptor(
+      `${primary.descriptor.id}-with-fallback`,
+      `${primary.descriptor.label} with ${fallback.descriptor.label} fallback`,
+      primary.descriptor.platform,
+      primary.descriptor.status,
+      `${primary.descriptor.detail} Falls back to ${fallback.descriptor.label} when the native helper is unavailable.`,
+    );
+  }
+
+  get supportsKeyRelease(): boolean {
+    return this.#active?.supportsKeyRelease === true;
+  }
+
+  async register(shortcut: string, pressed: () => void, released?: () => void): Promise<void> {
+    try {
+      await this.#primary.register(shortcut, pressed, released);
+      this.#active = this.#primary;
+    } catch {
+      await this.#fallback.register(shortcut, pressed, released);
+      this.#active = this.#fallback;
+    }
+  }
+
+  async unregister(shortcut: string): Promise<void> {
+    await Promise.allSettled([this.#primary.unregister(shortcut), this.#fallback.unregister(shortcut)]);
+    this.#active = null;
+  }
+}
+
+export class MacOSEventTapHotkeyAdapter implements HotkeyAdapter {
+  readonly descriptor = descriptor(
+    'macos-event-tap-hotkey',
+    'macOS CGEventTap hotkey adapter',
+    'macos',
+    'partial',
+    'Uses a native CGEventTap helper process to emit key-down/key-up events before falling back to Electron globalShortcut.',
+  );
+  readonly supportsKeyRelease = true;
+  readonly #command: string;
+  readonly #args: readonly string[];
+  readonly #launch: NativeHotkeyHelperLauncher;
+  readonly #readyTimeoutMs: number;
+  readonly #helpers = new Map<string, NativeHotkeyHelperProcess>();
+
+  constructor(options: NativeHotkeyHelperOptions) {
+    this.#command = options.command;
+    this.#args = options.args ?? [];
+    this.#launch = options.launch ?? defaultNativeHotkeyHelperLauncher;
+    this.#readyTimeoutMs = options.readyTimeoutMs ?? 1200;
+  }
+
+  async register(shortcut: string, pressed: () => void, released?: () => void): Promise<void> {
+    await this.unregister(shortcut);
+    const helper = this.#launch(this.#command, [...this.#args, '--shortcut', shortcut]);
+    let buffer = '';
+    const ready = await new Promise<boolean>((resolve) => {
+      let settled = false;
+      const settle = (value: boolean) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(value);
+      };
+      const timer = setTimeout(() => settle(false), this.#readyTimeoutMs);
+      helper.stdout.on('data', (chunk) => {
+        buffer += String(chunk);
+        const lines = buffer.split(/\r?\n/u);
+        buffer = lines.pop() ?? '';
+        for (const line of lines) {
+          const event = parseNativeHotkeyEvent(line);
+          if (event === 'ready') settle(true);
+          else if (event === 'error') settle(false);
+          else this.#dispatchEvent(event, pressed, released);
+        }
+      });
+      helper.on('exit', () => settle(false));
+      helper.on('error', () => settle(false));
+    });
+
+    if (!ready) {
+      helper.kill('SIGTERM');
+      throw new Error(`macOS event-tap helper did not become ready for shortcut ${shortcut}.`);
+    }
+
+    this.#helpers.set(shortcut, helper);
+    helper.on('exit', () => {
+      if (this.#helpers.get(shortcut) === helper) this.#helpers.delete(shortcut);
+    });
+    helper.on('error', () => {
+      if (this.#helpers.get(shortcut) === helper) this.#helpers.delete(shortcut);
+    });
+  }
+
+  async unregister(shortcut: string): Promise<void> {
+    const helper = this.#helpers.get(shortcut);
+    if (!helper) return;
+    this.#helpers.delete(shortcut);
+    helper.kill('SIGTERM');
+  }
+
+  #dispatchEvent(event: NativeHotkeyHelperEvent, pressed: () => void, released?: () => void): void {
+    if (event === 'pressed') pressed();
+    if (event === 'released') released?.();
+  }
+}
+
+type NativeHotkeyHelperEvent = 'ready' | 'pressed' | 'released' | 'error' | null;
+
+function defaultNativeHotkeyHelperLauncher(command: string, args: readonly string[]): NativeHotkeyHelperProcess {
+  return spawn(command, [...args], { stdio: ['ignore', 'pipe', 'pipe'] });
+}
+
+function parseNativeHotkeyEvent(line: string): NativeHotkeyHelperEvent {
+  const trimmed = line.trim();
+  if (!trimmed) return null;
+  if (trimmed === 'ready' || trimmed === 'pressed' || trimmed === 'released' || trimmed === 'error') return trimmed;
+  try {
+    const payload = JSON.parse(trimmed) as unknown;
+    if (typeof payload === 'object' && payload !== null && 'type' in payload) {
+      const type = (payload as { readonly type?: unknown }).type;
+      if (type === 'ready' || type === 'pressed' || type === 'released' || type === 'error') return type;
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 export class CommandTextInsertionAdapter implements TextInsertionAdapter {
