@@ -13,7 +13,7 @@ const sourceRoots = [
       /(^|\/)src\/main(\/|$)/,
       /(^|\/)src\/renderer(\/|$)/,
       /(^|\/)src\/preload(\/|$)/,
-      /(^|\/)adapters?(\/|$)/,
+      /(^|\/)src\/adapters?(\/|$)/,
     ],
   },
   {
@@ -25,7 +25,7 @@ const sourceRoots = [
       /^(fs|path|os|child_process|worker_threads)$/,
       /(^|\/)src\/main(\/|$)/,
       /(^|\/)src\/preload(\/|$)/,
-      /(^|\/)adapters?(\/|$)/,
+      /(^|\/)src\/adapters?(\/|$)/,
     ],
   },
 ];
