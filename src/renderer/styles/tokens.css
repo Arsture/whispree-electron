@@ -16,7 +16,7 @@
   --whispree-radius-xxl: 30px;
 
   --whispree-accent: var(--accent, #0a84ff);
-  --whispree-success: #34ab7d;
+  --whispree-success: #33ab7d;
   --whispree-warning: #d69938;
   --whispree-danger: #d46475;
   --whispree-neutral: var(--text-secondary, rgba(45, 52, 66, 0.64));
@@ -56,8 +56,8 @@
   --tone-accent-background: color-mix(in srgb, var(--whispree-accent) 14%, transparent);
   --tone-accent-border: color-mix(in srgb, var(--whispree-accent) 22%, transparent);
   --tone-success-foreground: var(--whispree-success);
-  --tone-success-background: rgba(52, 171, 125, 0.14);
-  --tone-success-border: rgba(52, 171, 125, 0.22);
+  --tone-success-background: rgba(51, 171, 125, 0.14);
+  --tone-success-border: rgba(51, 171, 125, 0.22);
   --tone-warning-foreground: var(--whispree-warning);
   --tone-warning-background: rgba(214, 153, 56, 0.14);
   --tone-warning-border: rgba(214, 153, 56, 0.22);

@@ -111,11 +111,17 @@ async function captureAndQuit(outputPath: string): Promise<void> {
 
 function createMainWindow(): void {
   mainWindow = new BrowserWindow({
-    width: 1120,
-    height: 760,
-    minWidth: 900,
+    width: 880,
+    height: 640,
+    minWidth: 880,
     minHeight: 640,
-    title: 'Whispree Electron',
+    title: 'Whispree',
+    ...(process.platform === 'darwin'
+      ? {
+          titleBarStyle: 'hiddenInset' as const,
+          trafficLightPosition: { x: 14, y: 14 },
+        }
+      : {}),
     webPreferences: {
       preload: path.join(dirname, 'preload.js'),
       contextIsolation: true,

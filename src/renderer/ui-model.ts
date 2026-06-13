@@ -148,14 +148,13 @@ export function statusTitle(snapshot: AppSnapshot): string {
   if ((snapshot.queue.processingCount ?? 0) > 0) {
     return snapshot.recording.mode === 'real' ? 'Processing microphone dictation queue' : 'Processing dictation queue';
   }
-  if (snapshot.history.length > 0) return 'Ready — latest dictation delivered';
   return 'Ready — press hotkey to record';
 }
 
 export function statusTone(snapshot: AppSnapshot): BadgeTone {
   if (snapshot.recording.active) return 'danger';
   if (snapshot.appStatus === 'processing' || snapshot.queue.processingCount > 0) return 'warning';
-  if (snapshot.history.length > 0) return 'success';
+  if (snapshot.appStatus === 'ready') return 'success';
   return 'neutral';
 }
 

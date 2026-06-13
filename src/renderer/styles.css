@@ -31,7 +31,7 @@
   --text-secondary: rgba(45, 52, 66, 0.64);
   --text-tertiary: rgba(45, 52, 66, 0.42);
   --accent: #0a84ff;
-  --success: #34ab7d;
+  --success: #33ab7d;
   --warning: #d69938;
   --danger: #d46475;
   --orange: #f59f3a;
@@ -326,7 +326,7 @@ h2 {
 }
 
 .status-pill[data-tone="accent"] { color: var(--accent); background: rgba(10, 132, 255, 0.10); }
-.status-pill[data-tone="success"] { color: var(--success); background: rgba(52, 171, 125, 0.11); }
+.status-pill[data-tone="success"] { color: var(--success); background: rgba(51, 171, 125, 0.11); }
 .status-pill[data-tone="warning"] { color: var(--warning); background: rgba(214, 153, 56, 0.12); }
 .status-pill[data-tone="danger"] { color: var(--danger); background: rgba(212, 100, 117, 0.12); }
 .status-pill[data-tone="neutral"] { color: var(--text-secondary); background: rgba(30, 35, 45, 0.05); }
@@ -365,7 +365,7 @@ h2 {
 .recording-icon[data-tone="warning"],
 .overlay-icon[data-tone="warning"] { color: var(--warning); background: rgba(214, 153, 56, 0.12); }
 .recording-icon[data-tone="success"],
-.overlay-icon[data-tone="success"] { color: var(--success); background: rgba(52, 171, 125, 0.11); }
+.overlay-icon[data-tone="success"] { color: var(--success); background: rgba(51, 171, 125, 0.11); }
 .recording-icon[data-tone="neutral"],
 .overlay-icon[data-tone="neutral"] { color: var(--text-tertiary); background: var(--surface-inset); }
 

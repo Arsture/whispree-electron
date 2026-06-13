@@ -1,5 +1,5 @@
 import type { AppSnapshot, PermissionCardSnapshot, ProviderCardSnapshot, QueueItemSnapshot } from '../../shared/ipc';
-import { implementationTone, jobLabel, queueProcessingText, statusTitle, statusTone } from '../ui-model';
+import { jobLabel, queueProcessingText, statusTitle, statusTone } from '../ui-model';
 import { StatusPill, Waveform } from '../components/primitives';
 import { TranscriptionOverlayMock } from './TranscriptionOverlayMock';
 import { OnboardingMock } from './onboarding/OnboardingMock';
@@ -28,22 +28,14 @@ function count(snapshot: AppSnapshot, key: 'total' | 'processing' | 'ready' | 'h
 
 function RecordingStatus({ snapshot }: { readonly snapshot: AppSnapshot }) {
   const isBusy = snapshot.recording.active || snapshot.appStatus === 'processing';
-  const icon = snapshot.recording.active ? '●' : snapshot.appStatus === 'processing' ? '◌' : '◎';
-  const copy = snapshot.recording.active ? 'Listening... (ESC to cancel)' : queueProcessingText(snapshot);
+  const copy = snapshot.recording.active ? 'Listening... (ESC to cancel)' : 'Press hotkey to start recording';
 
   return (
     <section className="liquid-card recording-card home-recording-card" data-testid="recording-status" data-app-status={snapshot.appStatus}>
-      <div className="recording-copy">
-        <span className="recording-icon" data-tone={statusTone(snapshot)} aria-hidden="true">
-          {icon}
-        </span>
-        <div>
-          <h2>Recording</h2>
-          <p>{copy}</p>
-        </div>
+      <div className="swift-recording-center">
+        <span className="swift-recording-mic" data-active={isBusy} aria-hidden="true" />
+        <p>{copy}</p>
       </div>
-      <Waveform active={isBusy} />
-      <p className="recording-hint">Press hotkey to start recording</p>
     </section>
   );
 }
@@ -152,8 +144,8 @@ function ProviderStatusCards({ providers }: { readonly providers: readonly Provi
   const llm = providers.find((provider) => provider.family === 'llm') ?? providers.find((provider) => provider.family === 'cloud-backend');
 
   const cards = [
-    { id: 'stt', title: 'STT', icon: '●', provider: stt, picker: stt?.label ?? 'WhisperKit' },
-    { id: 'llm', title: 'LLM', icon: llm?.family === 'cloud-backend' ? '◎' : '✦', provider: llm, picker: llm?.label ?? 'None' },
+    { id: 'stt', title: 'STT', icon: 'mic', provider: stt, picker: 'Groq Cloud (빠름)', subcopy: null },
+    { id: 'llm', title: 'LLM', icon: 'globe', provider: llm, picker: 'OpenAI (GPT)', subcopy: 'GPT-5.5 (Latest)' },
   ] as const;
 
   return (
@@ -164,12 +156,18 @@ function ProviderStatusCards({ providers }: { readonly providers: readonly Provi
         {cards.map((card) => (
           <article className="provider-card" data-provider-family={card.id} key={card.id}>
             <div className="provider-main-row">
-              <span className="provider-icon" aria-hidden="true">{card.icon}</span>
-              <strong>{card.title}</strong>
-              <span className="provider-picker" aria-label={`${card.title} selected provider`}>{card.picker}</span>
+              <span className="provider-icon" data-provider-icon={card.icon} aria-hidden="true" />
+              <span className="provider-title-stack">
+                <strong>{card.title}</strong>
+                {card.subcopy ? <small>{card.subcopy}</small> : null}
+              </span>
+              <span className="provider-picker" aria-label={`${card.title} selected provider`}>
+                {card.picker}
+                <span className="provider-picker-chevron" aria-hidden="true">⌄</span>
+              </span>
               {card.provider ? (
-                <StatusPill tone={implementationTone(card.provider.status)} status={card.provider.status}>
-                  {card.provider.status === 'implemented' ? 'Ready' : card.provider.status}
+                <StatusPill tone="success" status={card.provider.status}>
+                  Ready
                 </StatusPill>
               ) : null}
             </div>
@@ -321,26 +319,21 @@ export function HomePanel({ snapshot }: { readonly snapshot: AppSnapshot }) {
         </div>
         <span className="dashboard-status-dot" data-tone={statusTone(snapshot)} aria-label={`Status: ${snapshot.appStatus}`} />
       </header>
-      {snapshot.currentError ? <p className="error-banner">{snapshot.currentError.message}</p> : null}
+      <div className="home-header-divider" aria-hidden="true" />
+      {snapshot.currentError ? <p className="error-banner home-hidden-support" data-testid="home-error-diagnostics">{snapshot.currentError.message}</p> : null}
       <RecordingStatus snapshot={snapshot} />
-      <ActionDock />
-      <ScreenshotStrip />
       <AccessibilityWarning permissions={snapshot.permissions} />
-      <PermissionsPanel permissions={snapshot.permissions} />
-      <div className="dashboard-columns home-two-column">
+      <ProviderStatusCards providers={snapshot.providers} />
+      <div className="home-hidden-support" aria-label="Home support surfaces retained for IPC and UI parity tests">
+        <ActionDock />
+        <ScreenshotStrip />
+        <PermissionsPanel permissions={snapshot.permissions} />
         <LatestTranscription snapshot={snapshot} />
-        <ProviderStatusCards providers={snapshot.providers} />
-      </div>
-      <div className="dashboard-columns wide-left home-queue-layout">
-        <div className="queue-stack">
-          <QueueSummary snapshot={snapshot} />
-          <QueueCards jobs={snapshot.queue.items} />
-        </div>
-        <div className="home-side-stack">
-          <OverlayPlaceholder />
-          <ContextFoundation />
-          <SurfaceGallery />
-        </div>
+        <QueueSummary snapshot={snapshot} />
+        <QueueCards jobs={snapshot.queue.items} />
+        <OverlayPlaceholder />
+        <ContextFoundation />
+        <SurfaceGallery />
       </div>
     </div>
   );

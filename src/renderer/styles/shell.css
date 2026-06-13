@@ -74,7 +74,7 @@
 }
 
 .app-shell[data-view="whispree-shell"] .sidebar-tab:hover:not([data-selected="true"]) {
-  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
 }
 
 .app-shell[data-view="whispree-shell"] .sidebar-tab[data-selected="true"] {

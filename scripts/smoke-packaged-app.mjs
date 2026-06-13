@@ -42,7 +42,7 @@ rmSync(userDataDir, { force: true, recursive: true });
 mkdirSync(userDataDir, { recursive: true });
 
 const startedAt = new Date();
-const result = spawnSync(executable, ['--use-mock-keychain'], {
+const result = spawnSync(executable, ['--use-mock-keychain', `--user-data-dir=${userDataDir}`], {
   cwd: repoRoot,
   env: {
     ...process.env,
