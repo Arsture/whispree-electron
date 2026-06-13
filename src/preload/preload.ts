@@ -75,7 +75,7 @@ const whispreeApi: WhispreeAPI = {
     }
   },
   cancelForegroundJob: () =>
-    ipcRenderer.invoke(IPC_CHANNELS.cancelForegroundJob) as ReturnType<WhispreeAPI['cancelForegroundJob']>,
+    cancelForegroundRecording(),
   openSettings: () => ipcRenderer.invoke(IPC_CHANNELS.openSettings) as ReturnType<WhispreeAPI['openSettings']>,
   requestPermission: (kind: PermissionKind) =>
     ipcRenderer.invoke(IPC_CHANNELS.requestPermission, kind) as ReturnType<WhispreeAPI['requestPermission']>,
@@ -113,6 +113,17 @@ function stopActiveMediaTracks(): void {
   });
   activeStream = null;
   activeChunks = [];
+}
+
+function cancelForegroundRecording(): ReturnType<WhispreeAPI['cancelForegroundJob']> {
+  if (activeRecorder) {
+    activeRecorder.ondataavailable = null;
+    activeRecorder.onstop = null;
+    if (activeRecorder.state !== 'inactive') activeRecorder.stop();
+    activeRecorder = null;
+  }
+  stopActiveMediaTracks();
+  return ipcRenderer.invoke(IPC_CHANNELS.cancelForegroundJob) as ReturnType<WhispreeAPI['cancelForegroundJob']>;
 }
 
 async function localCommandError(

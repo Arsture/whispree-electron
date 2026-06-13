@@ -22,7 +22,7 @@ const swiftApp = swiftCandidates.find((candidate) => existsSync(candidate));
 
 if (!dryRun) {
   await captureElectron();
-  if (swiftApp && process.platform === 'darwin') await captureSwift().catch(() => undefined);
+  if (swiftApp && process.platform === 'darwin') await captureSwift(swiftApp).catch(() => undefined);
 }
 
 const electronExists = existsSync(electronShot);
@@ -58,8 +58,8 @@ async function captureElectron() {
   });
 }
 
-async function captureSwift() {
-  await exec('open', ['-a', 'Whispree']);
+async function captureSwift(appPath) {
+  await exec('open', [appPath]);
   await exec('osascript', ['-e', 'tell application "Whispree" to activate']).catch(() => undefined);
   await new Promise((resolvePromise) => setTimeout(resolvePromise, 1800));
   const bounds = await execOutput('osascript', ['-e', 'tell application "System Events" to tell process "Whispree" to get {position, size} of front window']);
