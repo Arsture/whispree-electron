@@ -65,7 +65,7 @@ jobs:
         run: npm run verify
 
       - name: Signing and notarization preflight
-        run: npm run signing:preflight
+        run: npm run signing:preflight:release
 
       - name: Runtime readiness probe
         run: npm run probe:real

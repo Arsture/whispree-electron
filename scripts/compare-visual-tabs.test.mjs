@@ -2,7 +2,7 @@
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { deflateSync } from 'node:zlib';
 
 const root = process.cwd();
@@ -15,13 +15,13 @@ for (const tab of tabs) {
   const swift = tab === 'home'
     ? resolve(tempRoot, 'home/swift-home.png')
     : resolve(tempRoot, `tab-pairwise-corrected/${tab}-swift-content.png`);
-  writeTinyPng(electron, tab.length * 7);
-  writeTinyPng(swift, tab.length * 7);
+  writeSolidPng(electron, 2, 2, tab.length * 7);
+  writeSolidPng(swift, 2, 2, tab.length * 7);
 }
 const output = execFileSync('node', ['scripts/compare-visual-tabs.mjs'], {
   cwd: root,
   encoding: 'utf8',
-  env: { ...process.env, WHISPREE_VISUAL_PARITY_ROOT: tempRoot },
+  env: { ...process.env, WHISPREE_VISUAL_PARITY_ROOT: tempRoot, WHISPREE_VISUAL_DIFF_MIN_DIMENSIONS: '2x2' },
 });
 const parsed = JSON.parse(output);
 if (parsed.ok !== true || parsed.status !== 'pass' || parsed.comparedTabs !== tabs.length) {
@@ -31,15 +31,71 @@ const artifact = JSON.parse(readFileSync(resolve(tempRoot, 'diff/visual-parity-v
 if (artifact.results.some((result) => result.metrics.mae !== 0 || result.status !== 'pass')) {
   throw new Error('Identical generated PNGs should produce zero-diff pass results');
 }
+
+const mismatchRoot = mkdtempSync(resolve(tmpdir(), 'whispree-visual-diff-mismatch-'));
+for (const tab of tabs) {
+  const electron = tab === 'home'
+    ? resolve(mismatchRoot, 'home/electron-home.png')
+    : resolve(mismatchRoot, `tabs/${tab}/${tab}.png`);
+  const swift = tab === 'home'
+    ? resolve(mismatchRoot, 'home/swift-home.png')
+    : resolve(mismatchRoot, `tab-pairwise-corrected/${tab}-swift-content.png`);
+  writeSolidPng(electron, 2, 2, tab.length * 7);
+  writeSolidPng(swift, 1, 1, tab.length * 7);
+}
+const mismatch = spawnSync('node', ['scripts/compare-visual-tabs.mjs'], {
+  cwd: root,
+  encoding: 'utf8',
+  env: { ...process.env, WHISPREE_VISUAL_PARITY_ROOT: mismatchRoot, WHISPREE_VISUAL_DIFF_MIN_DIMENSIONS: '2x2' },
+});
+if (mismatch.status === 0) throw new Error('Dimension-mismatched visual diff fixtures must fail');
+const mismatchOutput = JSON.parse(mismatch.stdout);
+if (mismatchOutput.ok !== false || mismatchOutput.status !== 'fail') {
+  throw new Error(`Expected failing visual diff verdict for dimension mismatch: ${mismatch.stdout}`);
+}
+if (!mismatchOutput.blockers.some((blocker) => blocker.includes('comparison-dimensions-too-small'))) {
+  throw new Error(`Expected dimension-too-small blocker: ${mismatch.stdout}`);
+}
+
+const homeMismatchRoot = mkdtempSync(resolve(tmpdir(), 'whispree-visual-diff-home-mismatch-'));
+for (const tab of tabs) {
+  const electron = tab === 'home'
+    ? resolve(homeMismatchRoot, 'home/electron-home.png')
+    : resolve(homeMismatchRoot, `tabs/${tab}/${tab}.png`);
+  const swift = tab === 'home'
+    ? resolve(homeMismatchRoot, 'home/swift-home.png')
+    : resolve(homeMismatchRoot, `tab-pairwise-corrected/${tab}-swift-content.png`);
+  if (tab === 'home') {
+    writeSolidPng(electron, 1200, 900, 24);
+    writeSolidPng(swift, 1200, 1000, 24);
+  } else {
+    writeSolidPng(electron, 2, 2, tab.length * 7);
+    writeSolidPng(swift, 2, 2, tab.length * 7);
+  }
+}
+const homeMismatch = spawnSync('node', ['scripts/compare-visual-tabs.mjs'], {
+  cwd: root,
+  encoding: 'utf8',
+  env: { ...process.env, WHISPREE_VISUAL_PARITY_ROOT: homeMismatchRoot, WHISPREE_VISUAL_DIFF_MIN_DIMENSIONS: '2x2' },
+});
+if (homeMismatch.status === 0) throw new Error('Home aspect-mismatched visual diff fixture must fail');
+const homeMismatchOutput = JSON.parse(homeMismatch.stdout);
+if (!homeMismatchOutput.blockers.includes('home:aspect-ratio-mismatch')) {
+  throw new Error(`Expected home aspect-ratio-mismatch blocker: ${homeMismatch.stdout}`);
+}
+
 console.log('Automated visual tab diff guard passed.');
 
-function writeTinyPng(file, seed) {
+function writeSolidPng(file, width, height, seed) {
   mkdirSync(dirname(file), { recursive: true });
-  const rgba = Buffer.from([
-    seed, 20, 40, 255, seed, 20, 40, 255,
-    seed, 20, 40, 255, seed, 20, 40, 255,
-  ]);
-  writeFileSync(file, encodePng(2, 2, rgba));
+  const rgba = Buffer.alloc(width * height * 4);
+  for (let index = 0; index < width * height; index += 1) {
+    rgba[index * 4] = seed;
+    rgba[index * 4 + 1] = 20;
+    rgba[index * 4 + 2] = 40;
+    rgba[index * 4 + 3] = 255;
+  }
+  writeFileSync(file, encodePng(width, height, rgba));
 }
 
 function encodePng(width, height, rgba) {

@@ -5,7 +5,7 @@ This repo keeps the old Swift/Sparkle workflows manual-gated and uses a separate
 ## Workflows
 
 - `.github/workflows/electron-ci.yml` runs PR/push verification on macOS and Windows.
-- `.github/workflows/electron-release.yml` is manual-gated with `confirm_electron_release` and runs `npm run verify`, `npm run signing:preflight`, `npm run probe:real`, and `npm run make` on macOS and Windows.
+- `.github/workflows/electron-release.yml` is manual-gated with `confirm_electron_release` and runs `npm run verify`, strict `npm run signing:preflight:release`, `npm run probe:real`, and `npm run make` on macOS and Windows.
 - `.github/workflows/release.yml` remains the legacy Swift release path and is not triggered by push/tag events.
 
 ## Required secrets / environment
@@ -48,6 +48,7 @@ Do not store secret values in the repo. Configure them in GitHub Secrets or a pr
 npm run check:workflows
 npm run test:signing-preflight
 npm run signing:preflight
+npm run signing:preflight:release # intentionally fails without current-host release credentials
 npm run package
 npm run make
 ```

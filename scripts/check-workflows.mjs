@@ -51,7 +51,7 @@ requireIncludes('electron-release.yml', electronRelease, [
   'macos-latest',
   'windows-latest',
   'npm run verify',
-  'npm run signing:preflight',
+  'npm run signing:preflight:release',
   'npm run probe:real',
   'npm run make',
   'actions/upload-artifact@v4',

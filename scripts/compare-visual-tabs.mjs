@@ -20,6 +20,7 @@ const thresholds = {
   'word-sets': { mae: 0.075, rms: 0.145, ratio25: 0.17, ratio50: 0.12 },
   history: { mae: 0.105, rms: 0.205, ratio25: 0.30, ratio50: 0.23 },
 };
+const minimumDimensions = minimumDimensionsFromEnv();
 
 mkdirSync(diffRoot, { recursive: true });
 const results = tabs.map(compareTab);
@@ -67,6 +68,7 @@ function compareTab(tab) {
   const width = Math.min(electronPng.width, swiftPng.width);
   const height = Math.min(electronPng.height, swiftPng.height);
   if (width <= 0 || height <= 0) blockers.push('invalid-comparison-dimensions');
+  blockers.push(...dimensionBlockers(tab, electronPng, swiftPng, width, height));
   const electronNormalized = resizeNearest(electronPng, width, height);
   const swiftNormalized = resizeNearest(swiftPng, width, height);
   const { metrics, diff } = diffImages(electronNormalized, swiftNormalized, width, height);
@@ -147,6 +149,42 @@ function diffImages(a, b, width, height) {
       ratio25: round(ratio25 / pixels),
       ratio50: round(ratio50 / pixels),
     },
+  };
+}
+
+function dimensionBlockers(tab, electron, swift, comparedWidth, comparedHeight) {
+  const blockers = [];
+  const minimum = minimumDimensions[tab] ?? minimumDimensions.default;
+  if (comparedWidth < minimum.width || comparedHeight < minimum.height) {
+    blockers.push(`comparison-dimensions-too-small:${comparedWidth}x${comparedHeight}<${minimum.width}x${minimum.height}`);
+  }
+  const tolerance = tab === 'home' ? 0.1 : 0.03;
+  const electronAspect = electron.width / electron.height;
+  const swiftAspect = swift.width / swift.height;
+  if (Math.abs(electronAspect - swiftAspect) > tolerance) blockers.push('aspect-ratio-mismatch');
+  const scaleX = electron.width / swift.width;
+  const scaleY = electron.height / swift.height;
+  if (Math.abs(scaleX - scaleY) > tolerance) blockers.push('non-uniform-scale-mismatch');
+  return blockers;
+}
+
+function minimumDimensionsFromEnv() {
+  const override = process.env.WHISPREE_VISUAL_DIFF_MIN_DIMENSIONS;
+  if (override) {
+    const match = /^(\d+)x(\d+)$/.exec(override);
+    if (!match) throw new Error(`WHISPREE_VISUAL_DIFF_MIN_DIMENSIONS must use WIDTHxHEIGHT, received ${override}`);
+    const value = { width: Number(match[1]), height: Number(match[2]) };
+    return Object.fromEntries(['default', ...tabs].map((tab) => [tab, value]));
+  }
+  return {
+    default: { width: 800, height: 600 },
+    home: { width: 1200, height: 900 },
+    general: { width: 800, height: 600 },
+    stt: { width: 800, height: 600 },
+    llm: { width: 800, height: 600 },
+    models: { width: 800, height: 600 },
+    'word-sets': { width: 800, height: 600 },
+    history: { width: 800, height: 600 },
   };
 }
 
