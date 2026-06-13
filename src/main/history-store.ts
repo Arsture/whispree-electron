@@ -2,6 +2,8 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { HistoryRecordSnapshot } from '../shared/ipc';
 
+const historyRetentionLimit = 100;
+
 export class FileHistoryStore {
   readonly #historyFile: string;
   #records: HistoryRecordSnapshot[] = [];
@@ -23,7 +25,7 @@ export class FileHistoryStore {
     try {
       const text = await readFile(this.#historyFile, 'utf8');
       const parsed = JSON.parse(text) as unknown;
-      this.#records = Array.isArray(parsed) ? parsed.filter(isHistoryRecord) : [];
+      this.#records = capHistoryRecords(Array.isArray(parsed) ? parsed.filter(isHistoryRecord) : []);
       this.#lastError = null;
     } catch (error) {
       this.#records = [];
@@ -33,7 +35,7 @@ export class FileHistoryStore {
   }
 
   async append(record: HistoryRecordSnapshot): Promise<readonly HistoryRecordSnapshot[]> {
-    this.#records = [record, ...this.#records.filter((candidate) => candidate.id !== record.id)];
+    this.#records = capHistoryRecords([record, ...this.#records.filter((candidate) => candidate.id !== record.id)]);
     await this.#persist();
     this.#lastError = null;
     return this.records;
@@ -55,6 +57,10 @@ export class FileHistoryStore {
 
 export function createHistoryStore(userDataPath: string): FileHistoryStore {
   return new FileHistoryStore(path.join(userDataPath, 'history.json'));
+}
+
+function capHistoryRecords(records: readonly HistoryRecordSnapshot[]): HistoryRecordSnapshot[] {
+  return records.slice(0, historyRetentionLimit);
 }
 
 function isHistoryRecord(value: unknown): value is HistoryRecordSnapshot {

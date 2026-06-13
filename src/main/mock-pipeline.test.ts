@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MockDictationPipeline } from './mock-pipeline';
-import { defaultAppSettings } from '../shared/settings';
-import { MockSTTProvider, type CorrectionInput, type LLMProvider } from '../shared/providers';
+import { defaultAppSettings, type AppSettingsSnapshot } from '../shared/settings';
+import { MockSTTProvider, type CorrectionInput, type LLMProvider, type STTProvider } from '../shared/providers';
 import { MockMediaPlaybackAdapter } from './adapters/mock-adapters';
 
 const immediateDelay = () => Promise.resolve();
@@ -394,6 +394,105 @@ describe('MockDictationPipeline', () => {
     expect(snapshot.queue.items[0]?.status).toBe('failed');
     expect(snapshot.queue.terminalCount).toBe(1);
     expect(snapshot.recording.active).toBe(false);
+    expect(snapshot.history).toEqual([]);
+  });
+
+  it('fails queued work if STT provider settings changed before transcription starts', async () => {
+    const resolvers: Array<() => void> = [];
+    const controlledDelay = () => new Promise<void>((resolve) => {
+      resolvers.push(resolve);
+    });
+    let settings = defaultSettingsForTest();
+    let sttCalls = 0;
+    const stt: STTProvider = {
+      descriptor: { id: 'stt', label: 'stt', family: 'stt', platform: 'cross-platform', status: 'mock', detail: 'test' },
+      transcribe: async () => {
+        sttCalls += 1;
+        return { text: 'raw', metadata: { providerId: 'stt', status: 'mock' } };
+      },
+    };
+    const llm: LLMProvider = {
+      descriptor: { id: 'llm', label: 'llm', family: 'llm', platform: 'cross-platform', status: 'mock', detail: 'test' },
+      correct: async (input) => ({
+        originalText: input.text,
+        correctedText: input.text,
+        metadata: { providerId: 'llm', status: 'mock', preservesOriginal: true },
+      }),
+    };
+    const pipeline = new MockDictationPipeline(undefined, controlledDelay, {
+      settingsProvider: () => settings,
+      providerRouter: {
+        sttProvider: () => stt,
+        llmProvider: () => llm,
+      },
+    });
+
+    pipeline.submitRecordedAudio({ bytes: new Uint8Array([1]).buffer, mimeType: 'audio/webm', durationMs: 1 });
+    await waitForResolver(resolvers);
+    settings = { ...settings, sttProviderType: 'groq' };
+    resolvers.shift()?.();
+    await pipeline.whenIdle();
+
+    const snapshot = pipeline.getSnapshot();
+    expect(sttCalls).toBe(0);
+    expect(snapshot.queue.items[0]).toMatchObject({
+      status: 'failed',
+      originalText: '',
+    });
+    expect(snapshot.currentError?.message).toBe('STT provider settings changed before transcription.');
+    expect(snapshot.history).toEqual([]);
+  });
+
+  it('fails queued work if LLM provider settings changed before correction starts', async () => {
+    const resolvers: Array<() => void> = [];
+    const controlledDelay = () => new Promise<void>((resolve) => {
+      resolvers.push(resolve);
+    });
+    let settings: AppSettingsSnapshot = { ...defaultSettingsForTest(), llmProviderType: 'mock' };
+    let sttCalls = 0;
+    let llmCalls = 0;
+    const stt: STTProvider = {
+      descriptor: { id: 'stt', label: 'stt', family: 'stt', platform: 'cross-platform', status: 'mock', detail: 'test' },
+      transcribe: async (input) => {
+        sttCalls += 1;
+        return { text: `raw-${input.sequence}`, metadata: { providerId: 'stt', status: 'mock' } };
+      },
+    };
+    const llm: LLMProvider = {
+      descriptor: { id: 'llm', label: 'llm', family: 'llm', platform: 'cross-platform', status: 'mock', detail: 'test' },
+      correct: async (input) => {
+        llmCalls += 1;
+        return {
+          originalText: input.text,
+          correctedText: `corrected ${input.text}`,
+          metadata: { providerId: 'llm', status: 'mock', preservesOriginal: true },
+        };
+      },
+    };
+    const pipeline = new MockDictationPipeline(undefined, controlledDelay, {
+      settingsProvider: () => settings,
+      providerRouter: {
+        sttProvider: () => stt,
+        llmProvider: () => llm,
+      },
+    });
+
+    pipeline.submitRecordedAudio({ bytes: new Uint8Array([1]).buffer, mimeType: 'audio/webm', durationMs: 1 });
+    await waitForResolver(resolvers);
+    resolvers.shift()?.();
+    await waitForResolver(resolvers);
+    settings = { ...settings, llmProviderType: 'groq' };
+    resolvers.shift()?.();
+    await pipeline.whenIdle();
+
+    const snapshot = pipeline.getSnapshot();
+    expect(sttCalls).toBe(1);
+    expect(llmCalls).toBe(0);
+    expect(snapshot.queue.items[0]).toMatchObject({
+      status: 'failed',
+      originalText: 'raw-1',
+    });
+    expect(snapshot.currentError?.message).toBe('LLM provider settings changed before correction.');
     expect(snapshot.history).toEqual([]);
   });
 });

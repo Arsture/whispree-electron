@@ -304,6 +304,7 @@ export class MockDictationPipeline {
       this.#emit();
 
       await this.#delay(options.sttDelayMs);
+      assertJobConfigUnchanged('STT provider settings changed before transcription.', job.snapshot.sttConfigKey, sttConfigKeyFromSettings(this.#settingsProvider()));
       const sttProvider = this.#providerRouter.sttProvider();
       const transcription = await sttProvider.transcribe({
         jobId: job.id,
@@ -316,6 +317,7 @@ export class MockDictationPipeline {
       this.#emit();
 
       await this.#delay(options.llmDelayMs);
+      assertJobConfigUnchanged('LLM provider settings changed before correction.', job.snapshot.llmConfigKey, llmConfigKeyFromSettings(this.#settingsProvider()));
       const llmProvider = this.#providerRouter.llmProvider();
       const correction = await llmProvider.correct({
         jobId: job.id,
@@ -348,6 +350,7 @@ export class MockDictationPipeline {
   }
 
   #fallbackLLMToRaw(jobId: string, error: unknown): boolean {
+    if (error instanceof ProviderSettingsChangedError) return false;
     const job = this.#queue.getJob(jobId);
     if (!job || job.status !== 'correcting') return false;
     this.#currentError = { message: `LLM correction failed; using raw transcription: ${errorMessage(error)}` };
@@ -497,6 +500,8 @@ export class MockDictationPipeline {
       ...settings.correctionMappings,
     ];
     return {
+      sttConfigKey: sttConfigKeyFromSettings(settings),
+      llmConfigKey: llmConfigKeyFromSettings(settings),
       sttProviderType: settings.sttProviderType,
       llmProviderType: settings.llmProviderType,
       llmEnabled: settings.llmEnabled,
@@ -569,4 +574,41 @@ function uniqueStable(values: readonly string[]): readonly string[] {
     output.push(normalized);
   }
   return output;
+}
+
+class ProviderSettingsChangedError extends Error {}
+
+function assertJobConfigUnchanged(message: string, expected: string, actual: string): void {
+  if (expected !== actual) throw new ProviderSettingsChangedError(message);
+}
+
+function sttConfigKeyFromSettings(settings: AppSettingsSnapshot): string {
+  return stableConfigKey([
+    settings.sttProviderType,
+    settings.whisperModelId,
+    settings.mlxAudioModelId,
+    settings.language,
+    settings.audioInputChannel,
+    settings.vadEnabled,
+    settings.groqApiKeyConfigured,
+  ]);
+}
+
+function llmConfigKeyFromSettings(settings: AppSettingsSnapshot): string {
+  return stableConfigKey([
+    settings.llmProviderType,
+    settings.llmEnabled,
+    settings.llmModelId,
+    settings.openaiModel,
+    settings.groqLLMModel,
+    settings.correctionMode,
+    settings.screenshotContextEnabled,
+    settings.screenshotPasteEnabled,
+    settings.groqApiKeyConfigured,
+    settings.customLLMPrompt ?? '',
+  ]);
+}
+
+function stableConfigKey(values: readonly (string | number | boolean)[]): string {
+  return JSON.stringify(values);
 }

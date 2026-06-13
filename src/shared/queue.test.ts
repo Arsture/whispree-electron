@@ -3,6 +3,8 @@ import { DictationQueueState, type DictationJobSnapshot } from './queue';
 
 function snapshot(overrides: Partial<DictationJobSnapshot> = {}): DictationJobSnapshot {
   return {
+    sttConfigKey: 'stt:test',
+    llmConfigKey: 'llm:test',
     sttProviderType: 'mock',
     llmProviderType: 'mock',
     llmEnabled: true,

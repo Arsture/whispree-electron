@@ -31,6 +31,8 @@ const DELIVERABLE_JOB_STATUSES: readonly DictationJobStatus[] = [
 ] as const;
 
 export interface DictationJobSnapshot {
+  readonly sttConfigKey: string;
+  readonly llmConfigKey: string;
   readonly sttProviderType: STTProviderType;
   readonly llmProviderType: LLMProviderType;
   readonly llmEnabled: boolean;
