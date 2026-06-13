@@ -217,16 +217,17 @@ function parseArgs(value: string | undefined): readonly string[] | null {
   const args: string[] = [];
   let current = '';
   let quote: '"' | "'" | null = null;
-  let escaping = false;
 
-  for (const char of value.trim()) {
-    if (escaping) {
-      current += char;
-      escaping = false;
-      continue;
-    }
+  for (let index = 0; index < value.trim().length; index += 1) {
+    const char = value.trim()[index]!;
     if (char === '\\') {
-      escaping = true;
+      const next = value.trim()[index + 1];
+      if (next && (next === quote || next === '\\' || /\s/u.test(next))) {
+        current += next;
+        index += 1;
+      } else {
+        current += char;
+      }
       continue;
     }
     if (quote) {
@@ -247,7 +248,6 @@ function parseArgs(value: string | undefined): readonly string[] | null {
     }
     current += char;
   }
-  if (escaping) current += '\\';
   if (current) args.push(current);
   return args;
 }
