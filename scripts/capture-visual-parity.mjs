@@ -227,6 +227,10 @@ async function captureElectron() {
       rmSync(electronUserDataDir, { force: true, recursive: true });
       mkdirSync(electronUserDataDir, { recursive: true });
       const seed = seedSwiftVisualBaseline(electronUserDataDir);
+      if (seed.ok !== true) {
+        lastError = `Swift visual baseline seed attempt ${attempt} failed: ${seed.error ?? seed.reason ?? 'unknown seed failure'}`;
+        continue;
+      }
       const result = spawnSync(packagedExecutable, ['--use-mock-keychain', `--user-data-dir=${electronUserDataDir}`], {
         cwd: repoRoot,
         env: {
@@ -286,18 +290,25 @@ function cleanupLingeringPackagedElectron() {
 
 function seedSwiftVisualBaseline(userDataDir) {
   const seedScript = resolve(repoRoot, 'scripts/seed-swift-visual-baseline.py');
-  if (!existsSync(seedScript) || process.platform !== 'darwin') return { ok: false, skipped: true };
+  if (!existsSync(seedScript) || process.platform !== 'darwin') {
+    return { ok: false, skipped: true, reason: 'seed script unavailable for this platform' };
+  }
   const result = spawnSync('python3', [seedScript, userDataDir], {
     cwd: repoRoot,
     encoding: 'utf8',
     input: '',
     timeout: 10_000,
   });
-  if (result.status !== 0 || result.error) return { ok: false };
+  if (result.status !== 0 || result.error) {
+    return {
+      ok: false,
+      error: result.error ? errorMessage(result.error) : `seed exited with status ${result.status}: ${result.stderr}`,
+    };
+  }
   try {
     return JSON.parse(result.stdout.trim() || '{}');
-  } catch {
-    return { ok: false };
+  } catch (error) {
+    return { ok: false, error: errorMessage(error) };
   }
 }
 
