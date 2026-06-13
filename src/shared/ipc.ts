@@ -1,3 +1,4 @@
+import type { DictationJobStatus } from './queue';
 import type { ImplementationStatus } from './status';
 
 export const IPC_CHANNELS = {
@@ -39,8 +40,19 @@ export interface ProviderCardSnapshot {
   readonly label: string;
   readonly family: 'stt' | 'llm' | 'local-backend' | 'cloud-backend';
   readonly status: ImplementationStatus;
-  readonly platform: 'cross-platform' | 'macos' | 'windows' | 'unknown';
+  readonly platform: 'cross-platform' | 'macos' | 'windows' | 'linux' | 'unknown';
   readonly detail: string;
+}
+
+export interface QueueItemSnapshot {
+  readonly id: string;
+  readonly sequence: number;
+  readonly status: DictationJobStatus;
+  readonly originalText: string;
+  readonly correctedText: string;
+  readonly isDeliverable: boolean;
+  readonly isProcessing: boolean;
+  readonly isTerminal: boolean;
 }
 
 export interface QueueSnapshot {
@@ -51,6 +63,7 @@ export interface QueueSnapshot {
   readonly isRecordingActive: boolean;
   readonly activeDeliverySequence: number | null;
   readonly foregroundJobSequence: number | null;
+  readonly items: readonly QueueItemSnapshot[];
 }
 
 export interface HistoryRecordSnapshot {
@@ -87,6 +100,7 @@ export const initialQueueSnapshot: QueueSnapshot = {
   isRecordingActive: false,
   activeDeliverySequence: null,
   foregroundJobSequence: null,
+  items: [],
 };
 
 export const initialAppSnapshot: AppSnapshot = {

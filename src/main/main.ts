@@ -1,22 +1,19 @@
 import { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage } from 'electron';
 import started from 'electron-squirrel-startup';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { initialAppSnapshot, IPC_CHANNELS, type AppSnapshot, type PermissionKind } from '../shared/ipc';
+import { IPC_CHANNELS, type PermissionKind } from '../shared/ipc';
+import { MockDictationPipeline } from './mock-pipeline';
 
-const dirname = path.dirname(fileURLToPath(import.meta.url));
+const dirname = __dirname;
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
-let snapshot: AppSnapshot = initialAppSnapshot;
+const pipeline = new MockDictationPipeline((snapshot) => {
+  mainWindow?.webContents.send(IPC_CHANNELS.appSnapshotUpdated, snapshot);
+});
 
 if (started) {
   app.quit();
-}
-
-function publishSnapshot(): AppSnapshot {
-  mainWindow?.webContents.send(IPC_CHANNELS.appSnapshotUpdated, snapshot);
-  return snapshot;
 }
 
 function createMainWindow(): void {
@@ -58,6 +55,12 @@ function createTray(): void {
           mainWindow?.show();
         },
       },
+      {
+        label: 'Enqueue Mock Dictation',
+        click: () => {
+          pipeline.enqueueMockDictation();
+        },
+      },
       { type: 'separator' },
       {
         label: 'Quit Whispree',
@@ -68,46 +71,11 @@ function createTray(): void {
 }
 
 function registerIpcHandlers(): void {
-  ipcMain.handle(IPC_CHANNELS.getAppSnapshot, () => snapshot);
-  ipcMain.handle(IPC_CHANNELS.enqueueMockDictation, () => {
-    snapshot = {
-      ...snapshot,
-      appStatus: 'processing',
-      recording: {
-        active: true,
-        mode: 'mock',
-        label: 'Mock recording queued; FIFO pipeline lands in the next slice.',
-      },
-      queue: {
-        ...snapshot.queue,
-        totalCount: snapshot.queue.totalCount + 1,
-        processingCount: snapshot.queue.processingCount + 1,
-        isRecordingActive: true,
-        foregroundJobSequence: snapshot.queue.totalCount + 1,
-      },
-    };
-    return publishSnapshot();
-  });
-  ipcMain.handle(IPC_CHANNELS.cancelForegroundJob, () => {
-    snapshot = {
-      ...snapshot,
-      appStatus: 'ready',
-      recording: {
-        active: false,
-        mode: 'mock',
-        label: 'Mock foreground scope canceled.',
-      },
-      queue: {
-        ...snapshot.queue,
-        isRecordingActive: false,
-        processingCount: Math.max(0, snapshot.queue.processingCount - 1),
-        terminalCount: snapshot.queue.terminalCount + (snapshot.queue.totalCount > 0 ? 1 : 0),
-      },
-    };
-    return publishSnapshot();
-  });
-  ipcMain.handle(IPC_CHANNELS.openSettings, () => snapshot);
-  ipcMain.handle(IPC_CHANNELS.requestPermission, (_event, _kind: PermissionKind) => snapshot);
+  ipcMain.handle(IPC_CHANNELS.getAppSnapshot, () => pipeline.getSnapshot());
+  ipcMain.handle(IPC_CHANNELS.enqueueMockDictation, () => pipeline.enqueueMockDictation());
+  ipcMain.handle(IPC_CHANNELS.cancelForegroundJob, () => pipeline.cancelForegroundJob());
+  ipcMain.handle(IPC_CHANNELS.openSettings, () => pipeline.getSnapshot());
+  ipcMain.handle(IPC_CHANNELS.requestPermission, (_event, _kind: PermissionKind) => pipeline.getSnapshot());
 }
 
 app.whenReady().then(() => {
