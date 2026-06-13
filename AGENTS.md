@@ -1,89 +1,106 @@
-<!-- Generated: 2026-03-23 | Updated: 2026-06-09 -->
+<!-- Updated: 2026-06-13 -->
 
-# Whispree
+# Whispree Electron Migration Workspace
 
 ## Purpose
-macOS STT 앱 (메뉴바 아이콘 + 메인 윈도우). 음성 녹음 → dictation job queue → provider-bounded STT/LLM 병렬 후처리 → FIFO delivery로 이전 앱에 자동 붙여넣기. 녹음 중 스크린샷 캡처 → VLM 컨텍스트 교정 지원. Quick Fix로 오인식 단어 즉시 교정 + 사전 등록. Apple Silicon(arm64) 전용, macOS 14+.
 
-## Key Files
+This repository is an isolated migration workspace for turning the original macOS-only SwiftUI Whispree app into a **Codex-style Electron + Vite desktop app** that can target macOS and Windows.
 
-| File | Description |
-|------|-------------|
-| `project.yml` | XcodeGen 프로젝트 정의 — 타겟, SPM 패키지, 빌드 설정 |
-| `CLAUDE.md` | AI 에이전트용 프로젝트 가이드 |
-| `README.md` | 프로젝트 문서 |
+- Original SwiftUI repo: `/Users/arsture/ideas/whispree`
+- This migration repo: `/Users/arsture/ideas/whispree-electron`
+- Do not modify the original repo from this workspace.
+- Treat the existing `Whispree/` Swift files as reference material until a replacement Electron structure is created.
 
-## Subdirectories
+## Current Migration Status
 
-| Directory | Purpose |
-|-----------|---------|
-| `Whispree/` | 메인 앱 타겟 — Swift/SwiftUI (see `Whispree/AGENTS.md`) |
-| `WhispreeTests/` | 유닛 + E2E 테스트 (see `WhispreeTests/AGENTS.md`) |
-| `mlx-worker/` | Python mlx-audio STT worker — stdin/stdout JSON 파이프 통신 |
-| `docs/` | 추가 문서 |
+- The repo currently contains a copied SwiftUI/Xcode app plus migration docs.
+- Electron/Vite scaffolding has **not** been added yet.
+- The next implementation session should read `docs/ELECTRON_REFACTOR_HANDOFF.md` before creating `package.json`, Electron Forge config, Vite config, or source folders.
 
-## Architecture Overview
+## Target Architecture
 
-```
-┌───────────────────────────────────────────────────┐
-│  macOS Menu Bar App (SwiftUI)                     │
-│                                                   │
-│  Recording: Hotkey → AudioService → DictationQueue│
-│    → provider-bounded STT/LLM parallel processing │
-│    → FIFO delivery → TextInsertionService         │
-│  Screenshot: ContinuousScreenCaptureService       │
-│    → VLM context → FIFO ScreenshotSelectionView   │
-│  Quick Fix: Hotkey → capture selected text        │
-│    → correction panel → replace + dictionary      │
-│                                                   │
-│  Orchestrator: RecordingCoordinator               │
-│  Central State: AppState (@MainActor)             │
-└───────────────────────────────────────────────────┘
-         │                          │
-    ┌────┴────┐              ┌──────┴──────┐
-    │ STT     │              │ LLM         │
-    │ Providers│              │ Providers   │
-    ├─────────┤              ├─────────────┤
-    │WhisperKit│(local)      │NoneProvider │
-    │Groq API │(cloud)      │LocalText    │(MLX text)
-    │MLX Audio│(local)      │LocalVision  │(MLX VLM)
-    └─────────┘              │OpenAI      │(GPT SSE)
-         │                   └─────────────┘
-    ┌────┴────┐
-    │mlx-worker│ (Python, stdin/stdout JSON)
-    └─────────┘
+Build toward a thin Electron shell with clear process boundaries:
+
+```text
+Electron main process
+  ├─ tray/menu/window lifecycle
+  ├─ global shortcut registration
+  ├─ OS permission/adapters
+  ├─ sidecar/worker lifecycle
+  └─ SQLite/local storage boundary
+
+preload bridge
+  └─ typed, minimal IPC API
+
+Vite renderer
+  ├─ React/TypeScript UI
+  ├─ settings/dashboard/queue state display
+  └─ no heavy STT/LLM/audio work
+
+shared core
+  ├─ settings schema
+  ├─ queue state machine
+  ├─ provider interfaces
+  ├─ prompt templates
+  └─ safety helpers such as word-edit-distance
+
+OS adapters / sidecars
+  ├─ audio capture
+  ├─ text insertion
+  ├─ screen capture
+  ├─ browser/terminal context
+  └─ local STT/LLM backends
 ```
 
-## For AI Agents
+## Migration Principles
 
-### Build & Run
-```bash
-xcodegen generate                    # project.yml 변경 후
-xcodebuild ... build                 # 빌드
-xcodebuild ... test                  # 테스트 (E2E 포함)
-```
+- Do not attempt a 1:1 Swift-to-TypeScript translation.
+- Extract behavior, state machines, provider contracts, UX flows, and safety constraints from the Swift app.
+- Keep renderer code lightweight. Heavy work belongs in main process, workers, sidecars, or native modules.
+- Keep cross-platform core free of macOS-only APIs.
+- Add OS-specific behavior behind explicit adapter interfaces.
+- Prefer small commits: scaffold, then one capability slice at a time.
+- Preserve a runnable/checkable state after every implementation step.
 
-### Public Docs Site (`docs-site/`)
-- `docs-site/`는 Whispree 공개 문서를 위한 nested Astro Starlight 사이트. Vercel **Root Directory = `docs-site`**로 배포되며 static-first 유지. **철저히 사용자용**(기능·사용법 중심) — 릴리스/기여 같은 내부 문서는 공개 페이지로 만들지 말 것(`docs-site/CONTRIBUTING.md` 사용).
-- **이중언어(i18n)**: 한국어 root(`src/content/docs/**`) + 영어 `/en/`(`src/content/docs/en/**`). 페이지 변경 시 양 언어를 함께 갱신.
-- **main merge/배포 전**: 사용자 노출(기능·프로바이더·권한·단축키·워크플로우) 변경이면 `docs-site/src/content/docs/**`의 해당 페이지(+ `en/` 미러)를 갱신하거나 `CONTRIBUTING.md` 템플릿으로 새 페이지 추가, 내부 전용이면 `No docs needed:` 사유 기록.
-- 문서 디자인 SSoT는 `docs-site/DESIGN.md`. 루트 `DESIGN.md`는 macOS 앱 디자인 계약으로 분리.
-- 검증: `pnpm --dir docs-site build`. 배포: `docs-site/`에서 `vercel deploy --yes` (preview) / `vercel deploy --prod --yes` (의도적 릴리스).
+## Legacy Source Map
 
-### Key Design Constraints
-- STTProvider는 **NOT @MainActor** (ML 추론 = 백그라운드)
-- LLMProvider는 **@MainActor** (API 호출 + AppState 접근)
-- word-edit-distance 안전장치 (threshold 0.5) — LLM 환각 방지
-- Queue admission은 작은 고정 cap 없음; STT/LLM provider별 concurrency 제한과 FIFO delivery 직렬화는 `DictationQueueState`/`RecordingCoordinator`가 담당
-- ESC는 scoped/nested cancel만 허용: preview/recording/active delivery/foreground item. 전체 queue/background job 일괄 취소 금지
-- Accessibility 권한 필수 (텍스트 삽입, CGEvent)
-- Screen Recording 권한 필수 (스크린샷 캡처)
+Use the copied Swift app as the migration source of truth:
 
-### SPM Dependencies
-- WhisperKit 0.9.0+ — STT (CoreML + Neural Engine); resolved package may be newer
-- mlx-swift-lm — 로컬 LLM/VLM 추론 (MLXLLM, MLXVLM, MLXLMCommon)
-- KeyboardShortcuts 2.0.0+ — 전역 핫키
-- LaunchAtLogin 1.0.0+ — 로그인 항목
-- Sparkle 2.6.0+ — 자동 업데이트
+| Legacy path | Migration use |
+| --- | --- |
+| `Whispree/App/` | app lifecycle, state ownership, settings defaults |
+| `Whispree/Coordinators/` | recording queue orchestration and FIFO delivery behavior |
+| `Whispree/Models/` | shared core models, settings schema, provider metadata |
+| `Whispree/Services/Audio/` | audio capture requirements and waveform behavior |
+| `Whispree/Services/STT/` | STT provider contracts and cloud/local backend behavior |
+| `Whispree/Services/LLM/` | correction providers, prompts, safety thresholds |
+| `Whispree/Services/Hotkey/` | global shortcut UX and conflict rules |
+| `Whispree/Services/TextInsertion/` | target-app insertion semantics and fallback behavior |
+| `Whispree/Services/ScreenCapture/` | screenshot context behavior and permission UX |
+| `Whispree/Services/BrowserContext/` | browser context capture/restore requirements |
+| `Whispree/Services/TerminalContext/` | terminal context capture/restore requirements |
+| `Whispree/Views/` | UI/UX reference only; renderer should be redesigned in React |
+| `WhispreeTests/` | behavior/test inspiration for the new TypeScript test suite |
 
-<!-- MANUAL: -->
+## Recommended First Implementation Milestones
+
+1. Create the minimal Electron + Vite + React + TypeScript scaffold.
+2. Define `main`, `preload`, `renderer`, and `shared` directories with typed IPC boundaries.
+3. Port only pure shared logic first: settings schema, queue model, provider interfaces, prompt helpers.
+4. Add tray/menu/window shell and a settings/dashboard placeholder.
+5. Add a mock recording pipeline to prove FIFO queue and UI update flow.
+6. Add one real provider path, preferably cloud STT or OpenAI correction, before local model work.
+7. Add OS adapters one by one: hotkey, audio, text insertion, screenshot/context.
+
+## Verification Expectations
+
+Before claiming completion for Electron work:
+
+- Run the narrowest relevant test/typecheck/lint command available.
+- For UI changes, run the app locally and smoke-test the changed flow when possible.
+- Do not run legacy Xcode build unless explicitly validating the copied Swift reference.
+- Do not claim Windows readiness until the Windows adapter path has been executed or explicitly marked untested.
+
+## Commit Guidance
+
+Use concise commits with the project lore-style trailers when useful. Future migration commits should state why a boundary or technology choice was made, not just what files changed.

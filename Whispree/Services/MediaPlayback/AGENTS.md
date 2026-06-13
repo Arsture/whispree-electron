@@ -1,3 +1,6 @@
+<!-- MIGRATION-OVERLAY: 2026-06-13 -->
+> **Electron/Vite migration scope:** This directory is copied legacy SwiftUI/macOS code. Treat the existing implementation as reference material for the Electron + Vite port, not as the active macOS feature lane. When editing under this path, prefer documenting/extracting behavior, migration mappings, tests, or temporary reference fixes that support the cross-platform Electron rewrite. Do not add new macOS-only product functionality here unless the user explicitly asks to validate the legacy app.
+
 # MediaPlayback
 
 ## Purpose
