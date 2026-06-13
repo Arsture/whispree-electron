@@ -85,6 +85,8 @@ const whispreeApi: WhispreeAPI = {
   resetSettings: () => ipcRenderer.invoke(IPC_CHANNELS.resetSettings) as ReturnType<WhispreeAPI['resetSettings']>,
   copyHistoryText: (historyId: string, variant: HistoryTextVariant) =>
     ipcRenderer.invoke(IPC_CHANNELS.copyHistoryText, historyId, variant) as ReturnType<WhispreeAPI['copyHistoryText']>,
+  clearHistory: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.clearHistory) as ReturnType<WhispreeAPI['clearHistory']>,
 };
 
 contextBridge.exposeInMainWorld('whispree', whispreeApi);

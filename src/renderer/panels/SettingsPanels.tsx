@@ -1,19 +1,10 @@
 import { useState, type ChangeEvent, type ReactNode } from 'react';
 import {
-  CORRECTION_MODES,
-  GROQ_LLM_MODELS,
-  LLM_PROVIDER_TYPES,
-  OPENAI_MODELS,
   RECORDING_MODES,
-  STT_PROVIDER_TYPES,
   SUPPORTED_LANGUAGES,
   type AppSettingsSnapshot,
   type AppSettingsUpdate,
-  type CorrectionMode,
-  type LLMProviderType,
-  type OpenAIModelId,
   type RecordingMode,
-  type STTProviderType,
   type SupportedLanguage,
   type WhispreeShortcutSnapshot,
 } from '../../shared/settings';
@@ -48,35 +39,12 @@ const languageLabels: Record<SupportedLanguage, string> = {
   pt: 'Português',
 };
 
-const sttLabels: Record<STTProviderType, string> = {
-  mock: 'Mock STT (테스트)',
-  whisperkit: 'WhisperKit (로컬)',
-  groq: 'Groq Cloud API',
-  'mlx-audio': 'MLX Audio (로컬)',
-  local: 'OS Local Sidecar',
-};
-
-const llmLabels: Record<LLMProviderType, string> = {
-  none: '없음 (원문 사용)',
-  mock: 'Mock Correction (테스트)',
-  local: '로컬 MLX',
-  openai: 'OpenAI (GPT)',
-  groq: 'Groq Cloud',
-};
-
-const correctionLabels: Record<CorrectionMode, string> = {
-  standard: 'Standard (STT Correction)',
-  'filler-removal': 'Filler Removal',
-  structured: 'Structured',
-  custom: 'Custom',
-};
-
 export function SettingsPanel({ sectionId, groups, settings, onUpdateSettings }: SettingsPanelProps) {
   if (sectionId === 'general') return <GeneralSettingsPanel groups={groups} settings={settings} onUpdateSettings={onUpdateSettings} />;
   if (sectionId === 'stt') return <STTSettingsPanel settings={settings} onUpdateSettings={onUpdateSettings} />;
   if (sectionId === 'llm') return <LLMSettingsPanel settings={settings} onUpdateSettings={onUpdateSettings} />;
-  if (sectionId === 'models') return <ModelsSettingsPanel />;
-  return <WordSetsPanel settings={settings} />;
+  if (sectionId === 'models') return <ModelsSettingsPanel settings={settings} onUpdateSettings={onUpdateSettings} />;
+  return <WordSetsPanel settings={settings} onUpdateSettings={onUpdateSettings} />;
 }
 
 function GeneralSettingsPanel({ groups, settings, onUpdateSettings }: Omit<SettingsPanelProps, 'sectionId'>) {
@@ -232,19 +200,7 @@ function GeneralSettingsPanel({ groups, settings, onUpdateSettings }: Omit<Setti
 function STTSettingsPanel({ settings, onUpdateSettings }: Omit<SettingsPanelProps, 'sectionId' | 'groups'>) {
   return (
     <div className="settings-integrated-mock" data-testid="settings-panel-stt">
-      <STTSettingsPanelMock settings={settings} />
-      <div className="settings-ipc-bridge" aria-label="STT typed settings bridge">
-        <SelectSetting
-          label="음성 인식 엔진"
-          value={settings.sttProviderType}
-          options={STT_PROVIDER_TYPES}
-          labels={sttLabels}
-          onChange={(sttProviderType) => onUpdateSettings({ sttProviderType })}
-        />
-        <SecretSetting configured={settings.groqApiKeyConfigured} onCommit={(groqApiKey) => onUpdateSettings({ groqApiKey })} />
-        <ToggleSetting label="무음 자동 스킵" checked={settings.vadEnabled} onChange={(vadEnabled) => onUpdateSettings({ vadEnabled })} />
-        <NumberSetting label="Audio Input Channel" value={settings.audioInputChannel} onCommit={(audioInputChannel) => onUpdateSettings({ audioInputChannel })} />
-      </div>
+      <STTSettingsPanelMock settings={settings} onUpdateSettings={onUpdateSettings} />
     </div>
   );
 }
@@ -252,26 +208,17 @@ function STTSettingsPanel({ settings, onUpdateSettings }: Omit<SettingsPanelProp
 function LLMSettingsPanel({ settings, onUpdateSettings }: Omit<SettingsPanelProps, 'sectionId' | 'groups'>) {
   return (
     <div className="settings-integrated-mock" data-testid="settings-panel-llm">
-      <LLMSettingsPanelMock settings={settings} />
-      <div className="settings-ipc-bridge" aria-label="LLM typed settings bridge">
-        <SelectSetting label="Provider" value={settings.llmProviderType} options={LLM_PROVIDER_TYPES} labels={llmLabels} onChange={(llmProviderType) => onUpdateSettings({ llmProviderType })} />
-        <SelectSetting label="OpenAI 모델" value={settings.openaiModel} options={OPENAI_MODELS} onChange={(openaiModel) => onUpdateSettings({ openaiModel: openaiModel as OpenAIModelId })} />
-        <SelectSetting label="Groq 모델" value={settings.groqLLMModel} options={GROQ_LLM_MODELS} onChange={(groqLLMModel) => onUpdateSettings({ groqLLMModel })} />
-        <ToggleSetting label="스크린샷 컨텍스트" checked={settings.screenshotContextEnabled} onChange={(screenshotContextEnabled) => onUpdateSettings({ screenshotContextEnabled })} />
-        <ToggleSetting label="에이전트에 전달" checked={settings.screenshotPasteEnabled} onChange={(screenshotPasteEnabled) => onUpdateSettings({ screenshotPasteEnabled })} />
-        <SelectSetting label="교정 모드" value={settings.correctionMode} options={CORRECTION_MODES} labels={correctionLabels} onChange={(correctionMode) => onUpdateSettings({ correctionMode })} />
-        <TextAreaSetting label="시스템 프롬프트" value={settings.customLLMPrompt ?? ''} onCommit={(customLLMPrompt) => onUpdateSettings({ customLLMPrompt: customLLMPrompt || null })} />
-      </div>
+      <LLMSettingsPanelMock settings={settings} onUpdateSettings={onUpdateSettings} />
     </div>
   );
 }
 
-function ModelsSettingsPanel() {
-  return <ModelsPanelMock />;
+function ModelsSettingsPanel({ settings, onUpdateSettings }: Omit<SettingsPanelProps, 'sectionId' | 'groups'>) {
+  return <ModelsPanelMock settings={settings} onUpdateSettings={onUpdateSettings} />;
 }
 
-function WordSetsPanel({ settings }: Pick<SettingsPanelProps, 'settings'>) {
-  return <DomainWordSetsPanelMock settings={settings} />;
+function WordSetsPanel({ settings, onUpdateSettings }: Pick<SettingsPanelProps, 'settings' | 'onUpdateSettings'>) {
+  return <DomainWordSetsPanelMock settings={settings} onUpdateSettings={onUpdateSettings} />;
 }
 
 function GeneralSettingsCard(props: Omit<Parameters<typeof SettingsCard>[0], 'showStatus'>) {
@@ -507,38 +454,5 @@ function PermissionRow({
       {status === 'unavailable' ? <span className="permission-unavailable">미설치</span> : null}
       {status === 'denied' || status === 'notDetermined' ? <button type="button" className="permission-action">{computedActionLabel}</button> : null}
     </div>
-  );
-}
-
-function NumberSetting({ label, value, onCommit }: { readonly label: string; readonly value: number; readonly onCommit: (value: number) => void }) {
-  return (
-    <label className="settings-control-row">
-      <span><strong>{label}</strong><small>0 = 자동 다운믹스</small></span>
-      <input className="settings-input compact" type="number" min={0} defaultValue={value} onBlur={(event) => onCommit(Number(event.currentTarget.value))} />
-    </label>
-  );
-}
-
-function TextAreaSetting({ label, value, onCommit }: { readonly label: string; readonly value: string; readonly onCommit: (value: string) => void }) {
-  return (
-    <label className="settings-control-column">
-      <span><strong>{label}</strong><small>Custom mode에서만 사용될 system prompt.</small></span>
-      <textarea className="settings-textarea" defaultValue={value} onBlur={(event) => onCommit(event.currentTarget.value)} />
-    </label>
-  );
-}
-
-function SecretSetting({ configured, onCommit }: { readonly configured: boolean; readonly onCommit: (value: string) => void }) {
-  return (
-    <label className="settings-control-column">
-      <span>
-        <strong>API Key</strong>
-        <small>{configured ? 'API Key 설정됨 — 값은 renderer snapshot에 노출하지 않음' : 'console.groq.com에서 무료 API Key를 발급받으세요'}</small>
-      </span>
-      <input className="settings-input" type="password" placeholder={configured ? '새 키 입력 시 교체' : 'gsk_...'} onBlur={(event) => {
-        if (event.currentTarget.value) onCommit(event.currentTarget.value);
-        event.currentTarget.value = '';
-      }} />
-    </label>
   );
 }

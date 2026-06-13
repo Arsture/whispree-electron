@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react';
-import type { AppSettingsSnapshot, STTProviderType } from '../../shared/settings';
+import type { AppSettingsSnapshot, AppSettingsUpdate, STTProviderType } from '../../shared/settings';
 
 import '../styles/settings-stt.css';
 
 type ProviderTone = 'neutral' | 'warning' | 'success';
 type ProviderState = 'ready' | 'loading' | 'downloading' | 'download-required' | 'error';
 type CompatibilityGrade = 'RUNS GREAT' | 'RUNS WELL' | 'DECENT' | 'TIGHT FIT' | 'BARELY RUNS' | 'TOO HEAVY';
+type ProviderId = Extract<STTProviderType, 'groq' | 'mlx-audio' | 'whisperkit'>;
 
 interface MetricModel {
   readonly icon: string;
@@ -14,7 +15,7 @@ interface MetricModel {
 }
 
 interface ProviderModel {
-  readonly id: string;
+  readonly id: ProviderId;
   readonly title: string;
   readonly description: string;
   readonly grade: CompatibilityGrade;
@@ -105,7 +106,7 @@ function ProviderMetrics({ metrics, grade }: { readonly metrics: readonly Metric
   );
 }
 
-function ProviderRow({ provider }: { readonly provider: ProviderModel }) {
+function ProviderRow({ provider, onSelect }: { readonly provider: ProviderModel; readonly onSelect: (provider: ProviderModel['id']) => void }) {
   return (
     <div
       className="stt-provider-row"
@@ -114,6 +115,8 @@ function ProviderRow({ provider }: { readonly provider: ProviderModel }) {
       role="radio"
       aria-checked={provider.selected}
       tabIndex={0}
+      onClick={() => onSelect(provider.id)}
+      onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(provider.id); } }}
     >
       <div className="stt-provider-main">
         <span className="stt-radio-mark" aria-hidden="true">{provider.selected ? '✓' : ''}</span>
@@ -142,11 +145,11 @@ function LiquidSection({ title, children }: { readonly title: string; readonly c
   );
 }
 
-function ApiKeySection({ configured }: { readonly configured: boolean }) {
+function ApiKeySection({ configured, onCommit }: { readonly configured: boolean; readonly onCommit: (value: string) => void }) {
   return (
     <LiquidSection title="API Key">
       <div className="stt-api-key-block">
-        <input readOnly type="password" value={configured ? 'configured-api-key' : ''} placeholder="API Key" aria-label="Groq API Key" />
+        <input type="password" defaultValue="" placeholder={configured ? '새 API Key 입력 시 교체' : 'API Key'} aria-label="Groq API Key" onBlur={(event) => { if (event.currentTarget.value.trim()) onCommit(event.currentTarget.value); }} />
         <div className="stt-inline-note" data-tone={configured ? 'neutral' : 'warning'}>
           <span aria-hidden="true">{configured ? '✓' : 'i'}</span>
           {configured ? 'API Key 설정됨' : 'console.groq.com에서 무료 API Key를 발급받으세요'}
@@ -158,8 +161,10 @@ function ApiKeySection({ configured }: { readonly configured: boolean }) {
 
 export function STTSettingsPanelMock({
   settings,
+  onUpdateSettings,
 }: {
   readonly settings: AppSettingsSnapshot;
+  readonly onUpdateSettings: (update: AppSettingsUpdate) => Promise<void>;
 }) {
   const selectedProvider = selectedSttProvider(settings.sttProviderType);
   const seededProviders = providers.map((provider) => ({
@@ -172,11 +177,11 @@ export function STTSettingsPanelMock({
     <div className="stt-settings-mock" data-testid="stt-settings-panel-mock">
       <LiquidSection title="음성 인식 엔진">
         <div className="stt-provider-list" role="radiogroup" aria-label="STT provider mock selector">
-          {seededProviders.map((provider) => <ProviderRow provider={provider} key={provider.id} />)}
+          {seededProviders.map((provider) => <ProviderRow provider={provider} onSelect={(sttProviderType) => void onUpdateSettings({ sttProviderType })} key={provider.id} />)}
         </div>
       </LiquidSection>
 
-      {selectedProvider === 'groq' ? <ApiKeySection configured={settings.groqApiKeyConfigured} /> : null}
+      {selectedProvider === 'groq' ? <ApiKeySection configured={settings.groqApiKeyConfigured} onCommit={(groqApiKey) => void onUpdateSettings({ groqApiKey })} /> : null}
 
       <LiquidSection title="무음 자동 스킵">
         <div className="stt-vad-block">
@@ -184,11 +189,11 @@ export function STTSettingsPanelMock({
             <strong>활성화</strong>
             <p>끄면 pause 인디케이터와 무음 후처리를 함께 비활성화합니다.</p>
           </div>
-          <span className="stt-switch" data-on="true" aria-label="VAD enabled" role="switch" aria-checked="true" />
+          <button type="button" className="stt-switch" data-on={settings.vadEnabled} aria-label="VAD enabled" role="switch" aria-checked={settings.vadEnabled} onClick={() => void onUpdateSettings({ vadEnabled: !settings.vadEnabled })} />
         </div>
         <div className="stt-inline-note" data-tone="warning">
           <span aria-hidden="true">≋</span>
-          현재 ON — 긴 무음만 잘라서 전사하고, 녹음 중 pause 인디케이터를 표시합니다.
+          현재 {settings.vadEnabled ? 'ON' : 'OFF'} — 긴 무음만 잘라서 전사하고, 녹음 중 pause 인디케이터를 표시합니다.
         </div>
       </LiquidSection>
     </div>

@@ -33,6 +33,8 @@ interface HistoryAppender {
   append(record: HistoryRecordSnapshot): Promise<unknown>;
 }
 
+const historyRetentionLimit = 100;
+
 interface MockDictationPipelineAdapters {
   readonly audio?: AudioCaptureAdapter;
   readonly textInsertion?: TextInsertionAdapter;
@@ -98,7 +100,7 @@ export class MockDictationPipeline {
     this.#browserContextAdapter = adapters.browserContext ?? null;
     this.#terminalContextAdapter = adapters.terminalContext ?? null;
     this.#historyStore = adapters.historyStore ?? null;
-    this.#history = [...(adapters.initialHistory ?? [])].slice(0, 20);
+    this.#history = [...(adapters.initialHistory ?? [])].slice(0, historyRetentionLimit);
     this.#permissionCards = adapters.permissionCards ?? permissionCards;
     this.#settingsProvider = adapters.settingsProvider ?? (() => defaultAppSettings);
     this.#providerRouter = adapters.providerRouter ?? new StaticProviderRouter();
@@ -231,6 +233,12 @@ export class MockDictationPipeline {
     return this.getSnapshot();
   }
 
+  clearHistory(): AppSnapshot {
+    this.#history = [];
+    this.#emit();
+    return this.getSnapshot();
+  }
+
   async whenIdle(): Promise<void> {
     while (this.#tasks.size > 0) {
       await Promise.all([...this.#tasks]);
@@ -338,7 +346,7 @@ export class MockDictationPipeline {
       const terminalStatus = insertionResult === 'inserted' ? 'delivered' : 'copied-to-clipboard';
       const delivered = this.#queue.transitionJob(delivering.id, terminalStatus);
       const record = this.#historyRecord(delivered, terminalStatus);
-      this.#history = [record, ...this.#history].slice(0, 20);
+      this.#history = [record, ...this.#history].slice(0, historyRetentionLimit);
       await this.#historyStore?.append(record);
       this.#emit();
       next = this.#queue.nextDeliverableJob();

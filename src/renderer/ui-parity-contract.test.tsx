@@ -19,6 +19,7 @@ const whispreeMock = {
   updateSettings: vi.fn<(update: unknown) => Promise<unknown>>(),
   resetSettings: vi.fn<() => Promise<unknown>>(),
   copyHistoryText: vi.fn<(historyId: string, variant: 'original' | 'corrected') => Promise<unknown>>(),
+  clearHistory: vi.fn<() => Promise<unknown>>(),
 };
 
 function installWhispreeMock() {
@@ -31,9 +32,10 @@ function installWhispreeMock() {
   whispreeMock.openSettings.mockResolvedValue({});
   whispreeMock.requestPermission.mockResolvedValue({});
   whispreeMock.getSettings.mockResolvedValue(defaultAppSettings);
-  whispreeMock.updateSettings.mockResolvedValue({ ok: true, settings: defaultAppSettings });
+  whispreeMock.updateSettings.mockImplementation(async (update) => ({ ok: true, settings: { ...defaultAppSettings, ...(update as Partial<AppSettingsSnapshot>) } }));
   whispreeMock.resetSettings.mockResolvedValue({ ok: true, settings: defaultAppSettings });
   whispreeMock.copyHistoryText.mockResolvedValue({});
+  whispreeMock.clearHistory.mockResolvedValue({});
   Object.defineProperty(window, 'whispree', {
     configurable: true,
     value: whispreeMock,
@@ -88,6 +90,7 @@ describe('UI-16 renderer DOM and visual parity contracts', () => {
     expect(screen.getAllByText('무음 자동 스킵').length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole('tab', { name: 'LLM' }));
+    fireEvent.click(await screen.findByRole('radio', { name: /OpenAI \(GPT\)/u }));
     expect((await screen.findAllByText('스크린샷 컨텍스트')).length).toBeGreaterThan(0);
     expect(screen.getAllByText('에이전트에 전달').length).toBeGreaterThan(0);
     expect(screen.getAllByText('교정 모드').length).toBeGreaterThan(0);

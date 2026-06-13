@@ -14,4 +14,5 @@ export interface WhispreeAPI {
   updateSettings(update: SettingsUpdateInput): Promise<SettingsCommandResult>;
   resetSettings(): Promise<SettingsCommandResult>;
   copyHistoryText(historyId: string, variant: HistoryTextVariant): Promise<CommandResult>;
+  clearHistory(): Promise<CommandResult>;
 }

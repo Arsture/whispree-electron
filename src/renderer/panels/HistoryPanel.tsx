@@ -20,7 +20,12 @@ export function HistoryPanel({ snapshot }: { readonly snapshot: AppSnapshot }) {
       <header className="history-header">
         <h1>기록</h1>
         {hasHistory ? (
-          <button type="button" className="history-clear-button" aria-label="전체 기록 지우기">
+          <button
+            type="button"
+            className="history-clear-button"
+            aria-label="전체 기록 지우기"
+            onClick={() => void window.whispree.clearHistory()}
+          >
             Clear All
           </button>
         ) : null}

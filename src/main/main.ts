@@ -348,6 +348,14 @@ function registerIpcHandlers(): void {
     return copyHistoryTextFromSnapshot(snapshot, historyId, variant, clipboard);
   });
 
+  ipcMain.handle(IPC_CHANNELS.clearHistory, async (_event, ...args: unknown[]) => {
+    const currentPipeline = getPipeline();
+    const rejected = rejectUnexpectedArgs('clear-history', currentPipeline.getSnapshot(), args);
+    if (rejected) return rejected;
+    await getHistoryStore().clear();
+    return commandOk('clear-history', currentPipeline.clearHistory(), 'Transcription history cleared.');
+  });
+
   ipcMain.handle(IPC_CHANNELS.requestPermission, async (_event, kind: unknown, ...args: unknown[]) => {
     const currentPipeline = getPipeline();
     const snapshot = currentPipeline.getSnapshot();

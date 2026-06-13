@@ -1,5 +1,12 @@
-import type { ReactNode } from 'react';
-import type { AppSettingsSnapshot, LLMProviderType } from '../../shared/settings';
+import type { KeyboardEvent, ReactNode } from 'react';
+import type {
+  AppSettingsSnapshot,
+  AppSettingsUpdate,
+  CorrectionMode,
+  GroqLLMModelId,
+  LLMProviderType,
+  OpenAIModelId,
+} from '../../shared/settings';
 
 import '../styles/settings-llm.css';
 
@@ -27,8 +34,8 @@ type ModelCard = {
   readonly statusTone?: Tone;
 };
 
-type CorrectionMode = {
-  readonly id: string;
+type CorrectionModeCard = {
+  readonly id: CorrectionMode;
   readonly title: string;
   readonly description: string;
   readonly selected?: boolean;
@@ -232,7 +239,7 @@ const groqModels: readonly ModelCard[] = [
   },
 ];
 
-const correctionModes: readonly CorrectionMode[] = [
+const correctionModes: readonly CorrectionModeCard[] = [
   {
     id: 'standard',
     title: 'Standard (STT Correction)',
@@ -240,7 +247,7 @@ const correctionModes: readonly CorrectionMode[] = [
     selected: true,
   },
   {
-    id: 'fillerRemoval',
+    id: 'filler-removal',
     title: 'Filler Removal',
     description: 'STT correction + remove fillers (음, 어, 그러니까)',
   },
@@ -278,7 +285,19 @@ function RadioMark({ selected }: { readonly selected?: boolean }) {
   return <span className="llm-radio-mark" aria-hidden="true">{selected ? '✓' : ''}</span>;
 }
 
-function ProviderSelector({ selectedProvider }: { readonly selectedProvider: ProviderId }) {
+function invokeOnActivation(event: KeyboardEvent<HTMLElement>, action: () => void): void {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  event.preventDefault();
+  action();
+}
+
+function ProviderSelector({
+  selectedProvider,
+  onSelect,
+}: {
+  readonly selectedProvider: ProviderId;
+  readonly onSelect: (provider: Exclude<ProviderId, 'mock'>) => void;
+}) {
   const selected = providers.find((provider) => provider.id === selectedProvider) ?? providers[0];
   return (
     <SectionCard title="교정 엔진">
@@ -289,7 +308,16 @@ function ProviderSelector({ selectedProvider }: { readonly selectedProvider: Pro
       </div>
       <div className="llm-provider-selector" role="radiogroup" aria-label="LLM provider options mirror">
         {providers.map((provider) => (
-          <div className="llm-provider-option" data-selected={provider.id === selectedProvider} role="radio" aria-checked={provider.id === selectedProvider} tabIndex={0} key={provider.id}>
+          <div
+            className="llm-provider-option"
+            data-selected={provider.id === selectedProvider}
+            role="radio"
+            aria-checked={provider.id === selectedProvider}
+            tabIndex={0}
+            key={provider.id}
+            onClick={() => onSelect(provider.id)}
+            onKeyDown={(event) => invokeOnActivation(event, () => onSelect(provider.id))}
+          >
             <RadioMark selected={provider.id === selectedProvider} />
             <div>
               <strong>{provider.label}</strong>
@@ -318,9 +346,17 @@ function ModelMetrics({ metrics, grade, gradeTone = 'neutral' }: { readonly metr
   );
 }
 
-function ModelRow({ model }: { readonly model: ModelCard }) {
+function ModelRow({ model, onSelect }: { readonly model: ModelCard; readonly onSelect: (model: ModelCard) => void }) {
   return (
-    <div className="llm-model-row" data-selected={model.selected ?? false} role="radio" aria-checked={model.selected ?? false} tabIndex={0}>
+    <div
+      className="llm-model-row"
+      data-selected={model.selected ?? false}
+      role="radio"
+      aria-checked={model.selected ?? false}
+      tabIndex={0}
+      onClick={() => onSelect(model)}
+      onKeyDown={(event) => invokeOnActivation(event, () => onSelect(model))}
+    >
       <div className="llm-model-main">
         <RadioMark selected={model.selected} />
         <div className="llm-model-copy">
@@ -342,38 +378,76 @@ function ModelRow({ model }: { readonly model: ModelCard }) {
   );
 }
 
-function ModelSection({ title, eyebrow, models }: { readonly title: string; readonly eyebrow?: string; readonly models: readonly ModelCard[] }) {
+function ModelSection({
+  title,
+  eyebrow,
+  models,
+  onSelect,
+}: {
+  readonly title: string;
+  readonly eyebrow?: string;
+  readonly models: readonly ModelCard[];
+  readonly onSelect: (model: ModelCard) => void;
+}) {
   return (
     <SectionCard title={title} eyebrow={eyebrow}>
       <div className="llm-model-list" role="radiogroup" aria-label={`${title} mock models`}>
-        {models.map((model) => <ModelRow model={model} key={model.id} />)}
+        {models.map((model) => <ModelRow model={model} onSelect={onSelect} key={model.id} />)}
       </div>
     </SectionCard>
   );
 }
 
-function ToggleRow({ title, description, enabled }: { readonly title: string; readonly description: string; readonly enabled: boolean }) {
+function ToggleRow({
+  title,
+  description,
+  enabled,
+  onToggle,
+}: {
+  readonly title: string;
+  readonly description: string;
+  readonly enabled: boolean;
+  readonly onToggle: () => void;
+}) {
   return (
     <div className="llm-toggle-row">
       <div>
         <strong>{title}</strong>
         <small>{description}</small>
       </div>
-      <span className="llm-switch" data-on={enabled} role="switch" aria-checked={enabled} aria-label={title} />
+      <button className="llm-switch" type="button" data-on={enabled} role="switch" aria-checked={enabled} aria-label={title} onClick={onToggle} />
     </div>
   );
 }
 
-function ScreenshotContextSection({ settings }: { readonly settings: AppSettingsSnapshot }) {
+function ScreenshotContextSection({
+  settings,
+  onUpdateSettings,
+}: {
+  readonly settings: AppSettingsSnapshot;
+  readonly onUpdateSettings: (update: AppSettingsUpdate) => Promise<void>;
+}) {
   return (
     <SectionCard title="스크린샷 컨텍스트">
-      <ToggleRow title="활성화" description="녹음 시 화면을 캡처하여 교정 정확도를 높입니다" enabled={settings.screenshotContextEnabled} />
-      {settings.screenshotContextEnabled ? (
-        <>
-          <div className="llm-divider" />
-          <ToggleRow title="에이전트에 전달" description="텍스트 삽입 후 캡처된 스크린샷을 대상 앱에 이미지로 붙여넣습니다" enabled={settings.screenshotPasteEnabled} />
-        </>
-      ) : null}
+      <ToggleRow
+        title="활성화"
+        description="녹음 시 화면을 캡처하여 교정 정확도를 높입니다"
+        enabled={settings.screenshotContextEnabled}
+        onToggle={() => void onUpdateSettings({
+          screenshotContextEnabled: !settings.screenshotContextEnabled,
+          screenshotPasteEnabled: settings.screenshotContextEnabled ? false : settings.screenshotPasteEnabled,
+        })}
+      />
+      <div className="llm-divider" />
+      <ToggleRow
+        title="에이전트에 전달"
+        description="텍스트 삽입 후 캡처된 스크린샷을 대상 앱에 이미지로 붙여넣습니다"
+        enabled={settings.screenshotPasteEnabled}
+        onToggle={() => void onUpdateSettings({
+          screenshotContextEnabled: true,
+          screenshotPasteEnabled: !settings.screenshotPasteEnabled,
+        })}
+      />
     </SectionCard>
   );
 }
@@ -405,17 +479,25 @@ function OpenAIAuthSection() {
   );
 }
 
-function GroqApiKeySection() {
+function GroqApiKeySection({ configured, onCommit }: { readonly configured: boolean; readonly onCommit: (value: string) => void }) {
   return (
     <SectionCard title="Groq API Key">
       <div className="llm-auth-stack">
         <label className="llm-secret-field">
           <span>API Key</span>
-          <input readOnly type="password" value="configured" aria-label="API Key" />
+          <input
+            type="password"
+            placeholder={configured ? 'configured — 새 키 입력 시 교체' : 'gsk_...'}
+            aria-label="API Key"
+            onBlur={(event) => {
+              if (event.currentTarget.value.trim()) onCommit(event.currentTarget.value);
+              event.currentTarget.value = '';
+            }}
+          />
         </label>
         <div className="llm-model-status" data-tone="success">
           <span aria-hidden="true">✓</span>
-          API Key 설정됨 (STT와 공유)
+          {configured ? 'API Key 설정됨 (STT와 공유)' : 'API Key 미설정'}
         </div>
       </div>
     </SectionCard>
@@ -431,13 +513,28 @@ function ModelStatusNotice() {
   );
 }
 
-function CorrectionModeSection() {
+function CorrectionModeSection({
+  selected,
+  onSelect,
+}: {
+  readonly selected: CorrectionMode;
+  readonly onSelect: (mode: CorrectionMode) => void;
+}) {
   return (
     <SectionCard title="교정 모드">
       <div className="llm-correction-list" role="radiogroup" aria-label="Correction mode mock selector">
         {correctionModes.map((mode) => (
-          <div className="llm-correction-row" data-selected={mode.selected ?? false} role="radio" aria-checked={mode.selected ?? false} tabIndex={0} key={mode.id}>
-            <RadioMark selected={mode.selected} />
+          <div
+            className="llm-correction-row"
+            data-selected={mode.id === selected}
+            role="radio"
+            aria-checked={mode.id === selected}
+            tabIndex={0}
+            key={mode.id}
+            onClick={() => onSelect(mode.id)}
+            onKeyDown={(event) => invokeOnActivation(event, () => onSelect(mode.id))}
+          >
+            <RadioMark selected={mode.id === selected} />
             <div>
               <strong>{mode.title}</strong>
               <small>{mode.description}</small>
@@ -449,7 +546,7 @@ function CorrectionModeSection() {
   );
 }
 
-function SystemPromptSection() {
+function SystemPromptSection({ value, onCommit }: { readonly value: string; readonly onCommit: (value: string | null) => void }) {
   return (
     <SectionCard title="시스템 프롬프트">
       <div className="llm-prompt-stack">
@@ -459,9 +556,14 @@ function SystemPromptSection() {
         </div>
         <div className="llm-prompt-pane" data-editor="true">
           <div className="llm-prompt-label">Custom editor</div>
-          <textarea readOnly value={`${promptPreview}\n- Keep domain terms from the custom dictionary unchanged.`} aria-label="Custom system prompt mock editor" />
+          <textarea
+            defaultValue={value}
+            placeholder={`${promptPreview}\n- Keep domain terms from the custom dictionary unchanged.`}
+            aria-label="Custom system prompt mock editor"
+            onBlur={(event) => onCommit(event.currentTarget.value.trim() ? event.currentTarget.value : null)}
+          />
           <div className="llm-save-row">
-            <button type="button">저장</button>
+            <button type="button" onClick={() => onCommit(value.trim() ? value : null)}>저장</button>
           </div>
         </div>
       </div>
@@ -471,8 +573,10 @@ function SystemPromptSection() {
 
 export function LLMSettingsPanelMock({
   settings,
+  onUpdateSettings,
 }: {
   readonly settings: AppSettingsSnapshot;
+  readonly onUpdateSettings: (update: AppSettingsUpdate) => Promise<void>;
 }) {
   const selectedProvider = selectedLlmProvider(settings.llmProviderType);
   const selectedOpenAIModels = openAIModels.map((model) => ({ ...model, selected: model.id === settings.openaiModel }));
@@ -481,32 +585,50 @@ export function LLMSettingsPanelMock({
 
   return (
     <div className="llm-settings-mock" data-testid="llm-settings-panel-mock">
-      <ProviderSelector selectedProvider={selectedProvider} />
+      <ProviderSelector
+        selectedProvider={selectedProvider}
+        onSelect={(llmProviderType) => void onUpdateSettings({ llmProviderType, llmEnabled: llmProviderType !== 'none' })}
+      />
       {selectedProvider === 'local' ? (
         <>
-          <ModelSection title="로컬 모델" eyebrow="Apple Silicon · local branch" models={selectedLocalModels} />
-          {settings.screenshotContextEnabled ? <ScreenshotContextSection settings={settings} /> : null}
+          <ModelSection
+            title="로컬 모델"
+            eyebrow="Apple Silicon · local branch"
+            models={selectedLocalModels}
+            onSelect={(model) => void onUpdateSettings({ llmModelId: model.id })}
+          />
+          {settings.screenshotContextEnabled ? <ScreenshotContextSection settings={settings} onUpdateSettings={onUpdateSettings} /> : null}
           <ModelStatusNotice />
         </>
       ) : null}
       {selectedProvider === 'openai' ? (
         <>
-          <ModelSection title="OpenAI 모델" eyebrow="cloud branch" models={selectedOpenAIModels} />
-          <ScreenshotContextSection settings={settings} />
+          <ModelSection
+            title="OpenAI 모델"
+            eyebrow="cloud branch"
+            models={selectedOpenAIModels}
+            onSelect={(model) => void onUpdateSettings({ openaiModel: model.id as OpenAIModelId })}
+          />
+          <ScreenshotContextSection settings={settings} onUpdateSettings={onUpdateSettings} />
           <OpenAIAuthSection />
         </>
       ) : null}
       {selectedProvider === 'groq' ? (
         <>
-          <ModelSection title="Groq 모델" eyebrow="cloud branch" models={selectedGroqModels} />
-          {selectedGroqModels.some((model) => model.selected && model.vision) ? <ScreenshotContextSection settings={settings} /> : null}
-          <GroqApiKeySection />
+          <ModelSection
+            title="Groq 모델"
+            eyebrow="cloud branch"
+            models={selectedGroqModels}
+            onSelect={(model) => void onUpdateSettings({ groqLLMModel: model.id as GroqLLMModelId })}
+          />
+          {selectedGroqModels.some((model) => model.selected && model.vision) ? <ScreenshotContextSection settings={settings} onUpdateSettings={onUpdateSettings} /> : null}
+          <GroqApiKeySection configured={settings.groqApiKeyConfigured} onCommit={(groqApiKey) => void onUpdateSettings({ groqApiKey })} />
         </>
       ) : null}
       {selectedProvider !== 'none' ? (
         <>
-          <CorrectionModeSection />
-          <SystemPromptSection />
+          <CorrectionModeSection selected={settings.correctionMode} onSelect={(correctionMode) => void onUpdateSettings({ correctionMode })} />
+          <SystemPromptSection value={settings.customLLMPrompt ?? ''} onCommit={(customLLMPrompt) => void onUpdateSettings({ customLLMPrompt })} />
         </>
       ) : null}
     </div>

@@ -1,5 +1,6 @@
 export * from './adapters';
 export * from './context';
+export * from './domain-wordsets';
 export * from './ipc';
 export * from './prompts';
 export * from './provider-registry';

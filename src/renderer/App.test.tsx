@@ -20,6 +20,7 @@ const whispreeMock = {
   updateSettings: vi.fn<(update: unknown) => Promise<unknown>>(),
   resetSettings: vi.fn<() => Promise<unknown>>(),
   copyHistoryText: vi.fn<(historyId: string, variant: 'original' | 'corrected') => Promise<unknown>>(),
+  clearHistory: vi.fn<() => Promise<unknown>>(),
 };
 
 let snapshotCallback: ((snapshot: AppSnapshot) => void) | null = null;
@@ -40,9 +41,10 @@ function installWhispreeMock() {
   whispreeMock.openSettings.mockResolvedValue({});
   whispreeMock.requestPermission.mockResolvedValue({});
   whispreeMock.getSettings.mockResolvedValue(defaultAppSettings);
-  whispreeMock.updateSettings.mockResolvedValue({ ok: true, settings: defaultAppSettings });
+  whispreeMock.updateSettings.mockImplementation(async (update) => ({ ok: true, settings: { ...defaultAppSettings, ...(update as Partial<AppSettingsSnapshot>) } }));
   whispreeMock.resetSettings.mockResolvedValue({ ok: true, settings: defaultAppSettings });
   whispreeMock.copyHistoryText.mockResolvedValue({});
+  whispreeMock.clearHistory.mockResolvedValue({});
   Object.defineProperty(window, 'whispree', {
     configurable: true,
     value: whispreeMock,
@@ -166,12 +168,46 @@ describe('App Swift parity shell markup', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: /STT/u }));
     expect(screen.getAllByText('WhisperKit Large V3 Turbo').length).toBeGreaterThan(0);
-    fireEvent.change(screen.getByLabelText('음성 인식 엔진'), { target: { value: 'groq' } });
+    fireEvent.click(screen.getByRole('radio', { name: /Groq Cloud API/u }));
     expect(whispreeMock.updateSettings).toHaveBeenCalledWith({ sttProviderType: 'groq' });
 
     fireEvent.click(screen.getByRole('tab', { name: /LLM/u }));
-    fireEvent.change(screen.getByLabelText('교정 모드'), { target: { value: 'structured' } });
+    fireEvent.click(screen.getByRole('radio', { name: /OpenAI \(GPT\)/u }));
+    expect(whispreeMock.updateSettings).toHaveBeenCalledWith({ llmProviderType: 'openai', llmEnabled: true });
+    await screen.findByText('Structured');
+    fireEvent.click(screen.getByRole('radio', { name: /Structured/u }));
     expect(whispreeMock.updateSettings).toHaveBeenCalledWith({ correctionMode: 'structured' });
+  });
+
+  it('adds Swift default word sets and clears history through typed IPC', async () => {
+    render(<App />);
+    await screen.findByText('Ready — press hotkey to record');
+
+    fireEvent.click(screen.getByRole('tab', { name: /단어 사전/u }));
+    fireEvent.click(screen.getAllByRole('button', { name: '추가' })[0]!);
+    const wordSetUpdate = whispreeMock.updateSettings.mock.calls.at(-1)?.[0] as Partial<AppSettingsSnapshot>;
+    expect(wordSetUpdate.domainWordSets?.[0]?.name).toBe('IT/개발');
+    expect(wordSetUpdate.domainWordSets?.[0]?.words).toHaveLength(42);
+
+    const delivered: AppSnapshot = {
+      ...initialAppSnapshot,
+      history: [
+        {
+          id: 'history-clear-1',
+          sequence: 1,
+          originalText: 'hello whispree',
+          correctedText: 'hello Whispree',
+          deliveredAtIso: new Date(0).toISOString(),
+          status: 'delivered',
+        },
+      ],
+    };
+    await act(async () => {
+      snapshotCallback?.(delivered);
+    });
+    fireEvent.click(screen.getByRole('tab', { name: /기록/u }));
+    fireEvent.click(screen.getByRole('button', { name: /전체 기록 지우기/u }));
+    expect(whispreeMock.clearHistory).toHaveBeenCalledTimes(1);
   });
 
 

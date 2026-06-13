@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
+import type { AppSettingsSnapshot, AppSettingsUpdate } from '../../shared/settings';
 
 import '../styles/models.css';
 
@@ -38,7 +39,7 @@ const devicePills = [
 
 const sttModels: readonly DownloadableModel[] = [
   {
-    id: 'whisperkit-large-v3-turbo',
+    id: 'openai_whisper-large-v3_turbo',
     family: 'stt',
     name: 'WhisperKit Large V3 Turbo',
     description: '로컬 CoreML+ANE, 99개 언어',
@@ -51,7 +52,7 @@ const sttModels: readonly DownloadableModel[] = [
     ],
   },
   {
-    id: 'qwen3-asr-1-7b',
+    id: 'mlx-community/Qwen3-ASR-1.7B-8bit',
     family: 'stt',
     name: 'Qwen3-ASR-1.7B-8bit',
     description: 'mlx-audio, 한중일영 (uv 필요)',
@@ -314,6 +315,12 @@ function SectionCard({ title, children }: { readonly title: string; readonly chi
   );
 }
 
+function invokeOnActivation(event: KeyboardEvent<HTMLElement>, action: () => void): void {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  event.preventDefault();
+  action();
+}
+
 function CompatibilityBadge({ grade }: { readonly grade: CompatibilityGrade }) {
   return <span className="models-compatibility-badge" data-tone={gradeTone(grade)}>{grade}</span>;
 }
@@ -334,9 +341,9 @@ function ModelMetrics({ model }: { readonly model: DownloadableModel }) {
   );
 }
 
-function StateControls({ model }: { readonly model: DownloadableModel }) {
+function StateControls({ model, onSelect }: { readonly model: DownloadableModel; readonly onSelect: () => void }) {
   if (model.state === 'not-downloaded') {
-    return <button className="models-primary-button" type="button">다운로드</button>;
+    return <button className="models-primary-button" type="button" onClick={onSelect}>다운로드</button>;
   }
 
   if (model.state === 'queued') {
@@ -344,7 +351,7 @@ function StateControls({ model }: { readonly model: DownloadableModel }) {
       <div className="models-state-line" data-tone="neutral">
         <span className="models-spinner" aria-hidden="true" />
         <span>{stateSummary(model.state)}</span>
-        <button className="models-ghost-button" type="button">취소</button>
+        <button className="models-ghost-button" type="button" onClick={onSelect}>취소</button>
       </div>
     );
   }
@@ -357,7 +364,7 @@ function StateControls({ model }: { readonly model: DownloadableModel }) {
         </div>
         <div className="models-state-line" data-tone="neutral">
           <span>{progressLabel(model)}</span>
-          <button className="models-ghost-button" type="button">취소</button>
+          <button className="models-ghost-button" type="button" onClick={onSelect}>취소</button>
         </div>
       </div>
     );
@@ -368,7 +375,7 @@ function StateControls({ model }: { readonly model: DownloadableModel }) {
       <div className="models-state-line" data-tone="neutral">
         <span className="models-spinner" aria-hidden="true" />
         <span>{stateSummary(model.state)}</span>
-        <button className="models-ghost-button" type="button">취소</button>
+        <button className="models-ghost-button" type="button" onClick={onSelect}>취소</button>
       </div>
     );
   }
@@ -378,7 +385,7 @@ function StateControls({ model }: { readonly model: DownloadableModel }) {
       <div className="models-state-line" data-tone="danger">
         <span aria-hidden="true">⚠</span>
         <span>{model.errorText ?? '다운로드 실패'}</span>
-        <button className="models-ghost-button" type="button">재시도</button>
+        <button className="models-ghost-button" type="button" onClick={onSelect}>재시도</button>
       </div>
     );
   }
@@ -387,14 +394,25 @@ function StateControls({ model }: { readonly model: DownloadableModel }) {
     <div className="models-state-line" data-tone="neutral">
       <span aria-hidden="true">✓</span>
       <span>{stateSummary(model.state)}</span>
-      <button className="models-delete-button" type="button">삭제</button>
+      <button className="models-delete-button" type="button" onClick={onSelect}>선택</button>
     </div>
   );
 }
 
-function DownloadableModelRow({ model }: { readonly model: DownloadableModel }) {
+function DownloadableModelRow({ model, onSelect }: { readonly model: DownloadableModel; readonly onSelect: (model: DownloadableModel) => void }) {
+  const select = () => onSelect(model);
   return (
-    <article className="models-download-row" data-family={model.family} data-state={model.state} data-selected={model.selected ?? false}>
+    <article
+      className="models-download-row"
+      data-family={model.family}
+      data-state={model.state}
+      data-selected={model.selected ?? false}
+      role="button"
+      tabIndex={0}
+      aria-pressed={model.selected ?? false}
+      onClick={select}
+      onKeyDown={(event) => invokeOnActivation(event, select)}
+    >
       <div className="models-row-topline">
         <div className="models-row-copy">
           <div className="models-title-line">
@@ -406,16 +424,24 @@ function DownloadableModelRow({ model }: { readonly model: DownloadableModel }) 
         </div>
         <ModelMetrics model={model} />
       </div>
-      <StateControls model={model} />
+      <StateControls model={model} onSelect={select} />
     </article>
   );
 }
 
-function DownloadSection({ title, models }: { readonly title: string; readonly models: readonly DownloadableModel[] }) {
+function DownloadSection({
+  title,
+  models,
+  onSelect,
+}: {
+  readonly title: string;
+  readonly models: readonly DownloadableModel[];
+  readonly onSelect: (model: DownloadableModel) => void;
+}) {
   return (
     <SectionCard title={title}>
       <div className="models-download-list">
-        {models.map((model) => <DownloadableModelRow model={model} key={model.id} />)}
+        {models.map((model) => <DownloadableModelRow model={model} onSelect={onSelect} key={model.id} />)}
       </div>
     </SectionCard>
   );
@@ -448,12 +474,40 @@ function StorageSection() {
   );
 }
 
-export function ModelsPanelMock() {
+export function ModelsPanelMock({
+  settings,
+  onUpdateSettings,
+}: {
+  readonly settings: AppSettingsSnapshot;
+  readonly onUpdateSettings: (update: AppSettingsUpdate) => Promise<void>;
+}) {
+  const selectableSttModels = sttModels.map((model) => ({
+    ...model,
+    selected: model.id === settings.whisperModelId || model.id === settings.mlxAudioModelId,
+    state: model.id === settings.whisperModelId || model.id === settings.mlxAudioModelId ? 'ready' as const : model.state,
+  }));
+  const selectableLlmModels = llmModels.map((model) => ({
+    ...model,
+    selected: model.id === settings.llmModelId,
+    state: model.id === settings.llmModelId ? 'ready' as const : model.state,
+  }));
+  const selectModel = (model: DownloadableModel) => {
+    if (model.family === 'stt') {
+      if (model.id === 'openai_whisper-large-v3_turbo') {
+        void onUpdateSettings({ sttProviderType: 'whisperkit', whisperModelId: model.id });
+        return;
+      }
+      void onUpdateSettings({ sttProviderType: 'mlx-audio', mlxAudioModelId: model.id });
+      return;
+    }
+    void onUpdateSettings({ llmProviderType: 'local', llmModelId: model.id });
+  };
+
   return (
     <div className="models-panel-mock" data-testid="models-panel-mock">
       <DeviceCapabilityPills />
-      <DownloadSection title="STT 모델" models={sttModels} />
-      <DownloadSection title="LLM 모델" models={llmModels} />
+      <DownloadSection title="STT 모델" models={selectableSttModels} onSelect={selectModel} />
+      <DownloadSection title="LLM 모델" models={selectableLlmModels} onSelect={selectModel} />
       <StorageSection />
     </div>
   );

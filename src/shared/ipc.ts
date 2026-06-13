@@ -15,6 +15,7 @@ export const IPC_CHANNELS = {
   updateSettings: 'whispree:update-settings',
   resetSettings: 'whispree:reset-settings',
   copyHistoryText: 'whispree:copy-history-text',
+  clearHistory: 'whispree:clear-history',
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -130,7 +131,8 @@ export type CommandAction =
   | 'get-settings'
   | 'update-settings'
   | 'reset-settings'
-  | 'copy-history-text';
+  | 'copy-history-text'
+  | 'clear-history';
 
 export interface CommandError {
   readonly code: 'invalid-input' | 'unsupported' | 'not-implemented';
