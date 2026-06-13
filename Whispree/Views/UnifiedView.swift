@@ -1,0 +1,265 @@
+import SwiftUI
+
+enum SidebarSection: String, CaseIterable, Identifiable {
+    case home = "Home"
+    case general = "일반"
+    case stt = "STT"
+    case llm = "LLM"
+    case models = "Downloads"
+    case wordSets = "단어 사전"
+    case history = "기록"
+
+    var id: String {
+        rawValue
+    }
+
+    var icon: String {
+        switch self {
+            case .home: "house.fill"
+            case .general: "gearshape"
+            case .stt: "mic.fill"
+            case .llm: "brain"
+            case .models: "arrow.down.circle.fill"
+            case .wordSets: "text.book.closed.fill"
+            case .history: "clock.fill"
+        }
+    }
+
+    var iconColor: Color {
+        switch self {
+            case .home: .orange
+            case .general: .gray
+            case .stt: .blue
+            case .llm: .purple
+            case .models: .green
+            case .wordSets: .teal
+            case .history: .indigo
+        }
+    }
+}
+
+struct UnifiedView: View {
+    @EnvironmentObject var appState: AppState
+    @State private var selectedSection: SidebarSection = .home
+    @State private var isSidebarExpanded: Bool = true
+    // 방문한 탭만 mount해서 launch-time cost는 피하되, 한 번 방문한 뒤에는
+    // 계속 유지해 .task/body 재실행 없이 즉시 전환되도록. 스크롤 위치/입력 state도 보존됨.
+    @State private var visitedSections: Set<SidebarSection> = [.home]
+
+    private var sidebarWidth: CGFloat {
+        isSidebarExpanded ? 220 : 80
+    }
+
+    var body: some View {
+        ZStack {
+            VisualEffectBackground(material: .sidebar, blendingMode: .behindWindow)
+                .ignoresSafeArea()
+
+            HStack(spacing: 0) {
+                // Sidebar
+                sidebarContent
+                    .frame(width: sidebarWidth)
+                    .background(Color.primary.opacity(0.06))
+
+                // Divider starting below traffic lights
+                VStack(spacing: 0) {
+                    Color.clear.frame(height: 52)
+                    Divider()
+                        .frame(maxHeight: .infinity)
+                }
+                .frame(width: 1)
+
+                // Detail — scrollContentBackground hidden so Form backgrounds are transparent
+                detailView
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.top, 52)
+                    .scrollContentBackground(.hidden)
+            }
+        }
+        .ignoresSafeArea(.all, edges: .top)
+    }
+
+    // MARK: - Sidebar
+
+    private var sidebarContent: some View {
+        VStack(alignment: isSidebarExpanded ? .leading : .center, spacing: 0) {
+            // Toggle button
+            Button {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    isSidebarExpanded.toggle()
+                }
+            } label: {
+                Image(systemName: "sidebar.left")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 30, height: 30)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .focusEffectDisabled()
+            .frame(maxWidth: .infinity, alignment: isSidebarExpanded ? .leading : .center)
+            .padding(.leading, isSidebarExpanded ? 10 : 0)
+            .padding(.bottom, 16)
+
+            // Navigation items
+            ForEach(SidebarSection.allCases) { section in
+                SidebarRow(
+                    section: section,
+                    isSelected: selectedSection == section,
+                    isExpanded: isSidebarExpanded
+                ) {
+                    selectSection(section)
+                }
+            }
+            Spacer()
+        }
+        .padding(.top, 60)
+        .padding(.horizontal, isSidebarExpanded ? 14 : 8)
+    }
+
+    // MARK: - Section selection
+
+    private func selectSection(_ section: SidebarSection) {
+        guard selectedSection != section else { return }
+        // mount은 애니메이션 밖 — 뷰가 트리에 즉시 들어가야 fade-in이 자연스러움
+        visitedSections.insert(section)
+        // easeOut: 초반 빠르게 반응하고 끝에서 부드럽게 정착 — 클릭 → 전환의 체감 지연이 최소화됨
+        withAnimation(.easeOut(duration: 0.22)) {
+            selectedSection = section
+        }
+    }
+
+    // MARK: - Detail
+
+    /// ZStack에 방문한 탭들을 유지하고 opacity + hit-testing만 토글.
+    /// switch-based destroy/recreate로 인한 body/.task 재실행 렉을 제거.
+    private var detailView: some View {
+        ZStack {
+            if visitedSections.contains(.home) {
+                MainDashboardView()
+                    .opacity(selectedSection == .home ? 1 : 0)
+                    .allowsHitTesting(selectedSection == .home)
+            }
+            if visitedSections.contains(.general) {
+                GeneralSettingsView()
+                    .opacity(selectedSection == .general ? 1 : 0)
+                    .allowsHitTesting(selectedSection == .general)
+            }
+            if visitedSections.contains(.stt) {
+                STTSettingsView()
+                    .opacity(selectedSection == .stt ? 1 : 0)
+                    .allowsHitTesting(selectedSection == .stt)
+            }
+            if visitedSections.contains(.llm) {
+                LLMSettingsView()
+                    .opacity(selectedSection == .llm ? 1 : 0)
+                    .allowsHitTesting(selectedSection == .llm)
+            }
+            if visitedSections.contains(.models) {
+                ModelSettingsView()
+                    .opacity(selectedSection == .models ? 1 : 0)
+                    .allowsHitTesting(selectedSection == .models)
+            }
+            if visitedSections.contains(.wordSets) {
+                DomainWordSetsView()
+                    .opacity(selectedSection == .wordSets ? 1 : 0)
+                    .allowsHitTesting(selectedSection == .wordSets)
+            }
+            if visitedSections.contains(.history) {
+                TranscriptionHistoryView()
+                    .opacity(selectedSection == .history ? 1 : 0)
+                    .allowsHitTesting(selectedSection == .history)
+            }
+        }
+    }
+}
+
+// MARK: - Sidebar Row
+
+private struct SidebarRow: View {
+    let section: SidebarSection
+    let isSelected: Bool
+    let isExpanded: Bool
+    let action: () -> Void
+
+    /// mouseDown 시 한 번만 action을 발사하기 위한 래치.
+    /// onEnded에서 리셋해 다음 클릭에 다시 발사.
+    @State private var hasFiredThisPress = false
+
+    var body: some View {
+        rowContent
+            .contentShape(Rectangle())
+            .simultaneousGesture(
+                // Finder/Mail 사이드바처럼 mouseDown 즉시 전환.
+                // mouseUp 대기로 생기던 "누르고 있는 동안의 회색 플래시 → release 후 crossfade"
+                // 2단계 느낌 제거. minimumDistance:0 이라 제스처는 터치 즉시 onChanged 발화.
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        guard !hasFiredThisPress else { return }
+                        hasFiredThisPress = true
+                        action()
+                    }
+                    .onEnded { _ in hasFiredThisPress = false }
+            )
+            .padding(.vertical, 2)
+            .help(isExpanded ? "" : section.rawValue)
+    }
+
+    private var rowContent: some View {
+        Group {
+            if isExpanded {
+                HStack(spacing: 12) {
+                    iconBadge
+                    Text(section.rawValue)
+                        .font(.system(size: 15))
+                    Spacer()
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+            } else {
+                HStack {
+                    Spacer()
+                    iconBadge
+                    Spacer()
+                }
+                .padding(.vertical, 6)
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(isSelected ? Color.accentColor : Color.clear)
+        )
+        .foregroundStyle(isSelected ? .white : .primary)
+    }
+
+    private var iconBadge: some View {
+        Image(systemName: section.icon)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: 28, height: 28)
+            .background(
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(section.iconColor)
+            )
+    }
+}
+
+// MARK: - NSVisualEffectView wrapper
+
+struct VisualEffectBackground: NSViewRepresentable {
+    let material: NSVisualEffectView.Material
+    let blendingMode: NSVisualEffectView.BlendingMode
+
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = material
+        view.blendingMode = blendingMode
+        view.state = .active
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+        nsView.material = material
+        nsView.blendingMode = blendingMode
+    }
+}

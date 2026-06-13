@@ -1,0 +1,270 @@
+import KeyboardShortcuts
+import SwiftUI
+
+struct TranscriptionOverlayView: View {
+    @EnvironmentObject var appState: AppState
+
+    /// 녹음 중 thinking pause 상태인가? (UI 전환 기준)
+    private var isThinkingPauseActive: Bool {
+        appState.settings.vadEnabled &&
+            appState.transcriptionState == .recording &&
+            appState.isThinkingPause
+    }
+
+    /// 스크린샷 전달 토글 플래시 표시 중?
+    private var isHandoffFlashActive: Bool {
+        appState.handoffToggleFlash != nil
+    }
+
+    /// 현재 VLM 지원 프로바이더? — 하단 안내 표시 조건.
+    private var supportsVisionHandoff: Bool {
+        appState.llmProvider?.supportsVision == true
+    }
+
+    var body: some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 6) {
+                statusIcon
+                Text(statusText)
+                    .font(.caption.bold())
+                    .foregroundStyle(.secondary)
+                    .contentTransition(.opacity)
+                    .animation(.easeInOut(duration: 0.35), value: isThinkingPauseActive)
+                    .animation(.easeInOut(duration: 0.35), value: isHandoffFlashActive)
+                Spacer(minLength: 0)
+                if appState.transcriptionState == .transcribing || appState.transcriptionState == .correcting {
+                    ProgressView()
+                        .scaleEffect(0.6)
+                        .frame(width: 16, height: 16)
+                }
+            }
+            NeonWaveformView()
+                .frame(height: 40)
+                .opacity(waveformOpacity)
+                .animation(.easeInOut(duration: 0.4), value: isThinkingPauseActive)
+                .animation(.easeInOut(duration: 0.2), value: appState.isRecording)
+
+            if appState.isRecording {
+                HStack(spacing: 12) {
+                    Spacer()
+                    hotkeyBadge(label: "Stop", keys: shortcutLabel)
+                    hotkeyBadge(label: "Cancel", keys: "esc")
+                    if supportsVisionHandoff {
+                        hotkeyBadge(
+                            label: "Img Attach",
+                            keys: "⌥",
+                            active: appState.settings.isScreenshotPasteEnabled
+                        )
+                    }
+                    Spacer()
+                }
+            } else if isForegroundQueueItemCancelable {
+                HStack(spacing: 12) {
+                    Spacer()
+                    hotkeyBadge(label: foregroundCancelLabel, keys: "esc")
+                    Spacer()
+                }
+            }
+        }
+        .frame(width: 280)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func hotkeyBadge(label: String, keys: String, active: Bool = false) -> some View {
+        HStack(spacing: 4) {
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(active ? DesignTokens.accentPrimary : .secondary)
+                .animation(.easeInOut(duration: 0.25), value: active)
+            Text(keys)
+                .font(.caption2.monospaced())
+                .foregroundStyle(.tertiary)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 1)
+                .background(DesignTokens.Surface.subdued)
+                .clipShape(RoundedRectangle(cornerRadius: 3))
+        }
+    }
+
+    private var shortcutLabel: String {
+        appState.settings.toggleRecordingShortcut.displayLabel
+    }
+
+    private var isForegroundQueueItemCancelable: Bool {
+        appState.dictationQueueSnapshot.foregroundJobSequence != nil &&
+            (appState.transcriptionState == .transcribing || appState.transcriptionState == .correcting)
+    }
+
+    private var foregroundCancelLabel: String {
+        if let sequence = appState.dictationQueueSnapshot.foregroundJobSequence {
+            return "Cancel #\(sequence)"
+        }
+        return "Cancel"
+    }
+
+    private var statusText: String {
+        if let handoff = appState.handoffToggleFlash {
+            return handoff ? String(localized: "Img Attach ON") : String(localized: "Img Attach OFF")
+        }
+        if isThinkingPauseActive {
+            return String(localized: "무음 스킵 중")
+        }
+        let activeQueueCount = appState.dictationQueueSnapshot.activeCount
+        if appState.isRecording, activeQueueCount > 0 {
+            return "Recording · \(activeQueueCount) pending"
+        }
+        if !appState.isRecording, appState.dictationQueueSnapshot.processingCount > 1 {
+            return "Processing \(appState.dictationQueueSnapshot.processingCount) items"
+        }
+        return appState.transcriptionState.displayText
+    }
+
+    private var waveformOpacity: Double {
+        if !appState.isRecording { return 0.3 }
+        return isThinkingPauseActive ? 0.35 : 1.0
+    }
+
+    @ViewBuilder
+    private var statusIcon: some View {
+        Group {
+            if let handoff = appState.handoffToggleFlash {
+                // 스크린샷 전달 토글 플래시
+                Image(systemName: handoff ? "photo.fill.on.rectangle.fill" : "photo.on.rectangle")
+                    .foregroundStyle(handoff ? DesignTokens.accentPrimary : .secondary)
+            } else if isThinkingPauseActive {
+                // Thinking pause: "무음 스킵 중" — waveform.slash (secondary), gentle pulse
+                Image(systemName: "waveform.slash")
+                    .foregroundStyle(.secondary)
+                    .symbolEffect(.pulse, options: .repeating.speed(0.6))
+            } else {
+                switch appState.transcriptionState {
+                    case .recording:
+                        Image(systemName: "mic.fill")
+                            .foregroundStyle(DesignTokens.semanticColors(for: .danger).foreground)
+                            .symbolEffect(.pulse)
+                    case .transcribing:
+                        Image(systemName: "text.bubble")
+                            .foregroundStyle(DesignTokens.semanticColors(for: .warning).foreground)
+                    case .correcting:
+                        Image(systemName: "text.badge.checkmark")
+                            .foregroundStyle(DesignTokens.accentPrimary)
+                    case .inserting:
+                        Image(systemName: "checkmark.circle")
+                            .foregroundStyle(DesignTokens.semanticColors(for: .success).foreground)
+                    case .selectingScreenshots:
+                        Image(systemName: "photo.on.rectangle.angled")
+                            .foregroundStyle(DesignTokens.accentPrimary)
+                    case .idle:
+                        Image(systemName: "mic")
+                            .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .font(.caption)
+        .contentTransition(.symbolEffect(.replace))
+        .animation(.easeInOut(duration: 0.3), value: isThinkingPauseActive)
+    }
+}
+
+// MARK: - Waveform (스펙트럼 중앙 접기 — 저주파→중앙, 고주파→가장자리)
+
+struct NeonWaveformView: View {
+    @EnvironmentObject var appState: AppState
+    @Environment(\.colorScheme) private var colorScheme
+    private let bandCount = 48
+    private let halfCount = 24
+    @State private var smoothed: [Float] = Array(repeating: 0, count: 48)
+
+    private let timer = Timer.publish(every: 1.0 / 60.0, on: .main, in: .common).autoconnect()
+
+    // 바 인덱스 → FFT 밴드 인덱스 매핑 (중앙 접기)
+    // 중앙(23,24) → fft[0,1], 가장자리(0,47) → fft[46,47]
+    private let barToFFT: [Int] = {
+        var map = [Int](repeating: 0, count: 48)
+        for i in 0 ..< 24 {
+            let fftIdx = (23 - i) * 2      // 왼쪽: 짝수 밴드
+            let fftIdx2 = (23 - i) * 2 + 1 // 오른쪽: 홀수 밴드
+            map[i] = fftIdx
+            map[47 - i] = fftIdx2
+        }
+        return map
+    }()
+
+    var body: some View {
+        let isDark = colorScheme == .dark
+        Canvas { context, size in
+            let midY = size.height / 2
+            let totalWidth = size.width * 0.88
+            let offsetX = (size.width - totalWidth) / 2
+            let barSpacing = totalWidth / CGFloat(bandCount)
+            let barWidth: CGFloat = max(2, barSpacing * 0.55)
+
+            for i in 0 ..< bandCount {
+                let level = CGFloat(smoothed[i])
+                let minH: CGFloat = 1.5
+                let h = max(minH, level * size.height * 0.42)
+                let x = offsetX + CGFloat(i) * barSpacing + (barSpacing - barWidth) / 2
+                let cornerR = barWidth / 2
+
+                let topRect = CGRect(x: x, y: midY - h, width: barWidth, height: h)
+                let botRect = CGRect(x: x, y: midY + 0.5, width: barWidth, height: h)
+
+                let center = Float(bandCount - 1) / 2.0
+                let distFromCenter = CGFloat(abs(Float(i) - center) / center)
+                let color = barColor(dist: distFromCenter, intensity: Float(level), isDark: isDark)
+
+                context.fill(Path(roundedRect: topRect, cornerRadius: cornerR), with: .color(color))
+                context.fill(Path(roundedRect: botRect, cornerRadius: cornerR), with: .color(color))
+            }
+
+            var centerLine = Path()
+            centerLine.move(to: CGPoint(x: offsetX, y: midY))
+            centerLine.addLine(to: CGPoint(x: offsetX + totalWidth, y: midY))
+            let lineColor: Color = isDark ? .white.opacity(0.08) : .black.opacity(0.08)
+            context.stroke(centerLine, with: .color(lineColor), lineWidth: 0.5)
+        }
+        .onReceive(timer) { _ in
+            let bands = appState.frequencyBands
+            let rms = appState.currentAudioLevel
+
+            for i in 0 ..< bandCount {
+                // 중앙 접기: 저주파→중앙, 고주파→가장자리 (좌우 다른 밴드)
+                let fftIdx = min(barToFFT[i], max(bands.count - 1, 0))
+                let fftVal: Float = bands.isEmpty ? 0 : bands[fftIdx]
+
+                // FFT가 형태를 결정, RMS가 전체 에너지 스케일링
+                let target = fftVal * (0.6 + rms * 1.4)
+
+                let current = smoothed[i]
+                if target > current {
+                    smoothed[i] = current * 0.2 + target * 0.8
+                } else {
+                    smoothed[i] = current * 0.85 + target * 0.15
+                }
+            }
+        }
+    }
+
+    private func barColor(dist: CGFloat, intensity: Float, isDark: Bool) -> Color {
+        let alpha = 0.5 + Double(min(intensity, 1.0)) * 0.5
+        if isDark {
+            // 다크 모드: 연한 네온 블루 (어두운 material 위에서 잘 보임)
+            let r = 0.55 + dist * 0.25
+            let g = 0.82 - dist * 0.15
+            let b = 0.95
+            return Color(red: r, green: g, blue: b).opacity(alpha)
+        } else {
+            // 라이트 모드: 진한 블루 (밝은 material 위에서 대비 확보)
+            let r = 0.15 + dist * 0.15
+            let g = 0.42 - dist * 0.10
+            let b = 0.88
+            return Color(red: r, green: g, blue: b).opacity(alpha)
+        }
+    }
+}
+
+/// Alias for dashboard usage
+typealias ScrollingWaveformView = NeonWaveformView

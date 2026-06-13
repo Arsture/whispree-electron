@@ -1,0 +1,119 @@
+name: Whispree
+options:
+  bundleIdPrefix: com.whispree
+  deploymentTarget:
+    macOS: "14.0"
+  xcodeVersion: "16.3"
+  minimumXcodeGenVersion: "2.40.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    ARCHS: arm64
+    ONLY_ACTIVE_ARCH: "YES"
+
+packages:
+  WhisperKit:
+    url: https://github.com/argmaxinc/WhisperKit
+    from: "0.9.0"
+  mlx-swift-lm:
+    url: https://github.com/ml-explore/mlx-swift-lm
+    revision: 7e2b710
+  swift-huggingface:
+    url: https://github.com/huggingface/swift-huggingface
+    from: "0.9.0"
+  swift-transformers:
+    url: https://github.com/huggingface/swift-transformers
+    from: "1.1.6"
+  KeyboardShortcuts:
+    url: https://github.com/sindresorhus/KeyboardShortcuts
+    from: "2.0.0"
+  LaunchAtLogin:
+    url: https://github.com/sindresorhus/LaunchAtLogin-Modern
+    from: "1.0.0"
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: "2.6.0"
+
+targets:
+  Whispree:
+    type: application
+    platform: macOS
+    sources:
+      - path: Whispree
+        excludes:
+          - "**/.DS_Store"
+          - "**/AGENTS.md"
+          - "Vendor/**"
+    resources:
+      - path: Whispree/Resources/Assets.xcassets
+    postBuildScripts:
+      - script: |
+          mkdir -p "${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app/Contents/Resources/mlx-worker"
+          cp "${SRCROOT}/mlx-worker/mlx_worker.py" "${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app/Contents/Resources/mlx-worker/"
+          cp "${SRCROOT}/mlx-worker/mlx_llm_worker.py" "${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app/Contents/Resources/mlx-worker/"
+          cp "${SRCROOT}/mlx-worker/pyproject.toml" "${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app/Contents/Resources/mlx-worker/"
+        name: Copy mlx-worker to bundle
+      - script: |
+          DEST="${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app/Contents/Resources/MediaRemoteAdapter"
+          rm -rf "$DEST"
+          mkdir -p "$DEST"
+          cp -R "${SRCROOT}/Whispree/Vendor/MediaRemoteAdapter/MediaRemoteAdapter.framework" "$DEST/"
+          cp "${SRCROOT}/Whispree/Vendor/MediaRemoteAdapter/MediaRemoteAdapterTestClient" "$DEST/"
+          cp "${SRCROOT}/Whispree/Vendor/MediaRemoteAdapter/mediaremote-adapter.pl" "$DEST/"
+          cp "${SRCROOT}/Whispree/Vendor/MediaRemoteAdapter/LICENSE" "$DEST/LICENSE"
+          chmod +x "$DEST/MediaRemoteAdapterTestClient" "$DEST/mediaremote-adapter.pl"
+        name: Copy MediaRemoteAdapter to bundle
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.whispree.app
+        PRODUCT_NAME: Whispree
+        INFOPLIST_FILE: Whispree/Resources/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Whispree/Resources/Whispree.entitlements
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: DRDT2F8525
+        ENABLE_HARDENED_RUNTIME: "YES"
+        COMBINE_HIDPI_IMAGES: "YES"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
+        SWIFT_EMIT_LOC_STRINGS: "YES"
+    dependencies:
+      - package: WhisperKit
+      - package: mlx-swift-lm
+        product: MLXLLM
+      - package: mlx-swift-lm
+        product: MLXLMCommon
+      - package: mlx-swift-lm
+        product: MLXVLM
+      - package: mlx-swift-lm
+        product: MLXHuggingFace
+      - package: swift-huggingface
+        product: HuggingFace
+      - package: swift-transformers
+        product: Tokenizers
+      - package: KeyboardShortcuts
+      - package: LaunchAtLogin
+      - package: Sparkle
+    entitlements:
+      path: Whispree/Resources/Whispree.entitlements
+      properties:
+        com.apple.security.automation.apple-events: true
+        com.apple.security.device.audio-input: true
+        com.apple.security.network.client: true
+
+  WhispreeTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: WhispreeTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.whispree.app.tests
+        GENERATE_INFOPLIST_FILE: "YES"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Whispree.app/Contents/MacOS/Whispree"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: DRDT2F8525
+    dependencies:
+      - target: Whispree
