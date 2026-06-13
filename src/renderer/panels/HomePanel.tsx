@@ -2,6 +2,10 @@ import type { AppSnapshot, PermissionCardSnapshot, ProviderCardSnapshot, QueueIt
 import { implementationTone, jobLabel, queueProcessingText, statusTitle, statusTone } from '../ui-model';
 import { StatusPill, Waveform } from '../components/primitives';
 import { TranscriptionOverlayMock } from './TranscriptionOverlayMock';
+import { OnboardingMock } from './onboarding/OnboardingMock';
+import { QuickFixMock } from './quickfix/QuickFixMock';
+import { ScreenshotSelectionMock } from './ScreenshotSelectionMock';
+import { MenuBarMock } from './menubar/MenuBarMock';
 
 const screenshotMocks = [
   { id: 'screen-1', appName: 'Safari', timestamp: '10:42:18', tone: 'blue' },
@@ -275,6 +279,35 @@ function ContextFoundation() {
   );
 }
 
+function SurfaceGallery() {
+  return (
+    <section className="liquid-card ui-surface-gallery" data-testid="ui-surface-gallery" aria-label="Swift secondary surface UI mocks">
+      <div className="card-heading">
+        <h2>Swift surface gallery</h2>
+        <StatusPill tone="accent">UI-11–14</StatusPill>
+      </div>
+      <div className="ui-surface-gallery-grid">
+        <article className="ui-surface-preview-card" data-ui-surface="onboarding">
+          <header><strong>Onboarding</strong><small>480×640 setup flow</small></header>
+          <div className="ui-surface-preview" data-preview="onboarding"><OnboardingMock /></div>
+        </article>
+        <article className="ui-surface-preview-card" data-ui-surface="quick-fix">
+          <header><strong>Quick Fix</strong><small>selected text popover</small></header>
+          <div className="ui-surface-preview" data-preview="quickfix"><QuickFixMock /></div>
+        </article>
+        <article className="ui-surface-preview-card" data-ui-surface="screenshot-selection">
+          <header><strong>Screenshot Selection</strong><small>visual context picker</small></header>
+          <div className="ui-surface-preview" data-preview="screenshot"><ScreenshotSelectionMock /></div>
+        </article>
+        <article className="ui-surface-preview-card" data-ui-surface="menubar">
+          <header><strong>Menu Bar</strong><small>320px popover</small></header>
+          <div className="ui-surface-preview" data-preview="menubar"><MenuBarMock /></div>
+        </article>
+      </div>
+    </section>
+  );
+}
+
 export function HomePanel({ snapshot }: { readonly snapshot: AppSnapshot }) {
   return (
     <div className="home-grid home-dashboard">
@@ -306,6 +339,7 @@ export function HomePanel({ snapshot }: { readonly snapshot: AppSnapshot }) {
         <div className="home-side-stack">
           <OverlayPlaceholder />
           <ContextFoundation />
+          <SurfaceGallery />
         </div>
       </div>
     </div>

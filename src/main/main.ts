@@ -34,6 +34,8 @@ const emitAppSnapshot = (snapshot: ReturnType<MockDictationPipeline['getSnapshot
   mainWindow?.webContents.send(IPC_CHANNELS.appSnapshotUpdated, snapshot);
 };
 
+configureSmokeRuntime();
+
 if (isSquirrelStartupEvent()) {
   app.quit();
 }
@@ -42,11 +44,63 @@ function isSquirrelStartupEvent(): boolean {
   return process.platform === 'win32' && process.argv.some((argument) => argument.startsWith('--squirrel-'));
 }
 
+function configureSmokeRuntime(): void {
+  if (process.env.WHISPREE_USE_MOCK_KEYCHAIN === '1' || process.env.WHISPREE_SMOKE_MODE === 'packaged-app-ui') {
+    app.commandLine.appendSwitch('use-mock-keychain');
+  }
+
+  const smokeUserDataDir = process.env.WHISPREE_USER_DATA_DIR;
+  if (smokeUserDataDir) {
+    app.setPath('userData', path.resolve(smokeUserDataDir));
+  }
+}
+
+async function waitForRendererReady(): Promise<void> {
+  if (!mainWindow) return;
+  await mainWindow.webContents.executeJavaScript(`
+    new Promise((resolve) => {
+      const isReady = () => Boolean(document.querySelector('[data-view="whispree-shell"]')) && document.body.innerText.includes('Whispree');
+      let attempts = 0;
+      const finishAfterPaint = () => requestAnimationFrame(() => requestAnimationFrame(resolve));
+      const tick = () => {
+        if (isReady() || attempts++ > 160) {
+          finishAfterPaint();
+          return;
+        }
+        setTimeout(tick, 50);
+      };
+      if (document.readyState === 'loading') {
+        window.addEventListener('DOMContentLoaded', tick, { once: true });
+      } else {
+        tick();
+      }
+    });
+  `, true);
+}
+
+async function writeCaptureDomReport(reportPath: string | undefined): Promise<void> {
+  if (!mainWindow || !reportPath) return;
+  const repoRoot = process.env.WHISPREE_REPO_ROOT ?? app.getAppPath();
+  const resolvedPath = path.resolve(repoRoot, reportPath);
+  const report = await mainWindow.webContents.executeJavaScript(`
+    JSON.stringify({
+      title: document.title,
+      rootPresent: Boolean(document.querySelector('[data-view="whispree-shell"]')),
+      bodyText: document.body.innerText.slice(0, 2000),
+      capturedAt: new Date().toISOString(),
+    }, null, 2);
+  `, true);
+  await mkdir(path.dirname(resolvedPath), { recursive: true });
+  await writeFile(resolvedPath, `${String(report)}\n`, 'utf8');
+}
 
 async function captureAndQuit(outputPath: string): Promise<void> {
   if (!mainWindow) return;
   try {
-    await new Promise((resolve) => setTimeout(resolve, 350));
+    mainWindow.show();
+    mainWindow.focus();
+    await waitForRendererReady();
+    await writeCaptureDomReport(process.env.WHISPREE_CAPTURE_DOM_REPORT);
     const image = await mainWindow.webContents.capturePage();
     await mkdir(path.dirname(outputPath), { recursive: true });
     await writeFile(outputPath, image.toPNG());

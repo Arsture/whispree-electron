@@ -1,1 +1,418 @@
 /* quickfix parity styles: owned by UI parity task registry. */
+
+.quickfix-mock {
+  display: grid;
+  grid-template-columns: minmax(440px, 520px) minmax(220px, 300px);
+  align-items: start;
+  justify-content: center;
+  gap: 18px;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px;
+  color: var(--text-primary);
+}
+
+.quickfix-popover,
+.quickfix-register-card {
+  border: 1px solid var(--border-subtle);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.34)),
+    var(--surface-card);
+  box-shadow: var(--shadow-overlay), inset 0 1px 0 rgba(255, 255, 255, 0.48);
+  backdrop-filter: blur(28px) saturate(1.32);
+  -webkit-backdrop-filter: blur(28px) saturate(1.32);
+}
+
+.quickfix-popover {
+  width: 440px;
+  padding: 20px;
+  border-radius: 18px;
+}
+
+.quickfix-header,
+.quickfix-section-heading,
+.quickfix-footer,
+.quickfix-actions,
+.quickfix-replacement-flow,
+.quickfix-row-meta,
+.quickfix-dictionary-state,
+.quickfix-register-badges,
+.quickfix-selection-meta {
+  display: flex;
+  align-items: center;
+}
+
+.quickfix-header {
+  gap: 9px;
+}
+
+.quickfix-header h1,
+.quickfix-mode-block p,
+.quickfix-text-preview p,
+.quickfix-register-card p {
+  margin: 0;
+}
+
+.quickfix-header h1 {
+  font-size: 15px;
+  font-weight: 760;
+  line-height: 1.2;
+}
+
+.quickfix-header-icon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: var(--accent);
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.quickfix-header-spacer {
+  flex: 1 1 auto;
+}
+
+.quickfix-window-chip,
+.quickfix-pill,
+.quickfix-register-badges span {
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.46);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.quickfix-window-chip,
+.quickfix-pill {
+  padding: 3px 8px;
+}
+
+.quickfix-pill-accent,
+.quickfix-register-badges span[data-tone="accent"] {
+  border-color: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, white);
+}
+
+.quickfix-divider {
+  height: 1px;
+  margin: 14px 0;
+  background: var(--border-subtle);
+}
+
+.quickfix-mode-block {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.quickfix-segmented {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+  background: rgba(20, 24, 32, 0.055);
+}
+
+.quickfix-segment {
+  display: grid;
+  place-items: center;
+  min-height: 28px;
+  border-radius: 7px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 720;
+  outline: none;
+}
+
+.quickfix-segment[data-selected="true"] {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 1px 4px rgba(18, 24, 33, 0.11);
+}
+
+.quickfix-segment:focus-visible,
+.quickfix-button:focus-visible,
+.quickfix-replacement-row:focus-within {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, white);
+  outline-offset: 2px;
+}
+
+.quickfix-mode-block p,
+.quickfix-footer > span,
+.quickfix-row-meta small,
+.quickfix-dictionary-state small,
+.quickfix-register-card p {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.quickfix-section {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.08)),
+    var(--surface-card);
+}
+
+.quickfix-section-heading {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.quickfix-section-label {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: 0.02em;
+}
+
+.quickfix-text-preview p {
+  padding: 2px 0;
+  color: var(--text-primary);
+  font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.55;
+  user-select: text;
+}
+
+.quickfix-selection-meta {
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.quickfix-selection-meta span {
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: var(--text-tertiary);
+  background: rgba(18, 23, 32, 0.045);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.quickfix-text-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 30px;
+  padding: 5px 8px;
+  border: 1px solid var(--border-emphasized);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 1px 1px rgba(18, 24, 33, 0.04);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.quickfix-text-field i {
+  width: 1px;
+  height: 17px;
+  margin-left: 6px;
+  background: var(--accent);
+  animation: quickfix-caret-blink 1.1s steps(2, start) infinite;
+}
+
+.quickfix-replacement-list {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.quickfix-replacement-row {
+  display: grid;
+  gap: 5px;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.quickfix-replacement-row:last-child {
+  border-bottom: 0;
+}
+
+.quickfix-replacement-row[data-selected="true"] {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.quickfix-replacement-flow {
+  gap: 7px;
+  min-width: 0;
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.quickfix-replacement-flow code {
+  overflow: hidden;
+  max-width: 44%;
+  color: var(--text-primary);
+  font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quickfix-replacement-flow strong {
+  overflow: hidden;
+  color: var(--accent);
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quickfix-row-meta {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.quickfix-row-meta span {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  font-size: 10px;
+  font-weight: 760;
+}
+
+.quickfix-row-meta small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quickfix-dictionary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.quickfix-dictionary-state {
+  gap: 8px;
+  min-width: 0;
+  min-height: 58px;
+  padding: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.quickfix-dictionary-state[data-active="true"] {
+  border-color: color-mix(in srgb, var(--success) 24%, var(--border-subtle));
+  background: color-mix(in srgb, var(--success) 9%, rgba(255, 255, 255, 0.38));
+}
+
+.quickfix-dictionary-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  background: rgba(18, 23, 32, 0.055);
+  font-size: 10px;
+  font-weight: 820;
+}
+
+.quickfix-dictionary-state[data-active="true"] .quickfix-dictionary-icon {
+  color: white;
+  background: var(--success);
+}
+
+.quickfix-dictionary-state > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.quickfix-dictionary-state strong {
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.quickfix-dictionary-state small {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.quickfix-footer {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.quickfix-actions {
+  gap: 8px;
+}
+
+.quickfix-button {
+  min-height: 28px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+  padding: 4px 11px;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.58);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.quickfix-button-primary {
+  border-color: color-mix(in srgb, var(--accent) 62%, transparent);
+  color: white;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, white), var(--accent));
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.quickfix-register-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 16px;
+}
+
+.quickfix-register-card strong {
+  font-size: 18px;
+  font-weight: 760;
+}
+
+.quickfix-register-badges {
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.quickfix-register-badges span {
+  padding: 3px 7px;
+}
+
+.quickfix-register-badges span[data-tone="success"] {
+  border-color: color-mix(in srgb, var(--success) 22%, transparent);
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 10%, white);
+}
+
+@keyframes quickfix-caret-blink {
+  50% { opacity: 0; }
+}
+
+@media (max-width: 760px) {
+  .quickfix-mock {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+
+  .quickfix-popover {
+    width: min(440px, 100%);
+  }
+}

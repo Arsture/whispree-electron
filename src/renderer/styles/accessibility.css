@@ -1,1 +1,319 @@
-/* accessibility parity styles: task-owned. */
+/* UI-17: responsive/accessibility parity polish.
+   Keep this file global and override-only so task agents can work on panel CSS independently. */
+
+:root {
+  --focus-ring: color-mix(in srgb, var(--accent, #0a84ff) 74%, white 26%);
+  --focus-ring-outer: color-mix(in srgb, var(--accent, #0a84ff) 22%, transparent);
+  --readable-line-height: 1.48;
+  --compact-outer-padding: 16px;
+  --compact-section-gap: 14px;
+}
+
+/* Korean/English code-switching readability: keep Hangul phrases intact while allowing long paths/keys to wrap. */
+html body {
+  min-width: 720px;
+  font-family:
+    ui-rounded,
+    "SF Pro Rounded",
+    "SF Pro Text",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Apple SD Gothic Neo",
+    "Noto Sans KR",
+    "Malgun Gothic",
+    "Segoe UI",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-size-adjust: 100%;
+}
+
+p,
+li,
+button,
+input,
+select,
+textarea,
+[role='tab'],
+[role='radio'],
+[role='switch'],
+.caption,
+.empty-copy,
+.recording-copy,
+.provider-status-copy,
+.settings-row-description,
+.settings-help-copy,
+.settings-inline-notice,
+.settings-inset-note,
+.permission-copy,
+.history-display-text,
+.history-original-text,
+.llm-model-copy,
+.llm-inline-note,
+.stt-provider-copy,
+.stt-inline-note,
+.models-row-copy,
+.models-storage-note,
+.wordsets-domain-copy,
+.transcription-overlay-hint {
+  line-height: var(--readable-line-height);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+input,
+select,
+textarea {
+  color: var(--text-primary);
+  caret-color: var(--accent);
+}
+
+::selection {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+/* Calm but unmistakable keyboard focus. Color is paired with outline shape and spacing. */
+html button:focus-visible,
+html input:focus-visible,
+html select:focus-visible,
+html textarea:focus-visible,
+html [tabindex]:not([tabindex='-1']):focus-visible,
+html [role='tab']:focus-visible,
+html [role='radio']:focus-visible,
+html [role='switch']:focus-visible {
+  outline: 2px solid var(--focus-ring) !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 5px var(--focus-ring-outer) !important;
+}
+
+html .sidebar-tab:focus-visible,
+html .settings-radio-option:focus-within,
+html .settings-control-column:focus-within,
+html .shortcut-recorder-anchor:focus-within {
+  border-radius: 12px;
+}
+
+html button:disabled,
+html input:disabled,
+html select:disabled,
+html textarea:disabled,
+html [aria-disabled='true'] {
+  cursor: not-allowed;
+}
+
+/* Reduced motion: preserve state changes without repeated pulses/spinners/flashes. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  html .detail-panel,
+  html .waveform span,
+  html .transcription-waveform-bar,
+  html .transcription-overlay-icon,
+  html .transcription-overlay-spinner,
+  html .stt-spinner,
+  html .models-spinner,
+  html .wordsets-edit-cursor {
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
+/* User-requested contrast gets stronger borders/text while retaining semantic, local color use. */
+@media (prefers-contrast: more) {
+  html body {
+    background: #f8f9fb;
+  }
+
+  html .detail-shell,
+  html .sidebar,
+  html .liquid-surface,
+  html .settings-card,
+  html .liquid-card,
+  html .history-row,
+  html .transcription-overlay-card {
+    border-color: color-mix(in srgb, var(--text-primary) 28%, transparent) !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  html .caption,
+  html .settings-row-description,
+  html .permission-row-subtitle,
+  html .provider-status-copy,
+  html .history-row-meta,
+  html .transcription-overlay-hint {
+    color: color-mix(in srgb, var(--text-primary) 76%, transparent) !important;
+  }
+
+  html .status-badge,
+  html .compatibility-badge,
+  html .models-compatibility-badge,
+  html .stt-compatibility-badge,
+  html .models-inline-badge,
+  html .llm-badge {
+    border-width: 1px !important;
+    font-weight: 700;
+  }
+}
+
+/* Windows High Contrast / forced colors: do not hide state behind glass, shadows, or color-only fills. */
+@media (forced-colors: active) {
+  html body,
+  html .detail-shell,
+  html .sidebar,
+  html .liquid-surface,
+  html .settings-card,
+  html .transcription-overlay-card,
+  html .history-row {
+    background: Canvas !important;
+    color: CanvasText !important;
+    border-color: CanvasText !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  html button,
+  html input,
+  html select,
+  html textarea,
+  html [role='tab'],
+  html [role='radio'],
+  html [role='switch'] {
+    forced-color-adjust: auto;
+    border: 1px solid ButtonText !important;
+  }
+
+  html button:focus-visible,
+  html input:focus-visible,
+  html select:focus-visible,
+  html textarea:focus-visible,
+  html [tabindex]:not([tabindex='-1']):focus-visible,
+  html [role='tab']:focus-visible,
+  html [role='radio']:focus-visible,
+  html [role='switch']:focus-visible {
+    outline: 2px solid Highlight !important;
+    box-shadow: none !important;
+  }
+
+  html .sidebar-tab[data-selected='true'],
+  html .status-badge,
+  html .compatibility-badge,
+  html .models-compatibility-badge,
+  html .stt-compatibility-badge,
+  html .models-inline-badge,
+  html .llm-badge {
+    color: HighlightText !important;
+    background: Highlight !important;
+    border-color: Highlight !important;
+  }
+}
+
+/* Compact macOS window resizing: keep the mock app usable below the roomy desktop width. */
+@media (max-width: 900px) {
+  :root {
+    --outer-padding: var(--compact-outer-padding) !important;
+    --section-gap: var(--compact-section-gap) !important;
+    --sidebar-expanded: 188px !important;
+    --sidebar-collapsed: 68px !important;
+  }
+
+  html body {
+    min-width: 640px;
+  }
+
+  html .app-shell {
+    grid-template-columns: minmax(68px, var(--sidebar-expanded)) minmax(0, 1fr);
+  }
+
+  html .app-shell[data-sidebar-collapsed='true'] {
+    grid-template-columns: var(--sidebar-collapsed) minmax(0, 1fr);
+  }
+
+  html .sidebar {
+    gap: 12px;
+    padding: 54px 10px 12px;
+  }
+
+  html .sidebar-tab {
+    grid-template-columns: 26px minmax(0, 1fr);
+    gap: 8px;
+    min-height: 40px;
+    padding: 5px 8px;
+  }
+
+  html .sidebar-icon {
+    width: 26px;
+    height: 26px;
+  }
+
+  html .sidebar-label {
+    font-size: 13px;
+  }
+
+  html .detail-panel {
+    padding-inline: var(--outer-padding);
+  }
+
+  html .home-grid,
+  html .placeholder-grid,
+  html .dashboard-columns,
+  html .home-two-column,
+  html .home-queue-layout,
+  html .context-surface-grid,
+  html .llm-model-grid,
+  html .llm-prompt-grid,
+  html .models-device-cards,
+  html .stt-status-grid,
+  html .stt-channel-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 700px) {
+  :root {
+    --outer-padding: 12px !important;
+    --card-padding: 12px !important;
+    --titlebar-inset: 44px !important;
+  }
+
+  html body {
+    min-width: 560px;
+  }
+
+  html .app-shell,
+  html .app-shell[data-sidebar-collapsed='true'] {
+    grid-template-columns: var(--sidebar-collapsed) minmax(0, 1fr);
+  }
+
+  html .sidebar {
+    align-items: center;
+    padding-inline: 7px;
+  }
+
+  html .sidebar-tab {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    padding-inline: 0;
+  }
+
+  html .sidebar-label {
+    max-width: 54px;
+    font-size: 10px;
+    color: var(--text-tertiary);
+    text-align: center;
+  }
+
+  html .detail-panel {
+    height: calc(100vh - var(--titlebar-inset));
+  }
+}

@@ -74,9 +74,9 @@ describe('UI-16 renderer DOM and visual parity contracts', () => {
     for (const label of ['일반', '단어 사전', '기록']) {
       expect(screen.getByRole('tab', { name: label })).toBeTruthy();
     }
-    expect(screen.getByText('Accessibility 권한 필요')).toBeTruthy();
-    expect(screen.getByText('스크린 컨텍스트')).toBeTruthy();
-    expect(screen.getByText('아직 녹음 없음 — 핫키를 눌러 녹음을 시작하세요')).toBeTruthy();
+    expect(screen.getAllByText('Accessibility 권한 필요').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('스크린 컨텍스트').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('아직 녹음 없음 — 핫키를 눌러 녹음을 시작하세요').length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole('tab', { name: '일반' }));
     expect(await screen.findByText('사용자 정의 경로')).toBeTruthy();
@@ -108,6 +108,11 @@ describe('UI-16 renderer DOM and visual parity contracts', () => {
       'transcription-overlay',
       'overlay-waveform',
       'context-foundation',
+      'ui-surface-gallery',
+      'onboarding-mock',
+      'quickfix-mock',
+      'screenshot-selection-mock',
+      'menubar-popover-mock',
     ]) {
       expect(screen.getByTestId(testId)).toBeTruthy();
     }
@@ -115,6 +120,10 @@ describe('UI-16 renderer DOM and visual parity contracts', () => {
     const context = screen.getByTestId('context-foundation');
     expect(context.querySelector('[data-context-surface="quick-fix"]')).toBeTruthy();
     expect(context.querySelector('[data-context-surface="screenshot-selection"]')).toBeTruthy();
+    const gallery = screen.getByTestId('ui-surface-gallery');
+    for (const surface of ['onboarding', 'quick-fix', 'screenshot-selection', 'menubar']) {
+      expect(gallery.querySelector(`[data-ui-surface="${surface}"]`)).toBeTruthy();
+    }
     expect(within(screen.getByTestId('transcription-overlay')).getByText('UI-04')).toBeTruthy();
     expect(screen.getByLabelText('Screenshot context thumbnails').querySelectorAll('.screenshot-thumb')).toHaveLength(3);
   });
