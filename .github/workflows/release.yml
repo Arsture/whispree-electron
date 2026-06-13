@@ -1,12 +1,16 @@
-name: Release
+name: Legacy Swift Release (manual gated)
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      confirm_legacy_xcode_release:
+        description: Type "I understand this is the legacy Swift release path" to run the old Xcode/Sparkle/Homebrew release.
+        required: true
+        type: string
 
 jobs:
   build-and-release:
+    if: ${{ github.event.inputs.confirm_legacy_xcode_release == 'I understand this is the legacy Swift release path' }}
     runs-on: macos-latest
     permissions:
       contents: write

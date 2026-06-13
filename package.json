@@ -18,7 +18,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check:boundaries": "node scripts/check-boundaries.mjs",
-    "verify": "npm run check:boundaries && npm run typecheck && npm run lint && npm test"
+    "verify": "npm run check:workflows && npm run check:boundaries && npm run typecheck && npm run lint && npm test",
+    "check:workflows": "node scripts/check-workflows.mjs"
   },
   "dependencies": {
     "electron-squirrel-startup": "1.0.1",
