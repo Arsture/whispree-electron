@@ -1,6 +1,7 @@
 import { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage } from 'electron';
 import started from 'electron-squirrel-startup';
 import path from 'node:path';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { IPC_CHANNELS } from '../shared/ipc';
 import { commandError, commandOk, rejectUnexpectedArgs, validatePermissionKindInput } from './ipc-validation';
 import { MockDictationPipeline } from './mock-pipeline';
@@ -14,6 +15,16 @@ const pipeline = new MockDictationPipeline((snapshot) => {
 });
 
 if (started) {
+  app.quit();
+}
+
+
+async function captureAndQuit(outputPath: string): Promise<void> {
+  if (!mainWindow) return;
+  await new Promise((resolve) => setTimeout(resolve, 350));
+  const image = await mainWindow.webContents.capturePage();
+  await mkdir(path.dirname(outputPath), { recursive: true });
+  await writeFile(outputPath, image.toPNG());
   app.quit();
 }
 
@@ -35,6 +46,12 @@ function createMainWindow(): void {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+
+  if (process.env.WHISPREE_CAPTURE_SCREENSHOT) {
+    mainWindow.webContents.once('did-finish-load', () => {
+      void captureAndQuit(process.env.WHISPREE_CAPTURE_SCREENSHOT!);
+    });
+  }
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     void mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
