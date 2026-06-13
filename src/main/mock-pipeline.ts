@@ -8,7 +8,7 @@ import {
   type PermissionState,
   type RecordedAudioInput,
 } from '../shared/ipc';
-import type { AudioCaptureAdapter, TextInsertionAdapter } from '../shared/adapters';
+import type { AudioCaptureAdapter, BrowserContextAdapter, ScreenContextAdapter, TerminalContextAdapter, TextInsertionAdapter } from '../shared/adapters';
 import { createAdapterSet, permissionCardsForAdapterSet } from './adapters/adapter-factory';
 import { MockAudioCaptureAdapter, MockTextInsertionAdapter } from './adapters/mock-adapters';
 import { llmProviderChoices, sttProviderChoices } from '../shared/provider-registry';
@@ -36,6 +36,9 @@ interface HistoryAppender {
 interface MockDictationPipelineAdapters {
   readonly audio?: AudioCaptureAdapter;
   readonly textInsertion?: TextInsertionAdapter;
+  readonly screenContext?: ScreenContextAdapter;
+  readonly browserContext?: BrowserContextAdapter;
+  readonly terminalContext?: TerminalContextAdapter;
   readonly historyStore?: HistoryAppender;
   readonly initialHistory?: readonly HistoryRecordSnapshot[];
   readonly permissionCards?: readonly PermissionCardSnapshot[];
@@ -74,6 +77,9 @@ export class MockDictationPipeline {
   readonly #delay: Delay;
   readonly #audioAdapter: AudioCaptureAdapter;
   readonly #textInsertionAdapter: TextInsertionAdapter;
+  readonly #screenContextAdapter: ScreenContextAdapter | null;
+  readonly #browserContextAdapter: BrowserContextAdapter | null;
+  readonly #terminalContextAdapter: TerminalContextAdapter | null;
   readonly #historyStore: HistoryAppender | null;
   #permissionCards: readonly PermissionCardSnapshot[];
   #history: HistoryRecordSnapshot[] = [];
@@ -88,6 +94,9 @@ export class MockDictationPipeline {
     this.#delay = delay;
     this.#audioAdapter = adapters.audio ?? new MockAudioCaptureAdapter();
     this.#textInsertionAdapter = adapters.textInsertion ?? new MockTextInsertionAdapter();
+    this.#screenContextAdapter = adapters.screenContext ?? null;
+    this.#browserContextAdapter = adapters.browserContext ?? null;
+    this.#terminalContextAdapter = adapters.terminalContext ?? null;
     this.#historyStore = adapters.historyStore ?? null;
     this.#history = [...(adapters.initialHistory ?? [])].slice(0, 20);
     this.#permissionCards = adapters.permissionCards ?? permissionCards;
@@ -250,14 +259,16 @@ export class MockDictationPipeline {
     let jobId: string | null = null;
     try {
       const settings = this.#settingsProvider();
+      this.#queue.setRecordingActive(false);
+      const context = await this.#captureJobContext(settings, audioRef.kind === 'mock' ? 'mock-target' : null);
       const job = this.#queue.enqueue({
         id: `${audioRef.kind === 'mock' ? 'mock' : 'real'}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
         createdAtIso: new Date().toISOString(),
         snapshot: this.#createJobSnapshot(settings, options.glossary),
-        targetContextId: audioRef.kind === 'mock' ? 'mock-target' : null,
+        targetContextId: context.targetContextId,
+        screenshotIds: context.screenshotIds,
       });
       jobId = job.id;
-      this.#queue.setRecordingActive(false);
       this.#queue.transitionJob(job.id, 'transcribing');
       this.#currentError = null;
       this.#emit();
@@ -319,6 +330,7 @@ export class MockDictationPipeline {
       const delivering = this.#queue.startDelivery(next.id);
       this.#emit();
       await this.#delay(deliveryDelayMs);
+      await this.#restoreTargetContext(delivering.targetContextId);
       const insertionResult = await this.#textInsertionAdapter.insertText(
         delivering.correctedText || delivering.transcribedText,
         delivering.targetContextId,
@@ -330,6 +342,52 @@ export class MockDictationPipeline {
       await this.#historyStore?.append(record);
       this.#emit();
       next = this.#queue.nextDeliverableJob();
+    }
+  }
+
+
+  async #captureJobContext(settings: AppSettingsSnapshot, fallbackTargetContextId: string | null): Promise<{ readonly targetContextId: string | null; readonly screenshotIds: readonly string[] }> {
+    const screenshotIds = settings.screenshotContextEnabled || settings.screenshotPasteEnabled
+      ? await this.#captureScreenshots()
+      : [];
+    const contexts: Record<string, string> = {};
+    if (settings.restoreBrowserTab) {
+      const browser = await this.#browserContextAdapter?.capture().catch(() => null);
+      if (browser) contexts.browser = browser;
+    }
+    if (settings.restoreTerminalContext) {
+      const terminal = await this.#terminalContextAdapter?.capture().catch(() => null);
+      if (terminal) contexts.terminal = terminal;
+    }
+    const targetContextId = Object.keys(contexts).length > 0 ? JSON.stringify(contexts) : fallbackTargetContextId;
+    return { targetContextId, screenshotIds };
+  }
+
+  async #captureScreenshots(): Promise<readonly string[]> {
+    if (!this.#screenContextAdapter) return [];
+    await this.#screenContextAdapter.startCapture().catch(() => undefined);
+    return this.#screenContextAdapter.stopCapture().catch(() => []);
+  }
+
+  async #restoreTargetContext(targetContextId: string | null): Promise<void> {
+    if (!targetContextId) return;
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(targetContextId);
+    } catch {
+      return;
+    }
+
+    if (typeof parsed !== 'object' || parsed === null) return;
+    const context = parsed as { readonly browser?: unknown; readonly terminal?: unknown };
+
+    if (typeof context.browser === 'string') {
+      await this.#browserContextAdapter?.restore(context.browser).catch(() => false);
+    }
+
+    if (typeof context.terminal === 'string') {
+      await this.#terminalContextAdapter?.restore(context.terminal).catch(() => false);
     }
   }
 
@@ -357,6 +415,8 @@ export class MockDictationPipeline {
       status: job.status,
       originalText: job.transcribedText,
       correctedText: job.correctedText,
+      targetContextId: job.targetContextId,
+      screenshotIds: job.screenshotIds,
       isDeliverable: isDeliverableJobStatus(job.status),
       isProcessing: isProcessingJobStatus(job.status),
       isTerminal: isTerminalJobStatus(job.status),

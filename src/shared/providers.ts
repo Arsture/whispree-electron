@@ -61,7 +61,7 @@ export interface LLMProvider {
 export interface LocalModelBackend {
   readonly descriptor: ProviderDescriptor;
   readonly capabilities: readonly LocalModelCapability[];
-  readonly runtime: 'mock' | 'mlx-python' | 'whisperkit-coreml' | 'onnx-directml' | 'llama-cpp' | 'windows-placeholder';
+  readonly runtime: 'mock' | 'mlx-python' | 'whisperkit-coreml' | 'whisper-cpp' | 'onnx-directml' | 'llama-cpp';
   readonly protocol: 'in-process' | 'stdio-json' | 'native-module' | 'http-local' | 'unselected';
 }
 
@@ -116,9 +116,9 @@ export const localModelBackendRegistry: readonly LocalModelBackend[] = [
       id: 'macos-mlx-sidecar',
       label: 'macOS MLX sidecar',
       family: 'local-backend',
-      status: 'planned',
+      status: 'partial',
       platform: 'macos',
-      detail: 'Future stdio JSON sidecar compatible with the copied mlx-worker protocols.',
+      detail: 'macOS stdio JSON sidecar compatible with copied MLX worker protocols.',
     },
     capabilities: ['speech-to-text', 'text-correction', 'vision-correction'],
     runtime: 'mlx-python',
@@ -129,9 +129,9 @@ export const localModelBackendRegistry: readonly LocalModelBackend[] = [
       id: 'macos-whisperkit',
       label: 'macOS WhisperKit/CoreML',
       family: 'local-backend',
-      status: 'planned',
+      status: 'partial',
       platform: 'macos',
-      detail: 'Future native/sidecar path for CoreML/ANE local STT.',
+      detail: 'macOS native/sidecar path for CoreML/ANE local STT.',
     },
     capabilities: ['speech-to-text'],
     runtime: 'whisperkit-coreml',
@@ -139,12 +139,25 @@ export const localModelBackendRegistry: readonly LocalModelBackend[] = [
   },
   {
     descriptor: {
-      id: 'windows-onnx-directml-candidate',
-      label: 'Windows ONNX/DirectML candidate',
+      id: 'windows-whisper-cpp-directml',
+      label: 'Windows whisper.cpp DirectML/CUDA',
       family: 'local-backend',
-      status: 'not-tested',
+      status: 'partial',
       platform: 'windows',
-      detail: 'Candidate local STT/correction runtime for Windows; not selected or executed yet.',
+      detail: 'Windows STT sidecar candidate using whisper.cpp DirectML/CUDA builds; never MLX.',
+    },
+    capabilities: ['speech-to-text'],
+    runtime: 'whisper-cpp',
+    protocol: 'stdio-json',
+  },
+  {
+    descriptor: {
+      id: 'windows-onnx-directml',
+      label: 'Windows ONNX Runtime DirectML',
+      family: 'local-backend',
+      status: 'partial',
+      platform: 'windows',
+      detail: 'Windows STT/correction sidecar candidate using ONNX Runtime DirectML; never MLX.',
     },
     capabilities: ['speech-to-text', 'text-correction'],
     runtime: 'onnx-directml',
@@ -152,28 +165,15 @@ export const localModelBackendRegistry: readonly LocalModelBackend[] = [
   },
   {
     descriptor: {
-      id: 'windows-llama-cpp-candidate',
-      label: 'Windows llama.cpp candidate',
+      id: 'windows-llama-cpp-vulkan',
+      label: 'Windows llama.cpp Vulkan/CUDA',
       family: 'local-backend',
-      status: 'not-tested',
+      status: 'partial',
       platform: 'windows',
-      detail: 'Candidate local correction runtime for Windows; not selected or executed yet.',
+      detail: 'Windows correction/VLM sidecar candidate using llama.cpp Vulkan/CUDA builds; never MLX.',
     },
     capabilities: ['text-correction', 'vision-correction'],
     runtime: 'llama-cpp',
     protocol: 'stdio-json',
-  },
-  {
-    descriptor: {
-      id: 'windows-local-placeholder',
-      label: 'Windows local AI placeholder',
-      family: 'local-backend',
-      status: 'not-tested',
-      platform: 'windows',
-      detail: 'Fallback placeholder; exact Windows runtime remains not-tested.',
-    },
-    capabilities: ['speech-to-text', 'text-correction'],
-    runtime: 'windows-placeholder',
-    protocol: 'unselected',
   },
 ];

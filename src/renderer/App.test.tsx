@@ -15,7 +15,7 @@ const whispreeMock = {
   stopRealRecording: vi.fn<() => Promise<unknown>>(),
   cancelForegroundJob: vi.fn<() => Promise<unknown>>(),
   openSettings: vi.fn<() => Promise<unknown>>(),
-  requestPermission: vi.fn<() => Promise<unknown>>(),
+  requestPermission: vi.fn<(kind: AppSnapshot['permissions'][number]['kind']) => Promise<unknown>>(),
   getSettings: vi.fn<() => Promise<AppSettingsSnapshot>>(),
   updateSettings: vi.fn<(update: unknown) => Promise<unknown>>(),
   resetSettings: vi.fn<() => Promise<unknown>>(),
@@ -123,6 +123,8 @@ describe('App Swift parity shell markup', () => {
             status: 'transcribing',
             originalText: '',
             correctedText: '',
+            targetContextId: null,
+            screenshotIds: [],
             isDeliverable: false,
             isProcessing: true,
             isTerminal: false,
@@ -170,6 +172,36 @@ describe('App Swift parity shell markup', () => {
     fireEvent.click(screen.getByRole('tab', { name: /LLM/u }));
     fireEvent.change(screen.getByLabelText('교정 모드'), { target: { value: 'structured' } });
     expect(whispreeMock.updateSettings).toHaveBeenCalledWith({ correctionMode: 'structured' });
+  });
+
+
+
+  it('dispatches every permission row through typed IPC requestPermission only', async () => {
+    const permissionsSnapshot: AppSnapshot = {
+      ...initialAppSnapshot,
+      permissions: [
+        { kind: 'microphone', label: 'Microphone', state: 'prompt-required', status: 'partial', detail: 'mic' },
+        { kind: 'accessibility', label: 'Accessibility', state: 'manual-required', status: 'partial', detail: 'ax' },
+        { kind: 'screen-recording', label: 'Screen Recording', state: 'manual-required', status: 'partial', detail: 'screen' },
+        { kind: 'browser-context', label: 'Browser Context', state: 'manual-required', status: 'partial', detail: 'browser' },
+        { kind: 'terminal-context', label: 'Terminal Context', state: 'manual-required', status: 'partial', detail: 'terminal' },
+      ],
+    };
+    whispreeMock.getAppSnapshot.mockResolvedValue(permissionsSnapshot);
+    render(<App />);
+    await screen.findByText('Browser Context');
+
+    for (const button of screen.getAllByRole('button', { name: /Request/u })) {
+      fireEvent.click(button);
+    }
+
+    expect(whispreeMock.requestPermission.mock.calls.map((call) => call[0])).toEqual([
+      'microphone',
+      'accessibility',
+      'screen-recording',
+      'browser-context',
+      'terminal-context',
+    ]);
   });
 
   it('supports sidebar selection, collapse, keyboard navigation, commands, and subscription cleanup', async () => {

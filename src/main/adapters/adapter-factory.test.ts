@@ -30,11 +30,13 @@ describe('adapter factory', () => {
     expect(macos.audio.descriptor.status).toBe('partial');
     expect(windows.platform).toBe('windows');
     expect(windows.audio.descriptor.status).toBe('not-tested');
+    expect(windows.textInsertion.descriptor.status).toBe('partial');
   });
 
   it('projects permission cards with visible platform status labels', () => {
-    expect(permissionCardsForAdapterSet(createAdapterSet('darwin')).every((card) => card.status === 'planned')).toBe(true);
-    expect(permissionCardsForAdapterSet(createAdapterSet('win32')).every((card) => card.status === 'not-tested')).toBe(true);
+    expect(permissionCardsForAdapterSet(createAdapterSet('darwin')).every((card) => card.status === 'partial')).toBe(true);
+    expect(permissionCardsForAdapterSet(createAdapterSet('darwin')).every((card) => card.state === 'manual-required')).toBe(true);
+    expect(permissionCardsForAdapterSet(createAdapterSet('win32')).every((card) => card.status === 'partial')).toBe(true);
     expect(permissionCardsForAdapterSet(createAdapterSet('linux')).every((card) => card.status === 'unsupported')).toBe(true);
   });
 
@@ -53,3 +55,18 @@ describe('adapter factory', () => {
     expect(cards.find((card) => card.kind === 'accessibility')).toMatchObject({ state: 'prompt-required', status: 'partial' });
   });
 });
+
+
+  it('queries Windows permissions as manual or prompt-required through injected bridges', async () => {
+    const opened: string[] = [];
+    const adapters = createAdapterSet('win32', 'shell', {
+      permissionBridge: { getMediaAccessStatus: () => 'not-determined' },
+      externalUrlOpener: { openExternal: async (url) => opened.push(String(url)) },
+    });
+
+    const cards = await queryPermissionCardsForAdapterSet(adapters);
+    expect(cards.find((card) => card.kind === 'microphone')).toMatchObject({ state: 'prompt-required', status: 'partial' });
+    expect(cards.find((card) => card.kind === 'browser-context')).toMatchObject({ state: 'manual-required', status: 'partial' });
+    await adapters.permission.request('terminal-context');
+    expect(opened).toContain('ms-settings:defaultapps');
+  });

@@ -38,32 +38,29 @@ describe('provider and adapter contracts', () => {
     expect(result.metadata.preservesOriginal).toBe(true);
   });
 
-  it('permission statuses cover granted, denied, prompt-required, unsupported, not-tested, and mock', () => {
+  it('permission statuses cover granted, denied, prompt-required, unsupported, manual-required, not-tested, and mock', () => {
     expect(permissionStateOrder).toEqual([
       'granted',
       'denied',
       'prompt-required',
       'unsupported',
+      'manual-required',
       'not-tested',
       'mock',
     ]);
   });
 
-  it('local backend registry represents macOS MLX and Windows placeholder strategies without implementations', () => {
+  it('local backend registry represents macOS MLX and concrete Windows non-MLX strategies', () => {
     const macosMlx = localModelBackendRegistry.find((backend) => backend.descriptor.id === 'macos-mlx-sidecar');
-    const windowsPlaceholder = localModelBackendRegistry.find(
-      (backend) => backend.descriptor.id === 'windows-local-placeholder',
-    );
+    const windowsBackends = localModelBackendRegistry.filter((backend) => backend.descriptor.platform === 'windows');
 
     expect(macosMlx).toMatchObject({
       runtime: 'mlx-python',
       protocol: 'stdio-json',
-      descriptor: { platform: 'macos', status: 'planned' },
+      descriptor: { platform: 'macos', status: 'partial' },
     });
-    expect(windowsPlaceholder).toMatchObject({
-      runtime: 'windows-placeholder',
-      protocol: 'unselected',
-      descriptor: { platform: 'windows', status: 'not-tested' },
-    });
+    expect(windowsBackends.map((backend) => backend.runtime)).toEqual(['whisper-cpp', 'onnx-directml', 'llama-cpp']);
+    expect(windowsBackends.every((backend) => backend.protocol === 'stdio-json')).toBe(true);
+    expect(windowsBackends.every((backend) => backend.descriptor.status === 'partial')).toBe(true);
   });
 });

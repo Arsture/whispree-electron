@@ -1,6 +1,7 @@
 import { MockLLMProvider, MockSTTProvider, type LLMProvider, type STTProvider } from '../shared/providers';
 import type { AppSettingsSnapshot } from '../shared/settings';
 import { GroqCorrectionProvider, GroqTranscriptionProvider, NoopCorrectionProvider, OpenAIResponsesCorrectionProvider, type FetchLike, type SettingsSnapshotProvider } from './cloud-provider-executor';
+import { createLocalLLMProvider, createLocalSTTProvider, type LocalSidecarRuntimeOptions } from './local-ai/sidecar-provider';
 import type { CloudCredentialBoundary } from './cloud-provider-requests';
 
 export interface ProviderRouter {
@@ -13,12 +14,16 @@ export class SettingsProviderRouter implements ProviderRouter {
     private readonly settings: SettingsSnapshotProvider,
     private readonly credentials: CloudCredentialBoundary,
     private readonly fetchImpl?: FetchLike,
+    private readonly localRuntime: LocalSidecarRuntimeOptions = {},
   ) {}
 
   sttProvider(): STTProvider {
     const settings = this.settings();
     if (settings.sttProviderType === 'groq') return new GroqTranscriptionProvider(this.credentials, this.settings, this.fetchImpl);
     if (settings.sttProviderType === 'mock') return new MockSTTProvider();
+    if (settings.sttProviderType === 'whisperkit' || settings.sttProviderType === 'mlx-audio' || settings.sttProviderType === 'local') {
+      return createLocalSTTProvider(settings.sttProviderType, this.localRuntime);
+    }
     return new UnavailableSTTProvider(settings.sttProviderType);
   }
 
@@ -28,6 +33,7 @@ export class SettingsProviderRouter implements ProviderRouter {
     if (settings.llmProviderType === 'groq') return new GroqCorrectionProvider(this.credentials, this.settings, this.fetchImpl);
     if (settings.llmProviderType === 'openai') return new OpenAIResponsesCorrectionProvider(this.credentials, this.settings, this.fetchImpl);
     if (settings.llmProviderType === 'mock') return new MockLLMProvider();
+    if (settings.llmProviderType === 'local') return createLocalLLMProvider(this.localRuntime);
     return new UnavailableLLMProvider(settings.llmProviderType);
   }
 }

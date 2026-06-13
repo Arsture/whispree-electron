@@ -1,6 +1,12 @@
 import type { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import type { SidecarRequest, SidecarResponse } from '../../shared/sidecar-protocol';
+
+export type SidecarClientRequest = SidecarRequest extends infer Request
+  ? Request extends SidecarRequest
+    ? Omit<Request, 'id' | 'protocolVersion'>
+    : never
+  : never;
 import { isSidecarResponse } from '../../shared/sidecar-protocol';
 
 export interface JsonLineSidecarTransport {
@@ -31,7 +37,7 @@ export class SidecarClient {
     this.#transport.events.on('close', () => this.#rejectAll(new Error('Sidecar transport closed.')));
   }
 
-  async request(request: Omit<SidecarRequest, 'id' | 'protocolVersion'>): Promise<SidecarResponse> {
+  async request(request: SidecarClientRequest): Promise<SidecarResponse> {
     const envelope = { ...request, id: this.#idFactory(), protocolVersion: 1 } as SidecarRequest;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {

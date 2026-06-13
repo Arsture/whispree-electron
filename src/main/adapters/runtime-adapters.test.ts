@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { CommandTextInsertionAdapter, ElectronGlobalShortcutAdapter, MacOSPermissionAdapter, shortcutLabelToAccelerator } from './runtime-adapters';
+import { CommandTextInsertionAdapter, ElectronGlobalShortcutAdapter, MacOSPermissionAdapter, WindowsPermissionAdapter, shortcutLabelToAccelerator } from './runtime-adapters';
 
 describe('runtime adapters', () => {
   it('maps Swift shortcut labels to Electron accelerators', () => {
@@ -39,6 +39,30 @@ describe('runtime adapters', () => {
     await expect(adapter.request('accessibility')).resolves.toBe('granted');
     await adapter.openSettings('screen-recording');
     expect(opened[0]).toContain('Privacy_ScreenCapture');
+  });
+
+
+
+  it('opens Windows Settings URI panes and returns manual states for non-media permissions', async () => {
+    const opened: string[] = [];
+    const adapter = new WindowsPermissionAdapter(
+      {
+        getMediaAccessStatus: (media) => media === 'microphone' ? 'not-determined' : 'unknown',
+        askForMediaAccess: async () => true,
+      },
+      { openExternal: async (url) => opened.push(url) },
+    );
+
+    await expect(adapter.query('microphone')).resolves.toBe('prompt-required');
+    await expect(adapter.request('microphone')).resolves.toBe('granted');
+    await expect(adapter.query('browser-context')).resolves.toBe('manual-required');
+    await expect(adapter.request('terminal-context')).resolves.toBe('manual-required');
+    await adapter.openSettings('accessibility');
+
+    expect(opened).toEqual(expect.arrayContaining([
+      'ms-settings:defaultapps',
+      'ms-settings:easeofaccess-keyboard',
+    ]));
   });
 
   it('pastes through OS command and falls back to clipboard on command failure', async () => {

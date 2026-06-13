@@ -143,7 +143,7 @@ function PermissionRows({ permissions }: { readonly permissions: readonly Permis
     <section className="liquid-card" data-testid="permissions">
       <div className="card-heading">
         <h2>Permissions</h2>
-        <StatusPill tone="warning">adapters later</StatusPill>
+        <StatusPill tone="warning">OS grants</StatusPill>
       </div>
       <ul className="status-list">
         {permissions.map((permission) => (
@@ -194,20 +194,20 @@ function ContextFoundation() {
     <section className="liquid-card" data-testid="context-foundation">
       <div className="card-heading">
         <h2>Context & Quick Fix</h2>
-        <StatusPill tone="warning">planned adapters</StatusPill>
+        <StatusPill tone="warning">adapter seams</StatusPill>
       </div>
       <ul className="status-list">
         <li data-context-surface="screenshot-selection">
-          <span><strong>Screenshot Selection</strong><small>FIFO-head-only image selection for future VLM correction.</small></span>
-          <StatusPill tone="warning" status="planned">planned</StatusPill>
+          <span><strong>Screenshot Selection</strong><small>FIFO-head-only image context is job-scoped through screen adapters.</small></span>
+          <StatusPill tone="warning" status="partial">partial</StatusPill>
         </li>
         <li data-context-surface="browser-restore">
-          <span><strong>Browser Restore</strong><small>Chrome tab/input context will stay job-scoped behind OS adapters.</small></span>
-          <StatusPill tone="warning" status="planned">planned</StatusPill>
+          <span><strong>Browser Restore</strong><small>Chrome tab/input context is captured and restored through OS adapters.</small></span>
+          <StatusPill tone="warning" status="partial">partial</StatusPill>
         </li>
         <li data-context-surface="terminal-restore">
-          <span><strong>Terminal Restore</strong><small>iTerm2/tmux or Windows terminal state remains adapter-owned.</small></span>
-          <StatusPill tone="neutral" status="not-tested">not-tested</StatusPill>
+          <span><strong>Terminal Restore</strong><small>iTerm2/tmux or Windows terminal state remains adapter-owned and job-scoped.</small></span>
+          <StatusPill tone="warning" status="partial">partial</StatusPill>
         </li>
         <li data-context-surface="quick-fix">
           <span><strong>Quick Fix</strong><small>Selected text correction and dictionary registration through typed IPC.</small></span>

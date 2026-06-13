@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MockDictationPipeline } from './mock-pipeline';
+import { defaultAppSettings } from '../shared/settings';
 
 const immediateDelay = () => Promise.resolve();
 
@@ -13,7 +14,7 @@ describe('MockDictationPipeline', () => {
       currentError: null,
     });
     expect(pipeline.getSnapshot().providers.some((provider) => provider.status === 'mock')).toBe(true);
-    expect(pipeline.getSnapshot().permissions.some((permission) => permission.status === 'planned')).toBe(true);
+    expect(pipeline.getSnapshot().permissions.some((permission) => permission.status === 'partial')).toBe(true);
   });
 
   it('emits updates and records delivered mock history', async () => {
@@ -103,6 +104,45 @@ describe('MockDictationPipeline', () => {
     expect(snapshot.queue.items[0]?.id).toBe('history-1');
   });
 
+
+
+  it('captures screenshot, browser, and terminal context for real jobs when settings enable them', async () => {
+    const restored: string[] = [];
+    const pipeline = new MockDictationPipeline(undefined, immediateDelay, {
+      settingsProvider: () => ({
+        ...defaultSettingsForTest(),
+        screenshotContextEnabled: true,
+        restoreBrowserTab: true,
+        restoreTerminalContext: true,
+      }),
+      screenContext: {
+        descriptor: { id: 'screen', label: 'screen', platform: 'cross-platform', status: 'mock', detail: 'test' },
+        startCapture: async () => undefined,
+        stopCapture: async () => ['shot-1'],
+      },
+      browserContext: {
+        descriptor: { id: 'browser', label: 'browser', platform: 'cross-platform', status: 'mock', detail: 'test' },
+        capture: async () => 'https://example.com\nExample',
+        restore: async (contextId) => { restored.push(`browser:${contextId}`); return true; },
+      },
+      terminalContext: {
+        descriptor: { id: 'terminal', label: 'terminal', platform: 'cross-platform', status: 'mock', detail: 'test' },
+        capture: async () => 'tmux:whispree',
+        restore: async (contextId) => { restored.push(`terminal:${contextId}`); return true; },
+      },
+    });
+
+    pipeline.submitRecordedAudio({ bytes: new Uint8Array([1]).buffer, mimeType: 'audio/webm', durationMs: 1 });
+    await pipeline.whenIdle();
+
+    const item = pipeline.getSnapshot().queue.items[0]!;
+    expect(item.screenshotIds).toEqual(['shot-1']);
+    expect(item.targetContextId).toContain('example.com');
+    expect(item.targetContextId).toContain('tmux:whispree');
+    expect(restored.some((entry) => entry.startsWith('browser:'))).toBe(true);
+    expect(restored.some((entry) => entry.startsWith('terminal:'))).toBe(true);
+  });
+
   it('updates permission cards after the runtime permission adapter responds', () => {
     const pipeline = new MockDictationPipeline(undefined, immediateDelay);
 
@@ -165,3 +205,7 @@ describe('MockDictationPipeline', () => {
     expect(snapshot.history).toEqual([]);
   });
 });
+
+function defaultSettingsForTest() {
+  return defaultAppSettings;
+}

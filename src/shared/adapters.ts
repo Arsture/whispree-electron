@@ -58,6 +58,7 @@ export const permissionStateOrder: readonly PermissionState[] = [
   'denied',
   'prompt-required',
   'unsupported',
+  'manual-required',
   'not-tested',
   'mock',
 ];

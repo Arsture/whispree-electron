@@ -48,6 +48,7 @@ const sttLabels: Record<STTProviderType, string> = {
   whisperkit: 'WhisperKit (로컬)',
   groq: 'Groq Cloud API',
   'mlx-audio': 'MLX Audio (로컬)',
+  local: 'OS Local Sidecar',
 };
 
 const llmLabels: Record<LLMProviderType, string> = {
@@ -104,7 +105,7 @@ function GeneralSettingsPanel({ groups, settings, onUpdateSettings }: Omit<Setti
         <ToggleSetting label="Show transcription overlay" checked={settings.showOverlay} onChange={(showOverlay) => onUpdateSettings({ showOverlay })} />
         <ToggleSetting label="Launch at login" checked={settings.launchAtLogin} onChange={(launchAtLogin) => onUpdateSettings({ launchAtLogin })} />
         <ToggleSetting label="녹음 중 음악 일시정지" checked={settings.pauseMediaDuringRecording} onChange={(pauseMediaDuringRecording) => onUpdateSettings({ pauseMediaDuringRecording })} />
-        <ReadonlySetting label="Permissions" value="adapter-planned" detail="Microphone, Accessibility, Screen Recording, Automation 권한 remain OS adapter states." />
+        <ReadonlySetting label="Permissions" value="OS-gated" detail="Microphone, Accessibility, Screen Recording, Automation 권한은 typed OS adapter와 Settings deep-link가 소유합니다." />
       </SettingsCard>
     </div>
   );
@@ -115,8 +116,8 @@ function STTSettingsPanel({ groups, settings, onUpdateSettings }: Omit<SettingsP
     <div className="placeholder-grid" data-testid="settings-panel-stt">
       <SettingsCard group={groups[0]!}>
         <SelectSetting label="음성 인식 엔진" value={settings.sttProviderType} options={STT_PROVIDER_TYPES} labels={sttLabels} onChange={(sttProviderType) => onUpdateSettings({ sttProviderType })} />
-        <ReadonlySetting label="WhisperKit Large V3 Turbo" value={settings.whisperModelId} detail="로컬 CoreML+ANE, 99개 언어 — macOS adapter planned." />
-        <ReadonlySetting label="MLX Audio" value={settings.mlxAudioModelId} detail="mlx-audio, 한중일영 (uv 필요) — sidecar planned." />
+        <ReadonlySetting label="WhisperKit Large V3 Turbo" value={settings.whisperModelId} detail="로컬 CoreML+ANE, 99개 언어 — macOS native-module adapter seam." />
+        <ReadonlySetting label="MLX Audio" value={settings.mlxAudioModelId} detail="mlx-audio, 한중일영 (uv 필요) — macOS stdio sidecar seam." />
       </SettingsCard>
       <SettingsCard group={groups[1]!}>
         <SecretSetting configured={settings.groqApiKeyConfigured} onCommit={(groqApiKey) => onUpdateSettings({ groqApiKey })} />
@@ -155,7 +156,7 @@ function ModelsSettingsPanel({ groups, settings }: Omit<SettingsPanelProps, 'sec
       <>
         <ReadonlySetting label="WhisperKit 모델" value={settings.whisperModelId} detail="준비됨 상태는 future model manager가 소유합니다." />
         <ReadonlySetting label="LLM 모델" value={settings.llmModelId} detail="Downloads / model cache slice에서 다운로드 상태를 연결합니다." />
-        <ReadonlySetting label="MLX Audio 모델" value={settings.mlxAudioModelId} detail="macOS MLX sidecar contract에 연결 예정." />
+        <ReadonlySetting label="MLX Audio 모델" value={settings.mlxAudioModelId} detail="macOS MLX sidecar contract와 readiness probe에 연결됩니다." />
       </>
     )} />
   );

@@ -38,6 +38,7 @@ export type PermissionState =
   | 'denied'
   | 'prompt-required'
   | 'unsupported'
+  | 'manual-required'
   | 'not-tested'
   | 'mock';
 
@@ -64,6 +65,8 @@ export interface QueueItemSnapshot {
   readonly status: DictationJobStatus;
   readonly originalText: string;
   readonly correctedText: string;
+  readonly targetContextId: string | null;
+  readonly screenshotIds: readonly string[];
   readonly isDeliverable: boolean;
   readonly isProcessing: boolean;
   readonly isTerminal: boolean;
@@ -209,17 +212,25 @@ export const initialAppSnapshot: AppSnapshot = {
       id: 'macos-mlx',
       label: 'macOS MLX sidecar',
       family: 'local-backend',
-      status: 'planned',
+      status: 'partial',
       platform: 'macos',
-      detail: 'Future sidecar path based on the copied MLX worker protocols.',
+      detail: 'macOS-only local AI sidecar seam for MLX/WhisperKit; command availability is probed at runtime.',
     },
     {
-      id: 'windows-local-ai',
-      label: 'Windows local AI backend',
+      id: 'windows-whisper-cpp-directml',
+      label: 'Windows whisper.cpp DirectML',
       family: 'local-backend',
-      status: 'not-tested',
+      status: 'partial',
       platform: 'windows',
-      detail: 'Interface planned; runtime backend not selected or executed yet.',
+      detail: 'Windows STT sidecar candidate; configured with WHISPREE_WINDOWS_WHISPER_CPP_COMMAND and never uses MLX.',
+    },
+    {
+      id: 'windows-llama-cpp-vulkan',
+      label: 'Windows llama.cpp Vulkan/CUDA',
+      family: 'local-backend',
+      status: 'partial',
+      platform: 'windows',
+      detail: 'Windows correction/VLM sidecar candidate; configured with WHISPREE_WINDOWS_LLAMA_CPP_COMMAND and never uses MLX.',
     },
   ],
   permissions: [
@@ -233,30 +244,30 @@ export const initialAppSnapshot: AppSnapshot = {
     {
       kind: 'accessibility',
       label: 'Accessibility',
-      state: 'not-tested',
-      status: 'planned',
-      detail: 'Required later for hotkey/text insertion adapters.',
+      state: 'manual-required',
+      status: 'partial',
+      detail: 'Runtime adapter opens OS settings/manual grant flow for global shortcuts and text insertion.',
     },
     {
       kind: 'screen-recording',
       label: 'Screen Recording',
-      state: 'not-tested',
-      status: 'planned',
-      detail: 'Required later for screenshot/VLM context.',
+      state: 'manual-required',
+      status: 'partial',
+      detail: 'Runtime adapter opens OS settings/manual grant flow for screenshot and visual context capture.',
     },
     {
       kind: 'browser-context',
       label: 'Browser Context',
-      state: 'not-tested',
-      status: 'planned',
-      detail: 'Chrome restore is a future OS adapter, not renderer logic.',
+      state: 'manual-required',
+      status: 'partial',
+      detail: 'Runtime adapter exposes typed OS-specific browser context capability and manual setup status.',
     },
     {
       kind: 'terminal-context',
       label: 'Terminal Context',
-      state: 'not-tested',
-      status: 'planned',
-      detail: 'iTerm/tmux restore is a future OS adapter.',
+      state: 'manual-required',
+      status: 'partial',
+      detail: 'Runtime adapter exposes typed OS-specific terminal context capability and manual setup status.',
     },
   ],
   history: [],

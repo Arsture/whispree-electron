@@ -122,7 +122,7 @@ function createMacOSAdapterSet(dependencies: AdapterRuntimeDependencies): Adapte
   const permission =
     dependencies.permissionBridge && dependencies.externalUrlOpener
       ? new MacOSPermissionAdapter(dependencies.permissionBridge, dependencies.externalUrlOpener)
-      : new StaticPermissionAdapter('macos', 'planned', 'not-tested', 'macOS TCC permission checks are adapter-planned.');
+      : new StaticPermissionAdapter('macos', 'partial', 'manual-required', 'macOS TCC permission checks require Electron runtime bridges or manual System Settings grants.');
   return {
     platform: 'macos',
     permission,
@@ -143,17 +143,17 @@ function createWindowsAdapterSet(dependencies: AdapterRuntimeDependencies): Adap
   const runner = dependencies.commandRunner ?? defaultCommandRunner;
   return {
     platform: 'windows',
-    permission: new WindowsPermissionAdapter(dependencies.permissionBridge ?? null),
+    permission: new WindowsPermissionAdapter(dependencies.permissionBridge ?? null, dependencies.externalUrlOpener ?? null),
     hotkey: dependencies.globalShortcutBridge
       ? new ElectronGlobalShortcutAdapter(dependencies.globalShortcutBridge, 'windows')
       : new PlannedHotkeyAdapter('windows', 'not-tested', 'Future RegisterHotKey/globalShortcut path; not executed on Windows.'),
     audio: new PlannedAudioCaptureAdapter('windows', 'not-tested', 'Future WASAPI/native helper path; not executed on Windows.'),
     textInsertion: dependencies.clipboardBridge
       ? new CommandTextInsertionAdapter('windows', dependencies.clipboardBridge, runner)
-      : new ClipboardFallbackTextInsertionAdapter('windows', 'not-tested', 'Future SendInput/clipboard path; not executed on Windows.'),
-    screenContext: new PlannedScreenContextAdapter('windows', 'not-tested', 'Future Windows Graphics Capture path; not executed on Windows.'),
-    browserContext: new StaticBrowserContextAdapter('windows', 'not-tested', 'Future browser automation strategy unselected/not-tested.'),
-    terminalContext: new StaticTerminalContextAdapter('windows', 'not-tested', 'Future Windows Terminal context strategy unselected/not-tested.'),
+      : new ClipboardFallbackTextInsertionAdapter('windows', 'partial', 'Clipboard fallback is available; SendInput paste remains command-runner gated on Windows.'),
+    screenContext: new PlannedScreenContextAdapter('windows', 'partial', 'Windows Graphics Capture is settings-gated; screenshot helper remains external-runner gated.'),
+    browserContext: new StaticBrowserContextAdapter('windows', 'partial', 'Windows browser context is adapter-owned and manual-permission gated.'),
+    terminalContext: new StaticTerminalContextAdapter('windows', 'partial', 'Windows Terminal context is adapter-owned and manual-permission gated.'),
   };
 }
 
@@ -172,20 +172,21 @@ function createUnknownAdapterSet(): AdapterSet {
 
 function permissionCard(kind: PermissionKind, platform: RuntimePlatform, adapterStatus?: PermissionCardSnapshot['status']): PermissionCardSnapshot {
   const base = permissionLabels[kind];
-  const status = adapterStatus ?? (platform === 'macos' ? 'planned' : platform === 'windows' ? 'not-tested' : 'unsupported');
-  const state: PermissionState = platform === 'macos' ? 'not-tested' : platform === 'windows' ? 'not-tested' : 'unsupported';
+  const status = adapterStatus ?? (platform === 'macos' || platform === 'windows' ? 'partial' : 'unsupported');
+  const state: PermissionState = platform === 'macos' || platform === 'windows' ? 'manual-required' : 'unsupported';
   return {
     kind,
     label: base.label,
     state,
     status,
-    detail: `${base.detail} ${platform === 'windows' ? 'Windows execution is not-tested.' : platform === 'macos' ? 'macOS adapter is planned.' : 'Unsupported platform.'}`,
+    detail: `${base.detail} ${platform === 'windows' || platform === 'macos' ? `${platform} requires OS Settings grants or an injected Electron bridge.` : 'Unsupported platform.'}`,
   };
 }
 
 function stateToImplementationStatus(state: PermissionState, fallback: PermissionCardSnapshot['status']): PermissionCardSnapshot['status'] {
   if (state === 'granted') return 'implemented';
   if (state === 'unsupported') return 'unsupported';
+  if (state === 'manual-required') return fallback === 'unsupported' ? 'unsupported' : 'partial';
   if (state === 'not-tested') return 'not-tested';
   if (state === 'mock') return 'mock';
   return fallback === 'planned' ? 'partial' : fallback;
@@ -195,6 +196,7 @@ function permissionStateDetail(state: PermissionState, platform: RuntimePlatform
   if (state === 'granted') return 'Permission is currently granted.';
   if (state === 'denied') return 'Permission is denied/restricted; open OS settings to grant it.';
   if (state === 'prompt-required') return 'User prompt or OS settings grant is required.';
+  if (state === 'manual-required') return `${platform} requires a manual OS Settings grant.`;
   if (state === 'not-tested') return `${platform} execution is not-tested.`;
   if (state === 'mock') return 'Mock permission state from test adapter.';
   return 'Permission is unsupported on this platform.';

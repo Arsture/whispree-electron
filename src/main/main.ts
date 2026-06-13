@@ -5,7 +5,6 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { IPC_CHANNELS } from '../shared/ipc';
 import { resolveScreenshotCapturePath } from './screenshot-capture';
 import {
-  commandError,
   commandOk,
   rejectUnexpectedArgs,
   rejectUnexpectedSettingsArgs,
@@ -167,8 +166,11 @@ async function initializeMainState(): Promise<void> {
     initialHistory: history,
     permissionCards,
     textInsertion: adapters.textInsertion,
+    screenContext: adapters.screenContext,
+    browserContext: adapters.browserContext,
+    terminalContext: adapters.terminalContext,
     settingsProvider: () => settings.getSnapshot(),
-    providerRouter: new SettingsProviderRouter(() => settings.getSnapshot(), settings),
+    providerRouter: new SettingsProviderRouter(() => settings.getSnapshot(), settings, undefined, { platform: process.platform }),
   });
   recordingController = new RecordingController({
     pipeline,
@@ -240,7 +242,9 @@ function registerIpcHandlers(): void {
     const snapshot = getPipeline().getSnapshot();
     const rejected = rejectUnexpectedArgs('open-settings', snapshot, args);
     if (rejected) return rejected;
-    return commandError('open-settings', snapshot, 'Settings window is planned after the dashboard shell.', 'not-implemented');
+    if (!mainWindow) createMainWindow();
+    mainWindow?.show();
+    return commandOk('open-settings', snapshot, 'Settings are available in the tabbed dashboard shell.');
   });
 
   ipcMain.handle(IPC_CHANNELS.copyHistoryText, (_event, historyId: unknown, variant: unknown, ...args: unknown[]) => {

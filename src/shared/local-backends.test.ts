@@ -8,13 +8,14 @@ describe('local backend selection', () => {
     expect(macosStt).toContain('macos-whisperkit');
   });
 
-  it('keeps Windows candidates not-tested until executed', () => {
+  it('keeps Windows candidates concrete and non-MLX', () => {
     const windows = localBackendsForPlatform('windows');
     expect(windows.map((backend) => backend.descriptor.id)).toEqual([
-      'windows-onnx-directml-candidate',
-      'windows-llama-cpp-candidate',
-      'windows-local-placeholder',
+      'windows-whisper-cpp-directml',
+      'windows-onnx-directml',
+      'windows-llama-cpp-vulkan',
     ]);
-    expect(backendReadinessSummary('windows')).toMatchObject({ total: 3, notTested: 3 });
+    expect(windows.map((backend) => backend.runtime)).not.toContain('mlx-python');
+    expect(backendReadinessSummary('windows')).toMatchObject({ total: 3, planned: 0, notTested: 0 });
   });
 });

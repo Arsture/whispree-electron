@@ -119,7 +119,12 @@ const probe = {
     windows: windowsSigningReadiness(),
   },
   localAi: {
-    windowsEnginePolicy: 'Windows candidates must use whisper.cpp, ONNX Runtime DirectML, llama.cpp, or another non-MLX backend until Windows execution proves readiness.',
+    windowsEnginePolicy: 'Windows candidates use whisper.cpp DirectML/CUDA, ONNX Runtime DirectML, and llama.cpp Vulkan/CUDA; MLX is macOS-only.',
+    windowsEngines: [
+      { id: 'windows-whisper-cpp-directml', runtime: 'whisper-cpp', env: 'WHISPREE_WINDOWS_WHISPER_CPP_COMMAND' },
+      { id: 'windows-onnx-directml', runtime: 'onnx-directml', env: 'WHISPREE_WINDOWS_ONNX_COMMAND' },
+      { id: 'windows-llama-cpp-vulkan', runtime: 'llama-cpp', env: 'WHISPREE_WINDOWS_LLAMA_CPP_COMMAND' },
+    ],
     commandAvailability: localCommands,
   },
   blockers: [],
@@ -136,7 +141,7 @@ writeFileSync(markdownPath, renderMarkdown(probe), 'utf8');
 console.log(JSON.stringify({ ok: true, jsonPath, markdownPath, blockers: probe.blockers }, null, 2));
 
 function renderMarkdown(value) {
-  return `# Real Runtime Readiness Probe\n\nGenerated: ${value.generatedAt}\n\n## Host\n\n- Platform: ${value.host.platform}\n- Arch: ${value.host.arch}\n- Node: ${value.host.node}\n\n## Git\n\n- Migration repo: ${value.git.migrationRepo.detail}\n- Original Swift repo: ${value.git.originalSwiftRepo.detail}\n\n## Signing\n\n- macOS signing: ${value.signing.macos.status}\n- Windows signing: ${value.signing.windows.status}\n\n## Local AI command availability\n\n${value.localAi.commandAvailability.map((item) => `- ${item.command}: ${item.available ? item.path : 'missing'}`).join('\n')}\n\n## Blockers / not-tested\n\n${value.blockers.length > 0 ? value.blockers.map((item) => `- ${item}`).join('\n') : '- none'}\n`;
+  return `# Real Runtime Readiness Probe\n\nGenerated: ${value.generatedAt}\n\n## Host\n\n- Platform: ${value.host.platform}\n- Arch: ${value.host.arch}\n- Node: ${value.host.node}\n\n## Git\n\n- Migration repo: ${value.git.migrationRepo.detail}\n- Original Swift repo: ${value.git.originalSwiftRepo.detail}\n\n## Signing\n\n- macOS signing: ${value.signing.macos.status}\n- Windows signing: ${value.signing.windows.status}\n\n## Windows local AI engine policy\n\n${value.localAi.windowsEnginePolicy}\n\n${value.localAi.windowsEngines.map((item) => `- ${item.id}: ${item.runtime} via ${item.env}`).join('\n')}\n\n## Local AI command availability\n\n${value.localAi.commandAvailability.map((item) => `- ${item.command}: ${item.available ? item.path : 'missing'}`).join('\n')}\n\n## Blockers / not-tested\n\n${value.blockers.length > 0 ? value.blockers.map((item) => `- ${item}`).join('\n') : '- none'}\n`;
 }
 
 function shellQuote(value) {

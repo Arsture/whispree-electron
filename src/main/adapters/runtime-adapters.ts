@@ -41,6 +41,15 @@ const macSettingsLinks: Record<PermissionKind, string> = {
   'terminal-context': 'x-apple.systempreferences:com.apple.preference.security?Privacy_Automation',
 };
 
+
+const windowsSettingsLinks: Record<PermissionKind, string> = {
+  microphone: 'ms-settings:privacy-microphone',
+  accessibility: 'ms-settings:easeofaccess-keyboard',
+  'screen-recording': 'ms-settings:privacy-graphicsCaptureProgrammatic',
+  'browser-context': 'ms-settings:defaultapps',
+  'terminal-context': 'ms-settings:defaultapps',
+};
+
 const permissionDetails: Record<PermissionKind, string> = {
   microphone: 'Uses Electron systemPreferences media access APIs for microphone TCC state.',
   accessibility: 'Uses Electron systemPreferences accessibility trust prompt for paste/hotkey restoration.',
@@ -87,22 +96,29 @@ export class MacOSPermissionAdapter implements PermissionAdapter {
 }
 
 export class WindowsPermissionAdapter implements PermissionAdapter {
-  readonly descriptor = descriptor('windows-permission', 'Windows permission adapter', 'windows', 'not-tested', 'Queries Electron media access where available; advanced automation remains not-tested until Windows execution.');
+  readonly descriptor = descriptor('windows-permission', 'Windows permission adapter', 'windows', 'partial', 'Queries Electron media access where available and opens Windows Settings URI panes for manual grants.');
 
-  constructor(private readonly bridge: ElectronPermissionBridge | null = null) {}
+  constructor(
+    private readonly bridge: ElectronPermissionBridge | null = null,
+    private readonly opener: ExternalUrlOpener | null = null,
+  ) {}
 
   async query(kind: PermissionKind): Promise<PermissionState> {
-    if (kind === 'microphone') return this.bridge ? mediaStatusToPermissionState(this.bridge.getMediaAccessStatus('microphone')) : 'not-tested';
-    if (kind === 'screen-recording') return this.bridge ? mediaStatusToPermissionState(this.bridge.getMediaAccessStatus('screen')) : 'not-tested';
-    return 'not-tested';
+    if (kind === 'microphone') return this.bridge ? mediaStatusToPermissionState(this.bridge.getMediaAccessStatus('microphone')) : 'prompt-required';
+    if (kind === 'screen-recording') return this.bridge ? mediaStatusToPermissionState(this.bridge.getMediaAccessStatus('screen')) : 'manual-required';
+    return 'manual-required';
   }
 
   async request(kind: PermissionKind): Promise<PermissionState> {
+    if (kind === 'microphone' && this.bridge?.askForMediaAccess) {
+      return (await this.bridge.askForMediaAccess('microphone')) ? 'granted' : await this.query(kind);
+    }
+    await this.openSettings(kind);
     return this.query(kind);
   }
 
-  async openSettings(_kind: PermissionKind): Promise<void> {
-    // Windows Settings URI support is intentionally deferred until it is exercised on Windows hardware.
+  async openSettings(kind: PermissionKind): Promise<void> {
+    await this.opener?.openExternal(windowsSettingsLinks[kind]);
   }
 }
 

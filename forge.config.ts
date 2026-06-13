@@ -17,6 +17,9 @@ const appleApiKeyId = process.env.APPLE_API_KEY_ID;
 const appleApiIssuer = process.env.APPLE_API_ISSUER;
 const hasAppleIdNotary = Boolean(appleId && appleIdPassword && appleTeamId);
 const hasAppleApiKeyNotary = Boolean(appleApiKey && appleApiKeyId && appleApiIssuer);
+const windowsCertificateFile = process.env.WINDOWS_CERTIFICATE_FILE;
+const windowsCertificatePassword = process.env.WINDOWS_CERTIFICATE_PASSWORD;
+const hasWindowsPfxSigning = Boolean(windowsCertificateFile && windowsCertificatePassword);
 
 const config: ForgeConfig = {
   packagerConfig: {
@@ -53,7 +56,7 @@ const config: ForgeConfig = {
   rebuildConfig: {},
   makers: [
     new MakerZIP({}, ['darwin', 'win32']),
-    new MakerSquirrel({}, ['win32']),
+    new MakerSquirrel(hasWindowsPfxSigning ? { certificateFile: windowsCertificateFile!, certificatePassword: windowsCertificatePassword! } : {}, ['win32']),
     new MakerDeb({}, ['linux']),
     new MakerRpm({}, ['linux']),
   ],

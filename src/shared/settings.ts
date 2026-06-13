@@ -1,7 +1,7 @@
 export type RecordingMode = 'push-to-talk' | 'toggle';
 export type SupportedLanguage = 'auto' | 'ko' | 'en' | 'ja' | 'zh' | 'es' | 'fr' | 'de' | 'pt';
 export type CorrectionMode = 'standard' | 'filler-removal' | 'structured' | 'custom';
-export type STTProviderType = 'mock' | 'whisperkit' | 'groq' | 'mlx-audio';
+export type STTProviderType = 'mock' | 'whisperkit' | 'groq' | 'mlx-audio' | 'local';
 export type LLMProviderType = 'none' | 'mock' | 'local' | 'openai' | 'groq';
 export type OpenAIModelId = 'gpt-5.5' | 'gpt-5.4' | 'gpt-5.4-mini' | 'gpt-5.3-codex' | 'gpt-5.2';
 export type GroqLLMModelId =
@@ -77,7 +77,7 @@ export type AppSettingsUpdate = Partial<
 export const RECORDING_MODES: readonly RecordingMode[] = ['push-to-talk', 'toggle'];
 export const SUPPORTED_LANGUAGES: readonly SupportedLanguage[] = ['auto', 'ko', 'en', 'ja', 'zh', 'es', 'fr', 'de', 'pt'];
 export const CORRECTION_MODES: readonly CorrectionMode[] = ['standard', 'filler-removal', 'structured', 'custom'];
-export const STT_PROVIDER_TYPES: readonly STTProviderType[] = ['mock', 'whisperkit', 'groq', 'mlx-audio'];
+export const STT_PROVIDER_TYPES: readonly STTProviderType[] = ['mock', 'whisperkit', 'groq', 'mlx-audio', 'local'];
 export const LLM_PROVIDER_TYPES: readonly LLMProviderType[] = ['none', 'mock', 'local', 'openai', 'groq'];
 export const OPENAI_MODELS: readonly OpenAIModelId[] = ['gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.3-codex', 'gpt-5.2'];
 export const GROQ_LLM_MODELS: readonly GroqLLMModelId[] = [
