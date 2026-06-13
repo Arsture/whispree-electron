@@ -1,6 +1,7 @@
 import type { AppSnapshot, PermissionCardSnapshot, ProviderCardSnapshot, QueueItemSnapshot } from '../../shared/ipc';
 import { implementationTone, jobLabel, queueProcessingText, statusTitle, statusTone } from '../ui-model';
 import { StatusPill, Waveform } from '../components/primitives';
+import { TranscriptionOverlayMock } from './TranscriptionOverlayMock';
 
 const screenshotMocks = [
   { id: 'screen-1', appName: 'Safari', timestamp: '10:42:18', tone: 'blue' },
@@ -243,6 +244,7 @@ function OverlayPlaceholder() {
       <div data-testid="overlay-waveform" className="overlay-waveform-shell" aria-hidden="true">
         <Waveform active={false} />
       </div>
+      <TranscriptionOverlayMock />
       <div className="overlay-hotkeys">
         <span data-hotkey="record">record</span>
         <span data-hotkey="cancel">esc</span>

@@ -3,4 +3,413 @@
 @import './models.css';
 @import './wordsets.css';
 
-/* settings parity styles: owned by UI parity task registry. */
+/* UI-05 Swift SettingsView / GeneralSettingsView parity. */
+.settings-parity-scroll,
+.general-settings-panel {
+  align-content: start;
+  display: grid;
+  gap: var(--section-gap, 20px);
+  max-width: 560px;
+  padding: var(--outer-padding, 24px);
+}
+
+.general-settings-panel {
+  margin-inline: auto;
+}
+
+.settings-card-parity.settings-group {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--card-radius, 18px);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.38)),
+    var(--surface-card);
+  box-shadow: var(--shadow-card);
+  padding: 14px 16px;
+}
+
+.settings-card-parity.settings-card-muted {
+  opacity: 0.92;
+}
+
+.settings-card-heading-parity {
+  align-items: start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.settings-card-heading-parity h2 {
+  color: var(--text-primary);
+  font-size: 0.98rem;
+  font-weight: 760;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.settings-card-heading-parity p {
+  color: var(--text-tertiary);
+  font-size: 0.74rem;
+  line-height: 1.35;
+  margin: 3px 0 0;
+}
+
+.settings-card-parity .settings-control-list {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-card-parity .settings-control-row,
+.settings-card-parity .settings-control-column {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-height: 30px;
+  padding: 0;
+}
+
+.settings-card-parity .settings-control-column {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-card-parity .settings-control-row > span,
+.settings-card-parity .settings-control-column > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-card-parity .settings-control-row strong,
+.settings-card-parity .settings-control-column strong,
+.permission-copy strong {
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-weight: 620;
+  letter-spacing: -0.006em;
+}
+
+.settings-card-parity .settings-control-row small,
+.settings-card-parity .settings-control-column small,
+.permission-copy small {
+  color: var(--text-secondary);
+  font-size: 0.73rem;
+  line-height: 1.35;
+}
+
+.settings-help-copy,
+.settings-inline-notice,
+.settings-inset-note p,
+.settings-inset-note li {
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  line-height: 1.42;
+  margin: 0;
+}
+
+.settings-help-inset {
+  padding: 10px 14px 6px;
+}
+
+.settings-divider {
+  background: var(--border-subtle);
+  height: 1px;
+  margin: 4px 0;
+}
+
+.settings-select,
+.settings-input,
+.settings-textarea {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(120, 120, 128, 0.22);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font: inherit;
+  min-width: 180px;
+  padding: 6px 8px;
+}
+
+.settings-input:disabled,
+.settings-mini-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
+.settings-switch {
+  accent-color: var(--accent);
+  flex: 0 0 auto;
+  height: 18px;
+  width: 34px;
+}
+
+.settings-radio-group {
+  border: 0;
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+}
+
+.settings-radio-group legend {
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-weight: 650;
+  margin-bottom: 3px;
+}
+
+.settings-radio-option {
+  align-items: start;
+  display: flex;
+  gap: 8px;
+}
+
+.settings-radio-option input {
+  accent-color: var(--accent);
+  margin-top: 2px;
+}
+
+.settings-radio-option span {
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.settings-inline-notice {
+  align-items: center;
+  display: flex;
+  gap: 4px;
+}
+
+.settings-inline-notice[data-tone='warning'] {
+  color: var(--warning);
+}
+
+.settings-button-row,
+.shortcut-popover-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.settings-button-row small {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+}
+
+.settings-mini-button,
+.permission-action,
+.shortcut-badge {
+  border: 1px solid rgba(120, 120, 128, 0.22);
+  border-radius: 8px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+}
+
+.settings-mini-button {
+  background: rgba(255, 255, 255, 0.52);
+  font-size: 0.74rem;
+  padding: 4px 9px;
+}
+
+.settings-mini-button.primary,
+.permission-action {
+  background: var(--accent);
+  border-color: transparent;
+  color: white;
+  font-weight: 700;
+}
+
+.settings-inset-note {
+  background: var(--surface-inset);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+}
+
+.settings-inset-title {
+  align-items: center;
+  color: var(--text-primary);
+  display: flex;
+  gap: 4px;
+  font-size: 0.75rem;
+}
+
+.settings-inset-note ol,
+.settings-inset-note ul {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.settings-shortcut-row {
+  position: relative;
+}
+
+.shortcut-recorder-anchor {
+  position: relative;
+}
+
+.shortcut-badge {
+  background: rgba(118, 118, 128, 0.15);
+  border-color: var(--border-emphasized);
+  box-shadow: inset 0 1px 0 var(--highlight);
+  color: var(--text-primary);
+  font-family: ui-rounded, "SF Pro Rounded", var(--system-font, sans-serif);
+  font-size: 0.86rem;
+  font-weight: 700;
+  min-width: 76px;
+  padding: 5px 10px;
+}
+
+.shortcut-popover {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  box-shadow: var(--shadow-overlay);
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 260px;
+  z-index: 10;
+}
+
+.shortcut-popover-content {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  padding: 14px;
+  text-align: center;
+}
+
+.shortcut-popover-content h3 {
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.shortcut-popover-content p {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.shortcut-recording-dot {
+  align-items: center;
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+  border-radius: 999px;
+  display: grid;
+  height: 28px;
+  justify-items: center;
+  width: 28px;
+}
+
+.shortcut-recording-dot span {
+  background: var(--danger);
+  border-radius: 999px;
+  height: 10px;
+  width: 10px;
+}
+
+.shortcut-live-keys,
+.shortcut-conflict-title strong {
+  color: var(--accent);
+  font-family: ui-rounded, "SF Pro Rounded", sans-serif;
+  font-size: 1.18rem;
+}
+
+.shortcut-conflict-title {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+}
+
+.permission-row-stack {
+  display: grid;
+}
+
+.permission-row-mock {
+  align-items: center;
+  border-bottom: 1px solid var(--border-subtle);
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  padding: 14px 0;
+}
+
+.permission-row-mock:first-child {
+  padding-top: 0;
+}
+
+.permission-row-mock:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.permission-icon {
+  color: var(--accent);
+  font-size: 1.05rem;
+  text-align: center;
+}
+
+.permission-copy {
+  display: grid;
+  gap: 2px;
+}
+
+.permission-check {
+  align-items: center;
+  background: color-mix(in srgb, var(--success) 16%, transparent);
+  border-radius: 999px;
+  color: var(--success);
+  display: grid;
+  font-size: 0.9rem;
+  font-weight: 800;
+  height: 22px;
+  justify-items: center;
+  width: 22px;
+}
+
+.permission-unavailable {
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+}
+
+.permission-action {
+  border-radius: 999px;
+  font-size: 0.72rem;
+  padding: 5px 10px;
+}
+
+@media (max-width: 760px) {
+  .settings-parity-scroll,
+  .general-settings-panel {
+    max-width: none;
+    padding: 18px;
+  }
+
+  .shortcut-popover {
+    right: -10px;
+  }
+}
+
+
+.settings-ipc-bridge {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

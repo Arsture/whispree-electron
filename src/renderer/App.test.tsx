@@ -161,7 +161,7 @@ describe('App Swift parity shell markup', () => {
     fireEvent.click(screen.getByRole('tab', { name: /일반/u }));
     expect(screen.getByText('Recording shortcut')).toBeTruthy();
     expect(screen.getByText('⌃⇧R')).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('Recording Mode'), { target: { value: 'toggle' } });
+    fireEvent.click(screen.getByLabelText(/Toggle — Press to start/u));
     expect(whispreeMock.updateSettings).toHaveBeenCalledWith({ recordingMode: 'toggle' });
 
     fireEvent.click(screen.getByRole('tab', { name: /STT/u }));
