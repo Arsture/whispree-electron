@@ -1,6 +1,7 @@
 export * from './adapters';
 export * from './ipc';
 export * from './prompts';
+export * from './provider-registry';
 export * from './providers';
 export * from './queue';
 export * from './safety';

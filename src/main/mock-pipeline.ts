@@ -6,6 +6,7 @@ import {
   type ProviderCardSnapshot,
   type QueueItemSnapshot,
 } from '../shared/ipc';
+import { llmProviderChoices, sttProviderChoices } from '../shared/provider-registry';
 import { MockLLMProvider, MockSTTProvider, localModelBackendRegistry } from '../shared/providers';
 import { DictationQueueState, isDeliverableJobStatus, isProcessingJobStatus, isTerminalJobStatus, type DictationJob, type DictationJobSnapshot } from '../shared/queue';
 import { defaultAppSettings } from '../shared/settings';
@@ -24,26 +25,21 @@ type Delay = (milliseconds: number) => Promise<void>;
 const defaultDelay: Delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 const providerCards: readonly ProviderCardSnapshot[] = [
-  new MockSTTProvider().descriptor,
-  new MockLLMProvider().descriptor,
+  ...sttProviderChoices.map(providerChoiceToCard),
+  ...llmProviderChoices.map(providerChoiceToCard),
   ...localModelBackendRegistry.map((backend) => backend.descriptor),
-  {
-    id: 'groq-cloud-stt',
-    label: 'Groq cloud STT',
-    family: 'cloud-backend',
-    status: 'planned',
-    platform: 'cross-platform',
-    detail: 'Credentialed API path is deferred until after the mock harness is stable.',
-  },
-  {
-    id: 'openai-correction',
-    label: 'OpenAI/Codex correction',
-    family: 'cloud-backend',
-    status: 'planned',
-    platform: 'cross-platform',
-    detail: 'Auth reuse and Responses API wiring are future slices.',
-  },
 ];
+
+function providerChoiceToCard(provider: (typeof sttProviderChoices | typeof llmProviderChoices)[number]): ProviderCardSnapshot {
+  return {
+    id: provider.id,
+    label: provider.label,
+    family: provider.family,
+    status: provider.status,
+    platform: provider.platform,
+    detail: provider.detail,
+  };
+}
 
 const permissionCards: readonly PermissionCardSnapshot[] = initialAppSnapshot.permissions;
 
