@@ -33,6 +33,7 @@ if (!dryRun) {
 const electronExists = existsSync(electronShot);
 const swiftShotExists = existsSync(swiftShot);
 const blockers = [...captureErrors];
+if (dryRun) blockers.push('dry-run-did-not-capture-current-screenshots');
 if (!electronExists) blockers.push('electron-screenshot-missing-run-without-dry-run');
 if (!swiftApp) blockers.push('swift-app-bundle-not-found-for-side-by-side-capture');
 else if (!swiftShotExists) blockers.push('swift-reference-screenshot-missing-run-without-dry-run-or-screen-permission');
