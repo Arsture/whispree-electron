@@ -5,6 +5,7 @@ import type { ImplementationStatus } from './status';
 export const IPC_CHANNELS = {
   getAppSnapshot: 'whispree:get-app-snapshot',
   appSnapshotUpdated: 'whispree:app-snapshot-updated',
+  recordingHotkey: 'whispree:recording-hotkey',
   enqueueMockDictation: 'whispree:enqueue-mock-dictation',
   startRealRecording: 'whispree:start-real-recording',
   submitRecordedAudio: 'whispree:submit-recorded-audio',
@@ -19,6 +20,12 @@ export const IPC_CHANNELS = {
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
+
+export type RecordingHotkeyCommand = 'start-real-recording' | 'stop-real-recording';
+
+export interface RecordingHotkeyMessage {
+  readonly command: RecordingHotkeyCommand;
+}
 
 export const PERMISSION_KINDS = [
   'microphone',

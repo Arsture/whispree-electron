@@ -1,7 +1,7 @@
 import { app, BrowserWindow, Menu, Tray, clipboard, globalShortcut, ipcMain, nativeImage, shell, systemPreferences } from 'electron';
 import path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { IPC_CHANNELS } from '../shared/ipc';
+import { IPC_CHANNELS, type RecordingHotkeyCommand } from '../shared/ipc';
 import { resolveScreenshotCapturePath } from './screenshot-capture';
 import {
   commandOk,
@@ -217,6 +217,24 @@ function createTray(): void {
   );
 }
 
+class RendererRecordingBridge {
+  constructor(private readonly getWindow: () => BrowserWindow | null) {}
+
+  startRealRecording(): void {
+    this.#send('start-real-recording');
+  }
+
+  stopRealRecording(): void {
+    this.#send('stop-real-recording');
+  }
+
+  #send(command: RecordingHotkeyCommand): void {
+    const window = this.getWindow();
+    if (!window || window.webContents.isDestroyed()) return;
+    window.webContents.send(IPC_CHANNELS.recordingHotkey, { command });
+  }
+}
+
 function getSettingsStore(): FileSettingsStore {
   settingsStore ??= createSettingsStore(app.getPath('userData'));
   return settingsStore;
@@ -264,6 +282,8 @@ async function initializeMainState(): Promise<void> {
     pipeline,
     hotkeyAdapter: adapters.hotkey,
     shortcut: settings.getSnapshot().toggleRecordingShortcut.label,
+    settingsProvider: () => settings.getSnapshot(),
+    realRecordingBridge: new RendererRecordingBridge(() => mainWindow),
   });
   if (shouldRegisterGlobalShortcuts()) {
     await recordingController.register().catch((error) => {

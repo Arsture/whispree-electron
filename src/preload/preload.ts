@@ -9,6 +9,7 @@ import {
   type HistoryTextVariant,
   type PermissionKind,
   type RecordedAudioInput,
+  type RecordingHotkeyMessage,
   type SettingsUpdateInput,
 } from '../shared/ipc';
 import type { WhispreeAPI } from '../shared/whispree-api';
@@ -91,6 +92,15 @@ const whispreeApi: WhispreeAPI = {
 
 contextBridge.exposeInMainWorld('whispree', whispreeApi);
 
+ipcRenderer.on(IPC_CHANNELS.recordingHotkey, (_event: Electron.IpcRendererEvent, message: RecordingHotkeyMessage) => {
+  if (!isRecordingHotkeyMessage(message)) return;
+  if (message.command === 'start-real-recording') {
+    void whispreeApi.startRealRecording();
+    return;
+  }
+  void whispreeApi.stopRealRecording();
+});
+
 function stopRecorder(recorder: MediaRecorder): Promise<RecordedAudioInput> {
   return new Promise((resolve, reject) => {
     const mimeType = recorder.mimeType || 'audio/webm';
@@ -152,6 +162,12 @@ async function localCommandError(
 
 function isCommandOk(value: unknown): value is { readonly ok: true } {
   return typeof value === 'object' && value !== null && 'ok' in value && value.ok === true;
+}
+
+function isRecordingHotkeyMessage(value: unknown): value is RecordingHotkeyMessage {
+  if (typeof value !== 'object' || value === null) return false;
+  const command = (value as Partial<RecordingHotkeyMessage>).command;
+  return command === 'start-real-recording' || command === 'stop-real-recording';
 }
 
 function errorMessage(error: unknown): string {

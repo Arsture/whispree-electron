@@ -104,6 +104,65 @@ describe('MockDictationPipeline', () => {
     expect(snapshot.queue.items[0]?.id).toBe('history-1');
   });
 
+  it('skips empty real recordings and resumes a paused FIFO delivery', async () => {
+    const pipeline = new MockDictationPipeline(undefined, immediateDelay);
+
+    pipeline.startRealRecording({ mimeType: 'audio/webm' });
+    pipeline.submitRecordedAudio({
+      bytes: new Uint8Array([]).buffer,
+      mimeType: 'audio/webm',
+      durationMs: 0,
+    });
+    await pipeline.whenIdle();
+
+    expect(pipeline.getSnapshot().recording.active).toBe(false);
+    expect(pipeline.getSnapshot().queue.items).toEqual([]);
+    expect(pipeline.getSnapshot().history).toEqual([]);
+  });
+
+  it('pauses FIFO delivery if a new recording starts before text insertion', async () => {
+    const resolvers: Array<() => void> = [];
+    const inserted: string[] = [];
+    const controlledDelay = () => new Promise<void>((resolve) => {
+      resolvers.push(resolve);
+    });
+    const pipeline = new MockDictationPipeline(undefined, controlledDelay, {
+      textInsertion: {
+        descriptor: { id: 'insert', label: 'insert', platform: 'cross-platform', status: 'mock', detail: 'test' },
+        insertText: async (text) => {
+          inserted.push(text);
+          return 'inserted';
+        },
+      },
+    });
+
+    pipeline.enqueueMockDictation({ recordingDelayMs: 0, sttDelayMs: 0, llmDelayMs: 0, deliveryDelayMs: 0 });
+    await waitForResolver(resolvers);
+    resolvers.shift()?.();
+    await waitForResolver(resolvers);
+    resolvers.shift()?.();
+    await waitForResolver(resolvers);
+    resolvers.shift()?.();
+    await waitForResolver(resolvers);
+    expect(pipeline.getSnapshot().queue.items[0]?.status).toBe('delivering');
+
+    pipeline.startRealRecording({ mimeType: 'audio/webm' });
+    resolvers.shift()?.();
+    await flushMicrotasks();
+
+    expect(inserted).toEqual([]);
+    expect(pipeline.getSnapshot().queue.items[0]?.status).toBe('ready-for-delivery');
+    expect(pipeline.getSnapshot().history).toEqual([]);
+
+    pipeline.cancelForegroundJob();
+    await flushMicrotasks();
+    resolvers.shift()?.();
+    await pipeline.whenIdle();
+
+    expect(inserted).toHaveLength(1);
+    expect(pipeline.getSnapshot().history[0]?.sequence).toBe(1);
+  });
+
 
 
   it('captures screenshot, browser, and terminal context for real jobs when settings enable them', async () => {
@@ -243,4 +302,15 @@ describe('MockDictationPipeline', () => {
 
 function defaultSettingsForTest() {
   return defaultAppSettings;
+}
+
+async function flushMicrotasks(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
+async function waitForResolver(resolvers: readonly unknown[]): Promise<void> {
+  for (let attempt = 0; attempt < 10 && resolvers.length === 0; attempt += 1) {
+    await flushMicrotasks();
+  }
 }

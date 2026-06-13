@@ -203,6 +203,11 @@ export class MockDictationPipeline {
     this.#activeRecordingId = null;
     this.#recordingMode = 'real';
     this.#queue.setRecordingActive(false);
+    if (input.bytes.byteLength === 0 || input.durationMs <= 0) {
+      this.#emit();
+      this.#track(this.#tryDeliverReadyJobs());
+      return this.getSnapshot();
+    }
     const task = this.#runAudioJob(recordingId, {
       kind: 'memory',
       value: recordedAudioToDataUrl(input),
@@ -224,12 +229,13 @@ export class MockDictationPipeline {
       this.#queue.setRecordingActive(false);
       void this.#audioAdapter.stop().catch(() => undefined);
       this.#emit();
+      this.#track(this.#tryDeliverReadyJobs());
       return this.getSnapshot();
     }
 
     this.#queue.cancelForegroundJob();
     this.#emit();
-    void this.#tryDeliverReadyJobs();
+    this.#track(this.#tryDeliverReadyJobs());
     return this.getSnapshot();
   }
 
@@ -338,7 +344,9 @@ export class MockDictationPipeline {
       const delivering = this.#queue.startDelivery(next.id);
       this.#emit();
       await this.#delay(deliveryDelayMs);
+      if (this.#pauseDeliveryIfRecording(delivering.id)) return;
       await this.#restoreTargetContext(delivering.targetContextId);
+      if (this.#pauseDeliveryIfRecording(delivering.id)) return;
       const insertionResult = await this.#textInsertionAdapter.insertText(
         delivering.correctedText || delivering.transcribedText,
         delivering.targetContextId,
@@ -351,6 +359,13 @@ export class MockDictationPipeline {
       this.#emit();
       next = this.#queue.nextDeliverableJob();
     }
+  }
+
+  #pauseDeliveryIfRecording(jobId: string): boolean {
+    if (!this.#queue.isRecordingActive) return false;
+    this.#queue.pauseActiveDelivery(jobId);
+    this.#emit();
+    return true;
   }
 
 

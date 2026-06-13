@@ -40,11 +40,14 @@ function RecordingStatus({ snapshot }: { readonly snapshot: AppSnapshot }) {
   );
 }
 
-function ActionDock() {
+function ActionDock({ snapshot }: { readonly snapshot: AppSnapshot }) {
+  const isRealRecordingActive = snapshot.recording.active && snapshot.recording.mode === 'real';
   return (
     <section className="home-action-dock" aria-label="Recording controls">
-      <button type="button" onClick={() => void window.whispree.enqueueMockDictation()}>Start mock recording</button>
-      <button type="button" onClick={() => void window.whispree.startRealRecording()}>Start real recording</button>
+      <button type="button" disabled={snapshot.recording.active} onClick={() => void window.whispree.enqueueMockDictation()}>Start mock recording</button>
+      <button type="button" onClick={() => void (isRealRecordingActive ? window.whispree.stopRealRecording() : window.whispree.startRealRecording())}>
+        {isRealRecordingActive ? 'Stop real recording' : 'Start real recording'}
+      </button>
       <button type="button" onClick={() => void window.whispree.cancelForegroundJob()}>Cancel foreground</button>
     </section>
   );
@@ -325,7 +328,7 @@ export function HomePanel({ snapshot }: { readonly snapshot: AppSnapshot }) {
       <AccessibilityWarning permissions={snapshot.permissions} />
       <ProviderStatusCards providers={snapshot.providers} />
       <div className="home-hidden-support" aria-label="Home support surfaces retained for IPC and UI parity tests">
-        <ActionDock />
+        <ActionDock snapshot={snapshot} />
         <ScreenshotStrip />
         <PermissionsPanel permissions={snapshot.permissions} />
         <LatestTranscription snapshot={snapshot} />

@@ -197,6 +197,18 @@ export class DictationQueueState {
     return this.transitionJob(id, 'delivering');
   }
 
+  pauseActiveDelivery(id: DictationJobId): DictationJob {
+    if (this.#activeDeliveryJobId !== id) {
+      throw new Error(`Job is not the active delivery: ${id}`);
+    }
+    const job = this.getJob(id);
+    if (!job || job.status !== 'delivering') {
+      throw new Error(`Job is not delivering: ${id}`);
+    }
+    this.#activeDeliveryJobId = null;
+    return this.transitionJob(id, 'ready-for-delivery');
+  }
+
   cancelForegroundJob(): DictationJob | null {
     const foreground = this.foregroundJob();
     if (!foreground) return null;
