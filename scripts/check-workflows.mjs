@@ -42,6 +42,26 @@ requireIncludes('electron-ci.yml', electronCi, [
   'actions/upload-artifact@v4',
 ]);
 
+
+const electronRelease = read('.github/workflows/electron-release.yml');
+requireIncludes('electron-release.yml', electronRelease, [
+  'workflow_dispatch:',
+  'confirm_electron_release',
+  "github.event.inputs.confirm_electron_release == 'I understand this builds Electron release artifacts'",
+  'macos-latest',
+  'windows-latest',
+  'npm run verify',
+  'npm run signing:preflight',
+  'npm run probe:real',
+  'npm run make',
+  'actions/upload-artifact@v4',
+  'draft: true',
+]);
+requireNotIncludes('electron-release.yml', electronRelease, [
+  '  push:\n',
+  '  release:\n',
+]);
+
 const legacyRelease = read('.github/workflows/release.yml');
 requireIncludes('release.yml', legacyRelease, [
   'workflow_dispatch:',
