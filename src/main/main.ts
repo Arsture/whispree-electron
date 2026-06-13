@@ -1,7 +1,8 @@
 import { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage } from 'electron';
 import started from 'electron-squirrel-startup';
 import path from 'node:path';
-import { IPC_CHANNELS, type PermissionKind } from '../shared/ipc';
+import { IPC_CHANNELS } from '../shared/ipc';
+import { commandError, commandOk, rejectUnexpectedArgs, validatePermissionKindInput } from './ipc-validation';
 import { MockDictationPipeline } from './mock-pipeline';
 
 const dirname = __dirname;
@@ -42,9 +43,21 @@ function createMainWindow(): void {
   }
 }
 
+function createTrayIcon() {
+  const iconPath = path.join(app.getAppPath(), 'assets/tray-template.png');
+  const icon = nativeImage.createFromPath(iconPath);
+  if (!icon.isEmpty()) {
+    icon.setTemplateImage(true);
+    return icon;
+  }
+  return nativeImage.createFromDataURL(
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABIAAAASCAYAAABWzo5XAAAAIElEQVR4AWP4////fwYiAOOoQoxB1DCCqGEEUQAAkV0kI4nJXH0AAAAASUVORK5CYII=',
+  );
+}
+
 function createTray(): void {
   if (tray) return;
-  tray = new Tray(nativeImage.createEmpty());
+  tray = new Tray(createTrayIcon());
   tray.setToolTip('Whispree Electron');
   tray.setContextMenu(
     Menu.buildFromTemplate([
@@ -72,10 +85,34 @@ function createTray(): void {
 
 function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.getAppSnapshot, () => pipeline.getSnapshot());
-  ipcMain.handle(IPC_CHANNELS.enqueueMockDictation, () => pipeline.enqueueMockDictation());
-  ipcMain.handle(IPC_CHANNELS.cancelForegroundJob, () => pipeline.cancelForegroundJob());
-  ipcMain.handle(IPC_CHANNELS.openSettings, () => pipeline.getSnapshot());
-  ipcMain.handle(IPC_CHANNELS.requestPermission, (_event, _kind: PermissionKind) => pipeline.getSnapshot());
+  ipcMain.handle(IPC_CHANNELS.enqueueMockDictation, (_event, ...args: unknown[]) => {
+    const rejected = rejectUnexpectedArgs('enqueue-mock-dictation', pipeline.getSnapshot(), args);
+    if (rejected) return rejected;
+    return commandOk('enqueue-mock-dictation', pipeline.enqueueMockDictation(), 'Mock dictation enqueued.');
+  });
+  ipcMain.handle(IPC_CHANNELS.cancelForegroundJob, (_event, ...args: unknown[]) => {
+    const rejected = rejectUnexpectedArgs('cancel-foreground-job', pipeline.getSnapshot(), args);
+    if (rejected) return rejected;
+    return commandOk('cancel-foreground-job', pipeline.cancelForegroundJob(), 'Foreground mock scope canceled.');
+  });
+  ipcMain.handle(IPC_CHANNELS.openSettings, (_event, ...args: unknown[]) => {
+    const rejected = rejectUnexpectedArgs('open-settings', pipeline.getSnapshot(), args);
+    if (rejected) return rejected;
+    return commandError('open-settings', pipeline.getSnapshot(), 'Settings window is planned after the dashboard shell.', 'not-implemented');
+  });
+  ipcMain.handle(IPC_CHANNELS.requestPermission, (_event, kind: unknown, ...args: unknown[]) => {
+    const snapshot = pipeline.getSnapshot();
+    const rejected = rejectUnexpectedArgs('request-permission', snapshot, args);
+    if (rejected) return rejected;
+    const validation = validatePermissionKindInput(snapshot, kind);
+    if (!validation.ok) return validation.result;
+    return commandError(
+      'request-permission',
+      snapshot,
+      `${validation.kind} permission is adapter-planned and not requested in mock mode.`,
+      'not-implemented',
+    );
+  });
 }
 
 app.whenReady().then(() => {

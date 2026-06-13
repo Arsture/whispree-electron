@@ -11,12 +11,13 @@ const whispreeApi: WhispreeAPI = {
       ipcRenderer.removeListener(IPC_CHANNELS.appSnapshotUpdated, listener);
     };
   },
-  enqueueMockDictation: () => ipcRenderer.invoke(IPC_CHANNELS.enqueueMockDictation) as Promise<AppSnapshot>,
-  cancelForegroundJob: (jobId?: string) =>
-    ipcRenderer.invoke(IPC_CHANNELS.cancelForegroundJob, jobId) as Promise<AppSnapshot>,
-  openSettings: () => ipcRenderer.invoke(IPC_CHANNELS.openSettings) as Promise<AppSnapshot>,
+  enqueueMockDictation: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.enqueueMockDictation) as ReturnType<WhispreeAPI['enqueueMockDictation']>,
+  cancelForegroundJob: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.cancelForegroundJob) as ReturnType<WhispreeAPI['cancelForegroundJob']>,
+  openSettings: () => ipcRenderer.invoke(IPC_CHANNELS.openSettings) as ReturnType<WhispreeAPI['openSettings']>,
   requestPermission: (kind: PermissionKind) =>
-    ipcRenderer.invoke(IPC_CHANNELS.requestPermission, kind) as Promise<AppSnapshot>,
+    ipcRenderer.invoke(IPC_CHANNELS.requestPermission, kind) as ReturnType<WhispreeAPI['requestPermission']>,
 };
 
 contextBridge.exposeInMainWorld('whispree', whispreeApi);

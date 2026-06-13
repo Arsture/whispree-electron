@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const root = process.cwd();
+const root = process.env.BOUNDARY_ROOT ? path.resolve(process.env.BOUNDARY_ROOT) : process.cwd();
 const sourceRoots = [
   {
     name: 'shared',
@@ -28,9 +28,20 @@ const sourceRoots = [
       /(^|\/)src\/adapters?(\/|$)/,
     ],
   },
+  {
+    name: 'preload',
+    dir: path.join(root, 'src/preload'),
+    forbidden: [
+      /^node:/,
+      /^(fs|path|os|child_process|worker_threads|shelljs)$/,
+      /(^|\/)src\/main(\/|$)/,
+      /(^|\/)src\/renderer(\/|$)/,
+      /(^|\/)src\/adapters?(\/|$)/,
+    ],
+  },
 ];
 
-const importPattern = /(?:import(?:\s+type)?(?:[\s\S]*?)from\s*['"]([^'"]+)['"]|import\s*\(\s*['"]([^'"]+)['"]\s*\)|require\s*\(\s*['"]([^'"]+)['"]\s*\))/g;
+const importPattern = /(?:import(?:\s+type)?(?:[\s\S]*?)from\s*['"]([^'"]+)['"]|export(?:\s+type)?(?:\s+\{[\s\S]*?\}|\s+\*)\s+from\s*['"]([^'"]+)['"]|import\s*\(\s*['"]([^'"]+)['"]\s*\)|require\s*\(\s*['"]([^'"]+)['"]\s*\))/g;
 const extensions = new Set(['.ts', '.tsx', '.js', '.jsx']);
 
 function walk(dir) {
@@ -57,7 +68,7 @@ for (const sourceRoot of sourceRoots) {
   for (const filePath of walk(sourceRoot.dir)) {
     const source = fs.readFileSync(filePath, 'utf8');
     for (const match of source.matchAll(importPattern)) {
-      const rawSpecifier = match[1] ?? match[2] ?? match[3];
+      const rawSpecifier = match[1] ?? match[2] ?? match[3] ?? match[4];
       const normalized = normalizeSpecifier(rawSpecifier, filePath);
       if (sourceRoot.forbidden.some((rule) => rule.test(normalized))) {
         violations.push({
@@ -79,4 +90,4 @@ if (violations.length > 0) {
   process.exit(1);
 }
 
-console.log('Boundary checks passed for src/shared and src/renderer.');
+console.log('Boundary checks passed for src/shared, src/renderer, and src/preload.');

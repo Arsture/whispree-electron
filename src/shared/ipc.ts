@@ -12,12 +12,19 @@ export const IPC_CHANNELS = {
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
 
-export type PermissionKind =
-  | 'microphone'
-  | 'accessibility'
-  | 'screen-recording'
-  | 'browser-context'
-  | 'terminal-context';
+export const PERMISSION_KINDS = [
+  'microphone',
+  'accessibility',
+  'screen-recording',
+  'browser-context',
+  'terminal-context',
+] as const;
+
+export type PermissionKind = (typeof PERMISSION_KINDS)[number];
+
+export function isPermissionKind(value: unknown): value is PermissionKind {
+  return typeof value === 'string' && PERMISSION_KINDS.includes(value as PermissionKind);
+}
 
 export type PermissionState =
   | 'granted'
@@ -91,6 +98,32 @@ export interface AppSnapshot {
   readonly permissions: readonly PermissionCardSnapshot[];
   readonly history: readonly HistoryRecordSnapshot[];
 }
+
+
+export type CommandAction =
+  | 'enqueue-mock-dictation'
+  | 'cancel-foreground-job'
+  | 'open-settings'
+  | 'request-permission';
+
+export interface CommandError {
+  readonly code: 'invalid-input' | 'unsupported' | 'not-implemented';
+  readonly message: string;
+}
+
+export type CommandResult =
+  | {
+      readonly ok: true;
+      readonly action: CommandAction;
+      readonly snapshot: AppSnapshot;
+      readonly message: string;
+    }
+  | {
+      readonly ok: false;
+      readonly action: CommandAction;
+      readonly snapshot: AppSnapshot;
+      readonly error: CommandError;
+    };
 
 export const initialQueueSnapshot: QueueSnapshot = {
   totalCount: 0,
