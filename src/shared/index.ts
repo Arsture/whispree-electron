@@ -9,3 +9,5 @@ export * from './safety';
 export * from './settings';
 export * from './status';
 export * from './whispree-api';
+export * from './local-backends';
+export * from './sidecar-protocol';

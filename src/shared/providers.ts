@@ -61,8 +61,8 @@ export interface LLMProvider {
 export interface LocalModelBackend {
   readonly descriptor: ProviderDescriptor;
   readonly capabilities: readonly LocalModelCapability[];
-  readonly runtime: 'mock' | 'mlx-python' | 'whisperkit-coreml' | 'windows-placeholder';
-  readonly protocol: 'in-process' | 'stdio-json' | 'native-module' | 'unselected';
+  readonly runtime: 'mock' | 'mlx-python' | 'whisperkit-coreml' | 'onnx-directml' | 'llama-cpp' | 'windows-placeholder';
+  readonly protocol: 'in-process' | 'stdio-json' | 'native-module' | 'http-local' | 'unselected';
 }
 
 export class MockSTTProvider implements STTProvider {
@@ -139,12 +139,38 @@ export const localModelBackendRegistry: readonly LocalModelBackend[] = [
   },
   {
     descriptor: {
+      id: 'windows-onnx-directml-candidate',
+      label: 'Windows ONNX/DirectML candidate',
+      family: 'local-backend',
+      status: 'not-tested',
+      platform: 'windows',
+      detail: 'Candidate local STT/correction runtime for Windows; not selected or executed yet.',
+    },
+    capabilities: ['speech-to-text', 'text-correction'],
+    runtime: 'onnx-directml',
+    protocol: 'stdio-json',
+  },
+  {
+    descriptor: {
+      id: 'windows-llama-cpp-candidate',
+      label: 'Windows llama.cpp candidate',
+      family: 'local-backend',
+      status: 'not-tested',
+      platform: 'windows',
+      detail: 'Candidate local correction runtime for Windows; not selected or executed yet.',
+    },
+    capabilities: ['text-correction', 'vision-correction'],
+    runtime: 'llama-cpp',
+    protocol: 'stdio-json',
+  },
+  {
+    descriptor: {
       id: 'windows-local-placeholder',
       label: 'Windows local AI placeholder',
       family: 'local-backend',
       status: 'not-tested',
       platform: 'windows',
-      detail: 'Interface exists; backend runtime is intentionally unselected in this milestone.',
+      detail: 'Fallback placeholder; exact Windows runtime remains not-tested.',
     },
     capabilities: ['speech-to-text', 'text-correction'],
     runtime: 'windows-placeholder',
