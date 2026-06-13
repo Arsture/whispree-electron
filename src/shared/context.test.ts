@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { cloneExternalContextSnapshot, createQuickFixRequest, type ExternalContextSnapshot } from './context';
+import {
+  browserContextFromAdapterPayload,
+  cloneExternalContextSnapshot,
+  createQuickFixRequest,
+  createTargetContextSnapshot,
+  targetContextToLegacyId,
+  terminalContextFromAdapterPayload,
+  type ExternalContextSnapshot,
+} from './context';
 
 describe('context and Quick Fix models', () => {
   it('creates Quick Fix requests without renderer clipboard access', () => {
@@ -22,5 +30,18 @@ describe('context and Quick Fix models', () => {
     expect(cloned).toEqual(snapshot);
     expect(cloned).not.toBe(snapshot);
     expect(cloned.screenshots).not.toBe(snapshot.screenshots);
+  });
+
+  it('normalizes adapter payloads into typed target context snapshots with legacy ids derived at the edge', () => {
+    const targetContext = createTargetContextSnapshot({
+      browser: browserContextFromAdapterPayload('https://example.com\nExample'),
+      terminal: terminalContextFromAdapterPayload('tmux:whispree'),
+      warnings: ['screen-context-stop-failed'],
+    });
+
+    expect(targetContext.kind).toBe('external');
+    expect(targetContext.browser?.url).toBe('https://example.com');
+    expect(targetContext.terminal?.tmuxWindow).toBe('tmux:whispree');
+    expect(targetContextToLegacyId(targetContext)).toContain('screen-context-stop-failed');
   });
 });

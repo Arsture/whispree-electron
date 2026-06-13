@@ -125,6 +125,7 @@ export class WindowsPermissionAdapter implements PermissionAdapter {
 
 export class ElectronGlobalShortcutAdapter implements HotkeyAdapter {
   readonly descriptor: AdapterDescriptor;
+  readonly supportsKeyRelease = false;
 
   constructor(
     private readonly bridge: GlobalShortcutBridge,
@@ -133,9 +134,9 @@ export class ElectronGlobalShortcutAdapter implements HotkeyAdapter {
     this.descriptor = descriptor(`${platform}-global-shortcut`, `${platform} global shortcut adapter`, platform, 'partial', 'Uses Electron globalShortcut with Swift shortcut label normalization.');
   }
 
-  async register(shortcut: string, callback: () => void): Promise<void> {
+  async register(shortcut: string, pressed: () => void, _released?: () => void): Promise<void> {
     const accelerator = shortcutLabelToAccelerator(shortcut);
-    if (!this.bridge.register(accelerator, callback)) throw new Error(`Unable to register global shortcut: ${shortcut}`);
+    if (!this.bridge.register(accelerator, pressed)) throw new Error(`Unable to register global shortcut: ${shortcut}`);
   }
 
   async unregister(shortcut: string): Promise<void> {

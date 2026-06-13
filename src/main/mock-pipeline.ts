@@ -18,6 +18,13 @@ import { defaultAppSettings, type AppSettingsSnapshot, type CorrectionMapping } 
 import { buildCorrectionSystemPrompt } from '../shared/prompts';
 import { StaticProviderRouter, type ProviderRouter } from './provider-router';
 import { localEngineRegistry } from './local-ai/engine-registry';
+import {
+  browserContextFromAdapterPayload,
+  createTargetContextSnapshot,
+  targetContextToLegacyId,
+  terminalContextFromAdapterPayload,
+  type TargetContextSnapshot,
+} from '../shared/context';
 
 interface MockPipelineOptions {
   readonly recordingDelayMs?: number;
@@ -288,7 +295,7 @@ export class MockDictationPipeline {
         id: `${audioRef.kind === 'mock' ? 'mock' : 'real'}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
         createdAtIso: new Date().toISOString(),
         snapshot: this.#createJobSnapshot(settings, options.glossary),
-        targetContextId: context.targetContextId,
+        targetContext: context.targetContext,
         screenshotIds: context.screenshotIds,
       });
       jobId = job.id;
@@ -374,11 +381,12 @@ export class MockDictationPipeline {
       this.#emit();
       await this.#delay(deliveryDelayMs);
       if (this.#pauseDeliveryIfRecording(delivering.id)) return;
-      await this.#restoreTargetContext(delivering.targetContextId);
+      await this.#restoreTargetContext(delivering.targetContext);
       if (this.#pauseDeliveryIfRecording(delivering.id)) return;
+      const targetContextId = targetContextToLegacyId(delivering.targetContext);
       const insertionResult = await this.#textInsertionAdapter.insertText(
         delivering.correctedText || delivering.transcribedText,
-        delivering.targetContextId,
+        targetContextId,
       );
       const terminalStatus = insertionResult === 'inserted' ? 'delivered' : 'copied-to-clipboard';
       const delivered = this.#queue.transitionJob(delivering.id, terminalStatus);
@@ -398,21 +406,22 @@ export class MockDictationPipeline {
   }
 
 
-  async #captureJobContext(settings: AppSettingsSnapshot, fallbackTargetContextId: string | null): Promise<{ readonly targetContextId: string | null; readonly screenshotIds: readonly string[] }> {
+  async #captureJobContext(settings: AppSettingsSnapshot, fallbackTargetContextId: string | null): Promise<{ readonly targetContext: TargetContextSnapshot; readonly screenshotIds: readonly string[] }> {
     const warnings: string[] = [];
     const screenshotResult = settings.screenshotContextEnabled || settings.screenshotPasteEnabled
       ? await this.#captureScreenshots()
       : { screenshotIds: [], warnings: [] };
     const screenshotIds = screenshotResult.screenshotIds;
     warnings.push(...screenshotResult.warnings);
-    const contexts: Record<string, string | readonly string[]> = {};
+    let browserContext = null;
+    let terminalContext = null;
     if (settings.restoreBrowserTab) {
       if (!this.#browserContextAdapter) warnings.push('browser-context-adapter-unavailable');
       const browser = await this.#browserContextAdapter?.capture().catch((error: unknown) => {
         warnings.push(`browser-context-capture-failed: ${errorMessage(error)}`);
         return null;
       });
-      if (browser) contexts.browser = browser;
+      if (browser) browserContext = browserContextFromAdapterPayload(browser);
     }
     if (settings.restoreTerminalContext) {
       if (!this.#terminalContextAdapter) warnings.push('terminal-context-adapter-unavailable');
@@ -420,14 +429,19 @@ export class MockDictationPipeline {
         warnings.push(`terminal-context-capture-failed: ${errorMessage(error)}`);
         return null;
       });
-      if (terminal) contexts.terminal = terminal;
+      if (terminal) terminalContext = terminalContextFromAdapterPayload(terminal);
     }
     if (warnings.length > 0) {
-      contexts.warnings = warnings;
       this.#recordContextWarning('Context capture warnings', warnings);
     }
-    const targetContextId = Object.keys(contexts).length > 0 ? JSON.stringify(contexts) : fallbackTargetContextId;
-    return { targetContextId, screenshotIds };
+    const targetContext = createTargetContextSnapshot({
+      browser: browserContext,
+      terminal: terminalContext,
+      screenshots: screenshotIds.map((id) => ({ id, createdAtIso: new Date(0).toISOString(), source: 'screen-capture-adapter' as const })),
+      warnings,
+      fallbackTargetContextId,
+    });
+    return { targetContext, screenshotIds };
   }
 
   async #captureScreenshots(): Promise<{ readonly screenshotIds: readonly string[]; readonly warnings: readonly string[] }> {
@@ -443,30 +457,20 @@ export class MockDictationPipeline {
     return { screenshotIds, warnings };
   }
 
-  async #restoreTargetContext(targetContextId: string | null): Promise<void> {
-    if (!targetContextId) return;
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(targetContextId);
-    } catch {
-      return;
-    }
-
-    if (typeof parsed !== 'object' || parsed === null) return;
-    const context = parsed as { readonly browser?: unknown; readonly terminal?: unknown };
+  async #restoreTargetContext(targetContext: TargetContextSnapshot): Promise<void> {
+    if (targetContext.kind === 'none') return;
     const warnings: string[] = [];
 
-    if (typeof context.browser === 'string') {
-      const restored = await this.#browserContextAdapter?.restore(context.browser).catch((error: unknown) => {
+    if (targetContext.browser) {
+      const restored = await this.#browserContextAdapter?.restore(targetContext.browser.id).catch((error: unknown) => {
         warnings.push(`browser-context-restore-failed: ${errorMessage(error)}`);
         return false;
       });
       if (restored === false) warnings.push('browser-context-restore-failed');
     }
 
-    if (typeof context.terminal === 'string') {
-      const restored = await this.#terminalContextAdapter?.restore(context.terminal).catch((error: unknown) => {
+    if (targetContext.terminal) {
+      const restored = await this.#terminalContextAdapter?.restore(targetContext.terminal.id).catch((error: unknown) => {
         warnings.push(`terminal-context-restore-failed: ${errorMessage(error)}`);
         return false;
       });
@@ -515,7 +519,8 @@ export class MockDictationPipeline {
       status: job.status,
       originalText: job.transcribedText,
       correctedText: job.correctedText,
-      targetContextId: job.targetContextId,
+      targetContext: job.targetContext,
+      targetContextId: targetContextToLegacyId(job.targetContext),
       screenshotIds: job.screenshotIds,
       isDeliverable: isDeliverableJobStatus(job.status),
       isProcessing: isProcessingJobStatus(job.status),

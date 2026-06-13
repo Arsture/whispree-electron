@@ -1,3 +1,4 @@
+import { cloneTargetContextSnapshot, emptyTargetContextSnapshot, targetContextFromLegacyId, type TargetContextSnapshot } from './context';
 import type { CorrectionMapping, CorrectionMode, DomainWordSet, LLMProviderType, STTProviderType, SupportedLanguage } from './settings';
 
 export type DictationJobId = string;
@@ -50,7 +51,7 @@ export interface DictationJob {
   readonly createdAtIso: string;
   readonly snapshot: DictationJobSnapshot;
   readonly status: DictationJobStatus;
-  readonly targetContextId: string | null;
+  readonly targetContext: TargetContextSnapshot;
   readonly screenshotIds: readonly string[];
   readonly selectedImageIds: readonly string[];
   readonly transcribedText: string;
@@ -62,6 +63,8 @@ export interface EnqueueDictationJobInput {
   readonly id?: DictationJobId;
   readonly createdAtIso?: string;
   readonly snapshot: DictationJobSnapshot;
+  readonly targetContext?: TargetContextSnapshot;
+  /** Legacy input shim for adapters that still pass an opaque context id. */
   readonly targetContextId?: string | null;
   readonly screenshotIds?: readonly string[];
 }
@@ -122,7 +125,7 @@ export class DictationQueueState {
       createdAtIso: input.createdAtIso ?? new Date(0).toISOString(),
       snapshot: cloneSerializable(input.snapshot),
       status: 'queued',
-      targetContextId: input.targetContextId ?? null,
+      targetContext: cloneTargetContextSnapshot(input.targetContext ?? targetContextFromLegacyId(input.targetContextId ?? null) ?? emptyTargetContextSnapshot),
       screenshotIds: [...(input.screenshotIds ?? [])],
       selectedImageIds: [],
       transcribedText: '',

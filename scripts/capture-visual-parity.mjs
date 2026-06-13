@@ -188,7 +188,7 @@ else if (!swiftShotExists) blockers.push('swift-reference-screenshot-missing-run
 const checklist = buildChecklist(swiftContract, { electronExists, swiftShotExists, shouldCaptureSwift });
 const claim = blockers.length === 0 ? 'ready-for-manual-side-by-side-review' : 'blocked-not-pixel-perfect';
 const verdict = {
-  ok: true,
+  ok: blockers.length === 0,
   dryRun,
   shouldCaptureSwift,
   claim,
@@ -217,7 +217,7 @@ const verdict = {
 const markdown = renderMarkdown(verdict);
 writeFileSync(verdictPath, markdown, 'utf8');
 writeFileSync(jsonPath, `${JSON.stringify(verdict, null, 2)}\n`, 'utf8');
-console.log(JSON.stringify({ ok: true, dryRun, shouldCaptureSwift, electronShot: verdict.artifacts.electronScreenshot, swiftShot: verdict.artifacts.swiftScreenshot, swiftApp: swiftApp ?? null, swiftBundleId, verdictPath, jsonPath, blockers }, null, 2));
+console.log(JSON.stringify({ ok: verdict.ok, dryRun, shouldCaptureSwift, electronShot: verdict.artifacts.electronScreenshot, swiftShot: verdict.artifacts.swiftScreenshot, swiftApp: swiftApp ?? null, swiftBundleId, verdictPath, jsonPath, blockers }, null, 2));
 
 async function captureElectron() {
   if (process.platform === 'darwin' && existsSync(packagedExecutable)) {

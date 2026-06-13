@@ -1,4 +1,5 @@
 import type { AppSnapshot, PermissionCardSnapshot, ProviderCardSnapshot, QueueItemSnapshot } from '../../shared/ipc';
+import { emptyTargetContextSnapshot } from '../../shared/context';
 import { jobLabel, queueProcessingText, statusTitle, statusTone } from '../ui-model';
 import { StatusPill, Waveform } from '../components/primitives';
 import { TranscriptionOverlayMock } from './TranscriptionOverlayMock';
@@ -213,6 +214,7 @@ function QueueCards({ jobs }: { readonly jobs: readonly QueueItemSnapshot[] }) {
       status: 'queued',
       originalText: '',
       correctedText: '',
+      targetContext: emptyTargetContextSnapshot,
       targetContextId: null,
       screenshotIds: [],
       isDeliverable: false,

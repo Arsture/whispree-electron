@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
 import { initialAppSnapshot, type AppSnapshot } from '../shared/ipc';
+import { emptyTargetContextSnapshot } from '../shared/context';
 import { defaultAppSettings, type AppSettingsSnapshot } from '../shared/settings';
 import { SIDEBAR_SECTIONS } from './ui-model';
 
@@ -129,6 +130,7 @@ describe('App Swift parity shell markup', () => {
             status: 'transcribing',
             originalText: '',
             correctedText: '',
+            targetContext: emptyTargetContextSnapshot,
             targetContextId: null,
             screenshotIds: [],
             isDeliverable: false,

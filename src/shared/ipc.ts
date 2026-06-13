@@ -1,4 +1,5 @@
 import type { DictationJobStatus } from './queue';
+import type { TargetContextSnapshot } from './context';
 import type { AppSettingsSnapshot, AppSettingsUpdate } from './settings';
 import type { ImplementationStatus } from './status';
 
@@ -75,6 +76,8 @@ export interface QueueItemSnapshot {
   readonly status: DictationJobStatus;
   readonly originalText: string;
   readonly correctedText: string;
+  readonly targetContext: TargetContextSnapshot;
+  /** Derived legacy adapter/display id. New code should use targetContext. */
   readonly targetContextId: string | null;
   readonly screenshotIds: readonly string[];
   readonly isDeliverable: boolean;

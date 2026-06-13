@@ -20,7 +20,8 @@ export interface PermissionAdapter {
 
 export interface HotkeyAdapter {
   readonly descriptor: AdapterDescriptor;
-  register(shortcut: string, callback: () => void): Promise<void>;
+  readonly supportsKeyRelease?: boolean;
+  register(shortcut: string, pressed: () => void, released?: () => void): Promise<void>;
   unregister(shortcut: string): Promise<void>;
 }
 

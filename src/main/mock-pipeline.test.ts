@@ -290,6 +290,8 @@ describe('MockDictationPipeline', () => {
 
     const item = pipeline.getSnapshot().queue.items[0]!;
     expect(item.screenshotIds).toEqual(['shot-1']);
+    expect(item.targetContext.browser?.url).toBe('https://example.com');
+    expect(item.targetContext.terminal?.tmuxWindow).toBe('tmux:whispree');
     expect(item.targetContextId).toContain('example.com');
     expect(item.targetContextId).toContain('tmux:whispree');
     expect(restored.some((entry) => entry.startsWith('browser:'))).toBe(true);
@@ -325,6 +327,8 @@ describe('MockDictationPipeline', () => {
     await pipeline.whenIdle();
 
     const snapshot = pipeline.getSnapshot();
+    expect(snapshot.queue.items[0]?.targetContext.warnings).toContain('screen-context-stop-failed: screen denied');
+    expect(snapshot.queue.items[0]?.targetContext.warnings).toContain('browser-context-capture-failed: automation denied');
     expect(snapshot.queue.items[0]?.targetContextId).toContain('warnings');
     expect(snapshot.queue.items[0]?.targetContextId).toContain('screen-context-stop-failed');
     expect(snapshot.queue.items[0]?.targetContextId).toContain('browser-context-capture-failed');

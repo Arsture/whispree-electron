@@ -119,12 +119,13 @@ async function captureAndQuit(outputPath: string): Promise<void> {
   }
 }
 
-function createMainWindow(): void {
+function createMainWindow(options: { readonly show?: boolean } = {}): void {
   mainWindow = new BrowserWindow({
     width: 880,
     height: 640,
     minWidth: 880,
     minHeight: 640,
+    show: options.show ?? true,
     title: 'Whispree',
     ...(process.platform === 'darwin'
       ? {
@@ -163,6 +164,11 @@ function createMainWindow(): void {
       query: initialSectionQuery(),
     });
   }
+}
+
+function getOrCreateRecordingWindow(): BrowserWindow | null {
+  if (!mainWindow) createMainWindow({ show: false });
+  return mainWindow;
 }
 
 function initialSectionQuery(): Record<string, string> {
@@ -219,7 +225,7 @@ function createTray(): void {
 }
 
 class RendererRecordingBridge {
-  constructor(private readonly getWindow: () => BrowserWindow | null) {}
+  constructor(private readonly getOrCreateWindow: () => BrowserWindow | null) {}
 
   startRealRecording(): void {
     this.#send('start-real-recording');
@@ -230,9 +236,14 @@ class RendererRecordingBridge {
   }
 
   #send(command: RecordingHotkeyCommand): void {
-    const window = this.getWindow();
+    const window = this.getOrCreateWindow();
     if (!window || window.webContents.isDestroyed()) return;
-    window.webContents.send(IPC_CHANNELS.recordingHotkey, { command });
+    const send = () => window.webContents.send(IPC_CHANNELS.recordingHotkey, { command });
+    if (window.webContents.isLoadingMainFrame()) {
+      window.webContents.once('did-finish-load', send);
+      return;
+    }
+    send();
   }
 }
 
@@ -285,7 +296,7 @@ async function initializeMainState(): Promise<void> {
     hotkeyAdapter: adapters.hotkey,
     shortcut: settings.getSnapshot().toggleRecordingShortcut.label,
     settingsProvider: () => settings.getSnapshot(),
-    realRecordingBridge: new RendererRecordingBridge(() => mainWindow),
+    realRecordingBridge: new RendererRecordingBridge(() => getOrCreateRecordingWindow()),
   });
   if (shouldRegisterGlobalShortcuts()) {
     await recordingController.register().catch((error) => {
@@ -452,6 +463,7 @@ app.whenReady().then(() => {
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
+    else mainWindow?.show();
   });
 });
 

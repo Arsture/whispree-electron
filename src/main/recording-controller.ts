@@ -39,7 +39,9 @@ export class RecordingController {
   async register(): Promise<void> {
     if (this.#registered) return;
     await this.#hotkeyAdapter.register(this.#shortcut, () => {
-      this.toggleRecording();
+      this.handleShortcutPressed();
+    }, () => {
+      this.handleShortcutReleased();
     });
     this.#registered = true;
   }
@@ -66,7 +68,7 @@ export class RecordingController {
     const snapshot = this.#pipeline.getSnapshot();
     const mode = this.#settingsProvider().recordingMode;
     if (snapshot.recording.active) {
-      if (mode === 'toggle') return this.#stopRealRecordingPreferred();
+      if (mode === 'toggle' || this.#mustUsePressAgainToStop(mode)) return this.#stopRealRecordingPreferred();
       return snapshot;
     }
     return this.#startRealRecordingPreferred();
@@ -97,5 +99,9 @@ export class RecordingController {
       return this.#pipeline.getSnapshot();
     }
     return this.#pipeline.cancelForegroundJob();
+  }
+
+  #mustUsePressAgainToStop(mode: AppSettingsSnapshot['recordingMode']): boolean {
+    return mode === 'push-to-talk' && this.#hotkeyAdapter.supportsKeyRelease !== true;
   }
 }

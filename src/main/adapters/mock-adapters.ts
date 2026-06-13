@@ -42,10 +42,15 @@ export class StaticPermissionAdapter implements PermissionAdapter {
 
 export class MockHotkeyAdapter implements HotkeyAdapter {
   readonly descriptor = descriptor('mock-hotkey', 'Mock hotkey adapter', 'cross-platform', 'mock', 'In-process hotkey callback registry for tests.');
-  readonly #callbacks = new Map<string, () => void>();
+  readonly supportsKeyRelease: boolean;
+  readonly #callbacks = new Map<string, { readonly pressed: () => void; readonly released?: () => void }>();
 
-  async register(shortcut: string, callback: () => void): Promise<void> {
-    this.#callbacks.set(shortcut, callback);
+  constructor(options: { readonly supportsKeyRelease?: boolean } = {}) {
+    this.supportsKeyRelease = options.supportsKeyRelease ?? true;
+  }
+
+  async register(shortcut: string, pressed: () => void, released?: () => void): Promise<void> {
+    this.#callbacks.set(shortcut, { pressed, released });
   }
 
   async unregister(shortcut: string): Promise<void> {
@@ -53,9 +58,16 @@ export class MockHotkeyAdapter implements HotkeyAdapter {
   }
 
   trigger(shortcut: string): boolean {
-    const callback = this.#callbacks.get(shortcut);
-    if (!callback) return false;
-    callback();
+    const callbacks = this.#callbacks.get(shortcut);
+    if (!callbacks) return false;
+    callbacks.pressed();
+    return true;
+  }
+
+  release(shortcut: string): boolean {
+    const callbacks = this.#callbacks.get(shortcut);
+    if (!callbacks?.released || !this.supportsKeyRelease) return false;
+    callbacks.released();
     return true;
   }
 }
@@ -67,7 +79,7 @@ export class PlannedHotkeyAdapter implements HotkeyAdapter {
     this.descriptor = descriptor(`${platform}-hotkey`, `${platform} hotkey adapter`, platform, status, detail);
   }
 
-  async register(_shortcut: string, _callback: () => void): Promise<void> {
+  async register(_shortcut: string, _pressed: () => void, _released?: () => void): Promise<void> {
     throw new Error(`${this.descriptor.label} is ${this.descriptor.status}.`);
   }
 

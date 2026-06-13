@@ -64,13 +64,14 @@ describe('RecordingController', () => {
     expect(pipeline.getSnapshot().recording.active).toBe(true);
   });
 
-  it('uses push-to-talk release as the stop edge and ignores repeated press while recording', () => {
+  it('uses push-to-talk release as the stop edge when the hotkey adapter supports key-up', async () => {
     const calls: string[] = [];
     const settings: AppSettingsSnapshot = { ...defaultAppSettings, recordingMode: 'push-to-talk' };
+    const hotkey = new MockHotkeyAdapter({ supportsKeyRelease: true });
     const pipeline = new MockDictationPipeline(undefined, immediateDelay);
     const controller = new RecordingController({
       pipeline,
-      hotkeyAdapter: new MockHotkeyAdapter(),
+      hotkeyAdapter: hotkey,
       shortcut: '⌃⇧R',
       settingsProvider: () => settings,
       realRecordingBridge: {
@@ -79,11 +80,38 @@ describe('RecordingController', () => {
       },
     });
 
+    await controller.register();
+    hotkey.trigger('⌃⇧R');
     pipeline.startRealRecording({ mimeType: 'audio/webm' });
-    controller.handleShortcutPressed();
-    controller.handleShortcutReleased();
+    hotkey.trigger('⌃⇧R');
+    hotkey.release('⌃⇧R');
 
-    expect(calls).toEqual(['stop-real-recording']);
+    expect(calls).toEqual(['start-real-recording', 'stop-real-recording']);
+  });
+
+  it('degrades push-to-talk to press-again-to-stop when Electron globalShortcut lacks key-up events', async () => {
+    const calls: string[] = [];
+    const settings: AppSettingsSnapshot = { ...defaultAppSettings, recordingMode: 'push-to-talk' };
+    const hotkey = new MockHotkeyAdapter({ supportsKeyRelease: false });
+    const pipeline = new MockDictationPipeline(undefined, immediateDelay);
+    const controller = new RecordingController({
+      pipeline,
+      hotkeyAdapter: hotkey,
+      shortcut: '⌃⇧R',
+      settingsProvider: () => settings,
+      realRecordingBridge: {
+        startRealRecording: () => calls.push('start-real-recording'),
+        stopRealRecording: () => calls.push('stop-real-recording'),
+      },
+    });
+
+    await controller.register();
+    hotkey.trigger('⌃⇧R');
+    pipeline.startRealRecording({ mimeType: 'audio/webm' });
+    expect(hotkey.release('⌃⇧R')).toBe(false);
+    hotkey.trigger('⌃⇧R');
+
+    expect(calls).toEqual(['start-real-recording', 'stop-real-recording']);
   });
 
   it('re-registers the global shortcut when settings change it', async () => {
