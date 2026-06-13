@@ -282,14 +282,18 @@ export function validateSettingsUpdate(value: unknown): { readonly ok: true; rea
         if (typeof rawValue === 'number' && Number.isInteger(rawValue) && rawValue >= 0) mutableUpdate[key] = rawValue;
         else issues.push('audioInputChannel must be a non-negative integer');
         break;
-      case 'domainWordSets':
-        if (Array.isArray(rawValue)) mutableUpdate[key] = normalizeDomainWordSets(rawValue);
-        else issues.push('domainWordSets must be an array');
+      case 'domainWordSets': {
+        const result = validateDomainWordSetsForUpdate(rawValue);
+        if (result.ok) mutableUpdate[key] = result.value;
+        else issues.push(...result.issues);
         break;
-      case 'correctionMappings':
-        if (Array.isArray(rawValue)) mutableUpdate[key] = normalizeCorrectionMappings(rawValue);
-        else issues.push('correctionMappings must be an array');
+      }
+      case 'correctionMappings': {
+        const result = validateCorrectionMappingsForUpdate(rawValue, 'correctionMappings');
+        if (result.ok) mutableUpdate[key] = result.value;
+        else issues.push(...result.issues);
         break;
+      }
       case 'toggleRecordingShortcut':
       case 'quickFixShortcut':
         if (isValidShortcut(rawValue)) mutableUpdate[key] = normalizeShortcut(rawValue, key === 'toggleRecordingShortcut' ? defaultToggleRecordingShortcut : defaultQuickFixShortcut);
@@ -348,6 +352,73 @@ function normalizeCorrectionMappings(value: unknown): readonly CorrectionMapping
     from: stringOr(correction.from, ''),
     to: stringOr(correction.to, ''),
   }));
+}
+
+function validateDomainWordSetsForUpdate(value: unknown): { readonly ok: true; readonly value: readonly DomainWordSet[] } | { readonly ok: false; readonly issues: readonly string[] } {
+  if (!Array.isArray(value)) return { ok: false, issues: ['domainWordSets must be an array'] };
+  const issues: string[] = [];
+  const sets: DomainWordSet[] = [];
+
+  value.forEach((item, index) => {
+    const prefix = `domainWordSets[${index}]`;
+    if (!isRecord(item)) {
+      issues.push(`${prefix} must be an object`);
+      return;
+    }
+
+    const id = requireString(item.id, `${prefix}.id`, issues);
+    const name = requireString(item.name, `${prefix}.name`, issues);
+    const words = validateStringArray(item.words, `${prefix}.words`, issues);
+    const corrections = validateCorrectionMappingsForUpdate(item.corrections, `${prefix}.corrections`);
+    if (!corrections.ok) issues.push(...corrections.issues);
+    if (typeof item.isEnabled !== 'boolean') issues.push(`${prefix}.isEnabled must be a boolean`);
+
+    if (id && name && words && corrections.ok && typeof item.isEnabled === 'boolean') {
+      sets.push({ id, name, words, corrections: corrections.value, isEnabled: item.isEnabled });
+    }
+  });
+
+  return issues.length > 0 ? { ok: false, issues } : { ok: true, value: sets };
+}
+
+function validateCorrectionMappingsForUpdate(value: unknown, path: string): { readonly ok: true; readonly value: readonly CorrectionMapping[] } | { readonly ok: false; readonly issues: readonly string[] } {
+  if (!Array.isArray(value)) return { ok: false, issues: [`${path} must be an array`] };
+  const issues: string[] = [];
+  const mappings: CorrectionMapping[] = [];
+
+  value.forEach((item, index) => {
+    const prefix = `${path}[${index}]`;
+    if (!isRecord(item)) {
+      issues.push(`${prefix} must be an object`);
+      return;
+    }
+
+    const id = requireString(item.id, `${prefix}.id`, issues);
+    const from = requireString(item.from, `${prefix}.from`, issues);
+    const to = requireString(item.to, `${prefix}.to`, issues);
+    if (id && from && to) mappings.push({ id, from, to });
+  });
+
+  return issues.length > 0 ? { ok: false, issues } : { ok: true, value: mappings };
+}
+
+function validateStringArray(value: unknown, path: string, issues: string[]): readonly string[] | null {
+  if (!Array.isArray(value)) {
+    issues.push(`${path} must be an array of strings`);
+    return null;
+  }
+  const strings: string[] = [];
+  value.forEach((item, index) => {
+    if (typeof item === 'string') strings.push(item);
+    else issues.push(`${path}[${index}] must be a string`);
+  });
+  return strings;
+}
+
+function requireString(value: unknown, path: string, issues: string[]): string | null {
+  if (typeof value === 'string') return value;
+  issues.push(`${path} must be a string`);
+  return null;
 }
 
 function normalizeShortcut(value: unknown, fallback: WhispreeShortcutSnapshot): WhispreeShortcutSnapshot {

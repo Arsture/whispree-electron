@@ -81,6 +81,17 @@ describe('App settings schema', () => {
     expect(validateSettingsUpdate({ recordingMode: 'bad-mode' })).toMatchObject({ ok: false });
     expect(validateSettingsUpdate({ audioInputChannel: -1 })).toMatchObject({ ok: false });
     expect(validateSettingsUpdate({ llmEnabled: 'yes' })).toMatchObject({ ok: false });
+    expect(validateSettingsUpdate({ domainWordSets: [{ id: 'set', name: 'Words', words: ['Codex'], corrections: [], isEnabled: true }] })).toEqual({
+      ok: true,
+      update: { domainWordSets: [{ id: 'set', name: 'Words', words: ['Codex'], corrections: [], isEnabled: true }] },
+    });
+    expect(validateSettingsUpdate({ domainWordSets: [{ id: 1, name: 'Words', words: ['ok', 7], corrections: [], isEnabled: true }] })).toMatchObject({ ok: false });
+    expect(validateSettingsUpdate({ domainWordSets: [{ id: 'set', name: 'Words', words: ['Codex'], corrections: [{ id: 'c1', from: 'codex', to: 42 }], isEnabled: true }] })).toMatchObject({ ok: false });
+    expect(validateSettingsUpdate({ correctionMappings: [{ id: 'm1', from: 'whisper', to: 'Whispree' }] })).toEqual({
+      ok: true,
+      update: { correctionMappings: [{ id: 'm1', from: 'whisper', to: 'Whispree' }] },
+    });
+    expect(validateSettingsUpdate({ correctionMappings: [{ id: 'm1', from: null, to: 'Whispree' }] })).toMatchObject({ ok: false });
     expect(validateSettingsUpdate(null)).toMatchObject({ ok: false });
   });
 
