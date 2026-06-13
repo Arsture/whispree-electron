@@ -1,3 +1,4 @@
+import engineManifest from '../../shared/local-engine-manifest.json';
 import type { LocalModelCapability, ProviderDescriptor, ProviderPlatform } from '../../shared/providers';
 import type { SidecarProcessSpec } from './process-sidecar-transport';
 
@@ -30,93 +31,7 @@ export interface LocalEngineReadiness {
   readonly message: string;
 }
 
-export const localEngineRegistry: readonly LocalEngineDescriptor[] = [
-  {
-    id: 'macos-mlx-audio-worker',
-    provider: {
-      id: 'macos-mlx-audio-worker',
-      label: 'macOS MLX Audio sidecar',
-      family: 'local-backend',
-      status: 'partial',
-      platform: 'macos',
-      detail: 'macOS-only MLX Python worker behind the stdio JSON sidecar protocol.',
-    },
-    capabilities: ['speech-to-text', 'text-correction', 'vision-correction'],
-    runtime: 'mlx-python',
-    protocol: 'stdio-json',
-    commandCandidates: ['uv', 'python3'],
-    readinessEnvKeys: ['WHISPREE_MLX_AUDIO_COMMAND'],
-    defaultArgs: [],
-  },
-  {
-    id: 'macos-whisperkit-coreml',
-    provider: {
-      id: 'macos-whisperkit-coreml',
-      label: 'macOS WhisperKit/CoreML',
-      family: 'local-backend',
-      status: 'partial',
-      platform: 'macos',
-      detail: 'macOS CoreML/ANE local STT path isolated behind a native-module adapter seam.',
-    },
-    capabilities: ['speech-to-text'],
-    runtime: 'whisperkit-coreml',
-    protocol: 'native-module',
-    commandCandidates: [],
-    readinessEnvKeys: ['WHISPREE_WHISPERKIT_HELPER'],
-    defaultArgs: [],
-  },
-  {
-    id: 'windows-whisper-cpp-directml',
-    provider: {
-      id: 'windows-whisper-cpp-directml',
-      label: 'Windows whisper.cpp DirectML/CUDA sidecar',
-      family: 'local-backend',
-      status: 'partial',
-      platform: 'windows',
-      detail: 'Windows STT sidecar candidate that avoids MLX and uses whisper.cpp with DirectML/CUDA builds when available.',
-    },
-    capabilities: ['speech-to-text'],
-    runtime: 'whisper-cpp',
-    protocol: 'stdio-json',
-    commandCandidates: ['whisper-cli.exe', 'whisper-cli', 'main.exe'],
-    readinessEnvKeys: ['WHISPREE_WINDOWS_WHISPER_CPP_COMMAND'],
-    defaultArgs: ['--whispree-jsonl-sidecar'],
-  },
-  {
-    id: 'windows-onnx-directml',
-    provider: {
-      id: 'windows-onnx-directml',
-      label: 'Windows ONNX Runtime DirectML sidecar',
-      family: 'local-backend',
-      status: 'partial',
-      platform: 'windows',
-      detail: 'Windows GPU-backed local AI candidate for STT/correction through ONNX Runtime DirectML; intentionally not MLX.',
-    },
-    capabilities: ['speech-to-text', 'text-correction'],
-    runtime: 'onnx-directml',
-    protocol: 'stdio-json',
-    commandCandidates: ['python.exe', 'python', 'onnxruntime_perf_test.exe'],
-    readinessEnvKeys: ['WHISPREE_WINDOWS_ONNX_COMMAND'],
-    defaultArgs: ['-m', 'whispree_sidecar.onnx_directml'],
-  },
-  {
-    id: 'windows-llama-cpp-vulkan',
-    provider: {
-      id: 'windows-llama-cpp-vulkan',
-      label: 'Windows llama.cpp Vulkan/CUDA sidecar',
-      family: 'local-backend',
-      status: 'partial',
-      platform: 'windows',
-      detail: 'Windows local correction/VLM sidecar through llama.cpp Vulkan/CUDA builds; intentionally not MLX.',
-    },
-    capabilities: ['text-correction', 'vision-correction'],
-    runtime: 'llama-cpp',
-    protocol: 'stdio-json',
-    commandCandidates: ['llama-cli.exe', 'llama-server.exe', 'llama-cli'],
-    readinessEnvKeys: ['WHISPREE_WINDOWS_LLAMA_CPP_COMMAND'],
-    defaultArgs: ['--whispree-jsonl-sidecar'],
-  },
-];
+export const localEngineRegistry = engineManifest as readonly LocalEngineDescriptor[];
 
 export function localEnginesForPlatform(platform: ProviderPlatform, capability?: LocalModelCapability): readonly LocalEngineDescriptor[] {
   return localEngineRegistry.filter((engine) => {

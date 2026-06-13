@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
@@ -11,6 +11,11 @@ const markdownPath = resolve(artifactRoot, 'readiness-probe.md');
 const env = process.env;
 const platform = process.platform;
 const now = new Date().toISOString();
+const localEngineManifestPath = resolve(repoRoot, 'src/shared/local-engine-manifest.json');
+const localEngineManifest = JSON.parse(readFileSync(localEngineManifestPath, 'utf8'));
+const windowsEngineManifest = localEngineManifest.filter((engine) => engine.provider?.platform === 'windows');
+const localCommandNames = Array.from(new Set(localEngineManifest.flatMap((engine) => engine.commandCandidates ?? [])));
+
 
 function command(commandName, args = [], options = {}) {
   try {
@@ -86,17 +91,7 @@ function windowsSigningReadiness() {
   };
 }
 
-const localCommands = [
-  'uv',
-  'python3',
-  'python.exe',
-  'whisper-cli',
-  'whisper-cli.exe',
-  'llama-cli',
-  'llama-cli.exe',
-  'llama-server.exe',
-  'onnxruntime_perf_test.exe',
-].map(commandExists);
+const localCommands = localCommandNames.map(commandExists);
 
 const probe = {
   generatedAt: now,
@@ -119,17 +114,23 @@ const probe = {
     windows: windowsSigningReadiness(),
   },
   localAi: {
-    windowsEnginePolicy: 'Windows candidates use whisper.cpp DirectML/CUDA, ONNX Runtime DirectML, and llama.cpp Vulkan/CUDA; MLX is macOS-only.',
-    windowsEngines: [
-      { id: 'windows-whisper-cpp-directml', runtime: 'whisper-cpp', env: 'WHISPREE_WINDOWS_WHISPER_CPP_COMMAND' },
-      { id: 'windows-onnx-directml', runtime: 'onnx-directml', env: 'WHISPREE_WINDOWS_ONNX_COMMAND' },
-      { id: 'windows-llama-cpp-vulkan', runtime: 'llama-cpp', env: 'WHISPREE_WINDOWS_LLAMA_CPP_COMMAND' },
-    ],
+    manifestPath: 'src/shared/local-engine-manifest.json',
+    windowsEnginePolicy: 'Windows candidates are loaded from the shared local-engine manifest and must avoid MLX runtimes.',
+    windowsAvoidsMlx: windowsEngineManifest.every((engine) => engine.runtime !== 'mlx-python' && !String(engine.id).toLowerCase().includes('mlx')),
+    windowsEngines: windowsEngineManifest.map((engine) => ({
+      id: engine.id,
+      runtime: engine.runtime,
+      protocol: engine.protocol,
+      env: (engine.readinessEnvKeys ?? []).join(', '),
+      commands: engine.commandCandidates ?? [],
+    })),
     commandAvailability: localCommands,
+    readiness: localEngineManifest.map((engine) => engineReadiness(engine)),
   },
   blockers: [],
 };
 
+if (!probe.localAi.windowsAvoidsMlx) probe.blockers.push('windows-local-ai-mlx-policy-violation');
 if (!probe.git.originalSwiftRepo.clean) probe.blockers.push('original-swift-repo-not-clean-or-unavailable');
 if (probe.signing.macos.status === 'blocked') probe.blockers.push('macos-signing-identity-missing');
 if (probe.signing.windows.status === 'blocked') probe.blockers.push('windows-signing-credentials-missing');
@@ -140,8 +141,77 @@ writeFileSync(jsonPath, `${JSON.stringify(probe, null, 2)}\n`, 'utf8');
 writeFileSync(markdownPath, renderMarkdown(probe), 'utf8');
 console.log(JSON.stringify({ ok: true, jsonPath, markdownPath, blockers: probe.blockers }, null, 2));
 
+
+function engineReadiness(engine) {
+  if (engine.protocol !== 'stdio-json') {
+    return {
+      id: engine.id,
+      platform: engine.provider?.platform ?? 'unknown',
+      runtime: engine.runtime,
+      protocol: engine.protocol,
+      status: 'unsupported-protocol',
+      command: null,
+      envKey: null,
+      detail: `${engine.protocol} engines require a native/http adapter before protocol health can run.`,
+    };
+  }
+  const envKey = (engine.readinessEnvKeys ?? []).find((key) => Boolean(env[key]) && String(env[key]).trim().length > 0) ?? null;
+  const commandName = envKey ? String(env[envKey]) : (engine.commandCandidates ?? [])[0] ?? null;
+  const availability = commandName ? commandExists(commandName) : { available: false, path: null };
+  return {
+    id: engine.id,
+    platform: engine.provider?.platform ?? 'unknown',
+    runtime: engine.runtime,
+    protocol: engine.protocol,
+    status: availability.available ? (envKey ? 'configured' : 'candidate') : 'missing-command',
+    command: commandName,
+    envKey,
+    detail: availability.path ?? 'missing',
+  };
+}
+
 function renderMarkdown(value) {
-  return `# Real Runtime Readiness Probe\n\nGenerated: ${value.generatedAt}\n\n## Host\n\n- Platform: ${value.host.platform}\n- Arch: ${value.host.arch}\n- Node: ${value.host.node}\n\n## Git\n\n- Migration repo: ${value.git.migrationRepo.detail}\n- Original Swift repo: ${value.git.originalSwiftRepo.detail}\n\n## Signing\n\n- macOS signing: ${value.signing.macos.status}\n- Windows signing: ${value.signing.windows.status}\n\n## Windows local AI engine policy\n\n${value.localAi.windowsEnginePolicy}\n\n${value.localAi.windowsEngines.map((item) => `- ${item.id}: ${item.runtime} via ${item.env}`).join('\n')}\n\n## Local AI command availability\n\n${value.localAi.commandAvailability.map((item) => `- ${item.command}: ${item.available ? item.path : 'missing'}`).join('\n')}\n\n## Blockers / not-tested\n\n${value.blockers.length > 0 ? value.blockers.map((item) => `- ${item}`).join('\n') : '- none'}\n`;
+  return `# Real Runtime Readiness Probe
+
+Generated: ${value.generatedAt}
+
+## Host
+
+- Platform: ${value.host.platform}
+- Arch: ${value.host.arch}
+- Node: ${value.host.node}
+
+## Git
+
+- Migration repo: ${value.git.migrationRepo.detail}
+- Original Swift repo: ${value.git.originalSwiftRepo.detail}
+
+## Signing
+
+- macOS signing: ${value.signing.macos.status}
+- Windows signing: ${value.signing.windows.status}
+
+## Windows local AI engine policy
+
+${value.localAi.windowsEnginePolicy}
+
+- Manifest: ${value.localAi.manifestPath}
+- Windows avoids MLX: ${value.localAi.windowsAvoidsMlx ? 'yes' : 'no'}
+
+${value.localAi.windowsEngines.map((item) => `- ${item.id}: ${item.runtime} / ${item.protocol} via ${item.env}`).join('\n')}
+
+## Local AI readiness
+
+${value.localAi.readiness.map((item) => `- ${item.id}: ${item.status} (${item.command ?? 'no command'})`).join('\n')}
+
+## Local AI command availability
+
+${value.localAi.commandAvailability.map((item) => `- ${item.command}: ${item.available ? item.path : 'missing'}`).join('\n')}
+
+## Blockers / not-tested
+
+${value.blockers.length > 0 ? value.blockers.map((item) => `- ${item}`).join('\n') : '- none'}
+`;
 }
 
 function shellQuote(value) {

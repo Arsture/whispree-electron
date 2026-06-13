@@ -91,8 +91,8 @@ export const llmProviderChoices: readonly ProviderChoiceDescriptor[] = [
     detail: 'Deterministic correction placeholder for tests and offline development.',
   },
   {
-    id: 'local-mlx-llm',
-    label: '로컬 MLX',
+    id: 'local-os-llm',
+    label: 'OS Local Sidecar',
     family: 'local-backend',
     status: 'partial',
     selectedStatus: 'partial',

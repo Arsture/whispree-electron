@@ -11,6 +11,12 @@ describe('provider registry', () => {
     expect(openai).toMatchObject({ requiresCredential: true, selectedStatus: 'credential-gated' });
   });
 
+  it('labels local providers as OS sidecars instead of implying Windows MLX', () => {
+    expect(sttProviderChoices.find((provider) => provider.providerType === 'local')).toMatchObject({ label: 'OS Local Sidecar' });
+    expect(llmProviderChoices.find((provider) => provider.providerType === 'local')).toMatchObject({ label: 'OS Local Sidecar' });
+    expect(llmProviderChoices.find((provider) => provider.providerType === 'local')?.detail).toContain('Windows selects llama.cpp/ONNX');
+  });
+
   it('selects descriptors from settings and keeps missing credentials gated', () => {
     const settings = { ...defaultAppSettings, sttProviderType: 'groq' as const, llmProviderType: 'openai' as const };
     const [stt, llm] = selectedProviderDescriptors(settings);

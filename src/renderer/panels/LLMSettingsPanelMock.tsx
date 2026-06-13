@@ -43,7 +43,7 @@ type CorrectionModeCard = {
 
 const providers = [
   { id: 'none', label: '없음 (원문 사용)', subtitle: 'LLM 교정 비활성화' },
-  { id: 'local', label: '로컬 MLX', subtitle: '온디바이스 MLX/MLX-VLM' },
+  { id: 'local', label: 'OS Local Sidecar', subtitle: 'macOS MLX · Windows llama.cpp/ONNX, no Windows MLX' },
   { id: 'openai', label: 'OpenAI (GPT)', subtitle: 'Codex CLI 또는 OpenAI 로그인' },
   { id: 'groq', label: 'Groq Cloud', subtitle: 'STT와 API Key 공유' },
 ] as const;
@@ -592,8 +592,8 @@ export function LLMSettingsPanelMock({
       {selectedProvider === 'local' ? (
         <>
           <ModelSection
-            title="로컬 모델"
-            eyebrow="Apple Silicon · local branch"
+            title="OS 로컬 모델"
+            eyebrow="macOS MLX · Windows llama.cpp/ONNX sidecar"
             models={selectedLocalModels}
             onSelect={(model) => void onUpdateSettings({ llmModelId: model.id })}
           />

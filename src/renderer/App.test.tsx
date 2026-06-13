@@ -176,8 +176,12 @@ describe('App Swift parity shell markup', () => {
     expect(screen.getAllByText('WhisperKit Large V3 Turbo').length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('radio', { name: /Groq Cloud API/u }));
     expect(whispreeMock.updateSettings).toHaveBeenCalledWith({ sttProviderType: 'groq' });
+    fireEvent.click(screen.getByRole('radio', { name: /OS Local Sidecar.*Windows whisper\.cpp\/ONNX/u }));
+    expect(whispreeMock.updateSettings).toHaveBeenCalledWith({ sttProviderType: 'local' });
 
     fireEvent.click(screen.getByRole('tab', { name: /LLM/u }));
+    fireEvent.click(screen.getByRole('radio', { name: /OS Local Sidecar.*Windows llama\.cpp\/ONNX/u }));
+    expect(whispreeMock.updateSettings).toHaveBeenCalledWith({ llmProviderType: 'local', llmEnabled: true });
     fireEvent.click(screen.getByRole('radio', { name: /OpenAI \(GPT\)/u }));
     expect(whispreeMock.updateSettings).toHaveBeenCalledWith({ llmProviderType: 'openai', llmEnabled: true });
     await screen.findByText('Structured');

@@ -18,7 +18,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check:boundaries": "node scripts/check-boundaries.mjs",
-    "verify": "npm run check:workflows && npm run check:boundaries && npm run typecheck && npm run lint && npm run test:parity-script && npm run test:signing-preflight && npm test",
+    "verify": "npm run check:workflows && npm run check:boundaries && npm run typecheck && npm run lint && npm run test:parity-script && npm run test:signing-preflight && npm run test:readiness-probe && npm test",
     "check:workflows": "node scripts/check-workflows.mjs",
     "probe:real": "node scripts/real-readiness-probe.mjs",
     "parity:capture": "node scripts/capture-visual-parity.mjs",
@@ -29,7 +29,8 @@
     "tabs:capture": "node scripts/capture-packaged-tabs.mjs",
     "build:macos-hotkey-helper": "node scripts/build-macos-hotkey-helper.mjs",
     "prepackage": "npm run build:macos-hotkey-helper",
-    "premake": "npm run build:macos-hotkey-helper"
+    "premake": "npm run build:macos-hotkey-helper",
+    "test:readiness-probe": "node scripts/real-readiness-probe.test.mjs"
   },
   "dependencies": {
     "electron-squirrel-startup": "1.0.1",

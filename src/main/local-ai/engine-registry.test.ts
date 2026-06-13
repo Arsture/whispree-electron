@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { assertWindowsEnginesAvoidMlx, buildSidecarProcessSpec, localEnginesForPlatform, probeLocalEngineReadiness, selectLocalEngine } from './engine-registry';
+import manifest from '../../shared/local-engine-manifest.json';
+import { assertWindowsEnginesAvoidMlx, buildSidecarProcessSpec, localEngineRegistry, localEnginesForPlatform, probeLocalEngineReadiness, selectLocalEngine } from './engine-registry';
 
 describe('local AI engine registry', () => {
-  it('keeps Windows local AI candidates off MLX runtimes', () => {
+  it('loads local engines from the shared manifest and keeps Windows candidates off MLX runtimes', () => {
+    expect(localEngineRegistry.map((engine) => engine.id)).toEqual(manifest.map((engine) => engine.id));
     const windowsEngines = localEnginesForPlatform('windows');
 
     expect(windowsEngines.length).toBeGreaterThan(1);

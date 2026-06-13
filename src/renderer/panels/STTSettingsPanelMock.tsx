@@ -6,7 +6,7 @@ import '../styles/settings-stt.css';
 type ProviderTone = 'neutral' | 'warning' | 'success';
 type ProviderState = 'ready' | 'loading' | 'downloading' | 'download-required' | 'error';
 type CompatibilityGrade = 'RUNS GREAT' | 'RUNS WELL' | 'DECENT' | 'TIGHT FIT' | 'BARELY RUNS' | 'TOO HEAVY';
-type ProviderId = Extract<STTProviderType, 'groq' | 'mlx-audio' | 'whisperkit'>;
+type ProviderId = Extract<STTProviderType, 'groq' | 'mlx-audio' | 'whisperkit' | 'local'>;
 
 interface MetricModel {
   readonly icon: string;
@@ -39,6 +39,21 @@ const providers: readonly ProviderModel[] = [
       { icon: '▥', label: 'Quality 95' },
     ],
     stateCopy: 'Ready',
+  },
+
+  {
+    id: 'local',
+    title: 'OS Local Sidecar',
+    description: 'macOS MLX/WhisperKit, Windows whisper.cpp/ONNX — MLX는 Windows에서 선택하지 않음',
+    grade: 'RUNS WELL',
+    state: 'download-required',
+    selected: false,
+    metrics: [
+      { icon: '▣', label: 'OS-aware' },
+      { icon: '⌁', label: 'Sidecar' },
+      { icon: '⊘', label: 'No Windows MLX' },
+    ],
+    stateCopy: 'sidecar 설정 필요',
   },
   {
     id: 'mlx-audio',
@@ -201,7 +216,7 @@ export function STTSettingsPanelMock({
 }
 
 function selectedSttProvider(provider: STTProviderType): ProviderModel['id'] {
-  if (provider === 'groq' || provider === 'mlx-audio' || provider === 'whisperkit') return provider;
+  if (provider === 'groq' || provider === 'mlx-audio' || provider === 'whisperkit' || provider === 'local') return provider;
   return 'whisperkit';
 }
 
