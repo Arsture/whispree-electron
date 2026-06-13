@@ -13,11 +13,14 @@ const dryRun = process.argv.includes('--dry-run');
 mkdirSync(artifactRoot, { recursive: true });
 mkdirSync(electronCaptureRoot, { recursive: true });
 
+const explicitSwiftAppPath = process.env.WHISPREE_SWIFT_APP_PATH;
+const shouldCaptureSwift = process.argv.includes('--capture-swift') || process.env.WHISPREE_CAPTURE_SWIFT_APP === '1' || Boolean(explicitSwiftAppPath);
 const swiftCandidates = [
+  explicitSwiftAppPath,
   '/Applications/Whispree.app',
   resolve(repoRoot, '..', 'whispree', 'build', 'Whispree.app'),
   resolve(repoRoot, '..', 'whispree', 'DerivedData', 'Whispree.app'),
-];
+].filter(Boolean);
 const swiftApp = swiftCandidates.find((candidate) => existsSync(candidate));
 const captureErrors = [];
 
@@ -25,7 +28,7 @@ if (!dryRun) {
   removeStaleCapture(electronShot);
   removeStaleCapture(swiftShot);
   await captureElectron().catch((error) => captureErrors.push(`electron-capture-failed: ${errorMessage(error)}`));
-  if (swiftApp && process.platform === 'darwin') {
+  if (shouldCaptureSwift && swiftApp && process.platform === 'darwin') {
     await captureSwift(swiftApp).catch((error) => captureErrors.push(`swift-capture-failed: ${errorMessage(error)}`));
   }
 }
@@ -35,12 +38,13 @@ const swiftShotExists = existsSync(swiftShot);
 const blockers = [...captureErrors];
 if (dryRun) blockers.push('dry-run-did-not-capture-current-screenshots');
 if (!electronExists) blockers.push('electron-screenshot-missing-run-without-dry-run');
-if (!swiftApp) blockers.push('swift-app-bundle-not-found-for-side-by-side-capture');
+if (!shouldCaptureSwift) blockers.push('swift-reference-capture-requires-explicit-opt-in');
+else if (!swiftApp) blockers.push('swift-app-bundle-not-found-for-side-by-side-capture');
 else if (!swiftShotExists) blockers.push('swift-reference-screenshot-missing-run-without-dry-run-or-screen-permission');
 
-const markdown = `# Whispree Side-by-Side Visual Parity Verdict\n\nGenerated: ${new Date().toISOString()}\n\n## Artifacts\n\n- Electron screenshot: ${electronExists ? electronShot : 'missing'}\n- Swift app candidate: ${swiftApp ?? 'missing'}\n- Swift screenshot: ${swiftShotExists ? swiftShot : 'missing'}\n\n## Verdict\n\n${blockers.length === 0 ? 'Ready for manual/pixel side-by-side review. No pixel-perfect claim is made by this script.' : 'Blocked/not-tested for pixel parity. Do not claim pixel-perfect parity.'}\n\n## Blockers\n\n${blockers.length > 0 ? blockers.map((item) => `- ${item}`).join('\n') : '- none'}\n\n## Required manual checklist\n\n- Sidebar tabs match Swift tab set, order, spacing, active and collapsed states.\n- Liquid/glassy material, card radius, blur, shadow, and accent colors match Swift reference.\n- Recording overlay status, waveform bars, hotkey badges, and queue/history states match Swift behavior.\n- Permission prompts and request affordances are present without exposing raw OS APIs to renderer.\n`;
+const markdown = `# Whispree Side-by-Side Visual Parity Verdict\n\nGenerated: ${new Date().toISOString()}\n\n## Artifacts\n\n- Electron screenshot: ${electronExists ? electronShot : 'missing'}\n- Swift app candidate: ${swiftApp ?? 'missing'}\n- Swift capture opt-in: ${shouldCaptureSwift ? 'enabled' : 'disabled'}\n- Swift screenshot: ${swiftShotExists ? swiftShot : 'missing'}\n\n## Verdict\n\n${blockers.length === 0 ? 'Ready for manual/pixel side-by-side review. No pixel-perfect claim is made by this script.' : 'Blocked/not-tested for pixel parity. Do not claim pixel-perfect parity.'}\n\n## Blockers\n\n${blockers.length > 0 ? blockers.map((item) => `- ${item}`).join('\n') : '- none'}\n\n## Required manual checklist\n\n- Sidebar tabs match Swift tab set, order, spacing, active and collapsed states.\n- Liquid/glassy material, card radius, blur, shadow, and accent colors match Swift reference.\n- Recording overlay status, waveform bars, hotkey badges, and queue/history states match Swift behavior.\n- Permission prompts and request affordances are present without exposing raw OS APIs to renderer.\n`;
 writeFileSync(verdictPath, markdown, 'utf8');
-console.log(JSON.stringify({ ok: true, dryRun, electronShot: electronExists ? electronShot : null, swiftShot: swiftShotExists ? swiftShot : null, swiftApp: swiftApp ?? null, verdictPath, blockers }, null, 2));
+console.log(JSON.stringify({ ok: true, dryRun, shouldCaptureSwift, electronShot: electronExists ? electronShot : null, swiftShot: swiftShotExists ? swiftShot : null, swiftApp: swiftApp ?? null, verdictPath, blockers }, null, 2));
 
 async function captureElectron() {
   await new Promise((resolvePromise, rejectPromise) => {
